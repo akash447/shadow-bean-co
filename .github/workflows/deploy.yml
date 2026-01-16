@@ -15,10 +15,11 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
     
     - name: 🔨 Build Project
       run: |
+        node --version
+        npm --version
         npm install
         npx expo export --platform web
     
