@@ -14,15 +14,12 @@ jobs:
     - name: ⚙️ Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '18'
     
     - name: 🔨 Build Project
       run: |
-        node --version
-        npm --version
         npm install
-        npm install -g expo-cli
-        expo export --platform web
+        npx expo export:web
     
     - name: 📂 Sync files
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
