@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Image, ImageProps, ImageStyle, StyleProp, View, ActivityIndicator } from 'react-native';
+import { Image, ImageProps, ImageStyle, StyleProp, View, ActivityIndicator, Platform } from 'react-native';
 import { supabase } from '@/src/services/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Only import AsyncStorage on native platforms
+let AsyncStorage: any = null;
+if (Platform.OS !== 'web') {
+    AsyncStorage = require('@react-native-async-storage/async-storage').default;
+}
 
 // Cache expiration: 24 hours
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000;
@@ -32,15 +37,18 @@ export const SupabaseImage: React.FC<SupabaseImageProps> = ({
         let cachedTimestamp = 0;
 
         try {
-            // 1. Check local cache first and display immediately
-            const cachedData = await AsyncStorage.getItem(`img_cache_${remoteKey}`);
-            if (cachedData) {
-                const { url, updatedAt, timestamp } = JSON.parse(cachedData);
-                // valid for 24 hours purely for "offline" fallback, but we always revalidate
-                if (url) {
-                    setUri(url); // Show cached immediately
-                    cachedTimestamp = updatedAt ? new Date(updatedAt).getTime() : 0;
-                    setLoading(false);
+            // Skip cache on web (AsyncStorage may not work reliably)
+            if (Platform.OS !== 'web' && AsyncStorage) {
+                // 1. Check local cache first and display immediately
+                const cachedData = await AsyncStorage.getItem(`img_cache_${remoteKey}`);
+                if (cachedData) {
+                    const { url, updatedAt, timestamp } = JSON.parse(cachedData);
+                    // valid for 24 hours purely for "offline" fallback, but we always revalidate
+                    if (url) {
+                        setUri(url); // Show cached immediately
+                        cachedTimestamp = updatedAt ? new Date(updatedAt).getTime() : 0;
+                        setLoading(false);
+                    }
                 }
             }
 
@@ -116,14 +124,17 @@ export const useSupabaseImage = (remoteKey: string, defaultSource: any) => {
             let currentUri = null;
 
             try {
-                // 1. Cache
-                const cachedData = await AsyncStorage.getItem(`img_cache_${remoteKey}`);
-                if (cachedData) {
-                    const { url, updatedAt } = JSON.parse(cachedData);
-                    if (url) {
-                        setSource({ uri: url });
-                        currentUri = url;
-                        cachedTimestamp = updatedAt ? new Date(updatedAt).getTime() : 0;
+                // Skip cache on web (AsyncStorage may not work reliably)
+                if (Platform.OS !== 'web' && AsyncStorage) {
+                    // 1. Cache
+                    const cachedData = await AsyncStorage.getItem(`img_cache_${remoteKey}`);
+                    if (cachedData) {
+                        const { url, updatedAt } = JSON.parse(cachedData);
+                        if (url) {
+                            setSource({ uri: url });
+                            currentUri = url;
+                            cachedTimestamp = updatedAt ? new Date(updatedAt).getTime() : 0;
+                        }
                     }
                 }
 
@@ -141,11 +152,14 @@ export const useSupabaseImage = (remoteKey: string, defaultSource: any) => {
                         const finalUrl = `${data.url}?t=${serverUpdatedAt}`;
                         if (finalUrl !== currentUri) {
                             setSource({ uri: finalUrl });
-                            AsyncStorage.setItem(`img_cache_${remoteKey}`, JSON.stringify({
-                                url: finalUrl,
-                                updatedAt: data.updated_at || new Date().toISOString(),
-                                timestamp: Date.now()
-                            }));
+                            // Only cache on native
+                            if (Platform.OS !== 'web' && AsyncStorage) {
+                                AsyncStorage.setItem(`img_cache_${remoteKey}`, JSON.stringify({
+                                    url: finalUrl,
+                                    updatedAt: data.updated_at || new Date().toISOString(),
+                                    timestamp: Date.now()
+                                }));
+                            }
                         }
                     }
                 }
