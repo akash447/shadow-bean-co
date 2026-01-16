@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "1061284172096",
+        "project_id": "shadown-bean-co",
+        "storage_bucket": "shadown-bean-co.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:1061284172096:android:282878c9923fead539aaa5",
+                "android_client_info": {
+                    "package_name": "com.shadowbeanco.app"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyChmu33MoD2veUF0FP7AGUAJIlfvwervN8"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

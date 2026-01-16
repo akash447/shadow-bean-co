@@ -1,0 +1,154 @@
+import { useState, useEffect, Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Login } from './components/Login';
+import { Sidebar } from './components/Sidebar';
+import { BottomNav } from './components/BottomNav';
+import { Dashboard } from './pages/Dashboard';
+import { UsersPage } from './pages/UsersPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { PricingPage } from './pages/PricingPage';
+import { TermsPage } from './pages/TermsPage';
+import { ReviewsPage } from './pages/ReviewsPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { MediaPage } from './pages/MediaPage';
+import { AccessPage } from './pages/AccessPage';
+import { getSession } from './lib/supabase';
+import './index.css';
+
+// Error Boundary to catch render crashes
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 20, color: 'red' }}>
+          <h2>Something went wrong.</h2>
+          <pre>{this.state.error?.toString()}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function App() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const { session, error } = await getSession();
+      if (error) throw error;
+      if (session?.user) {
+        setUser(session.user);
+      }
+    } catch (err: any) {
+      console.error('Session check failed:', err);
+      setInitError(err.message || 'Failed to initialize app');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: '#f7f3ed',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        <div>Loading Admin Panel...</div>
+        {initError && <div style={{ color: 'red', fontSize: '12px' }}>{initError}</div>}
+      </div>
+    );
+  }
+
+  if (initError && !user) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <h2>Initialization Error</h2>
+        <p style={{ color: 'red' }}>{initError}</p>
+        <button onClick={() => window.location.reload()} className="btn btn-primary" style={{ marginTop: 20 }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            <Route path="*" element={<Login onLogin={setUser} />} />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <div className="app-container">
+          {/* Mobile Menu Toggle */}
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? '✕' : '☰'}
+          </button>
+
+          {/* Sidebar Overlay */}
+          <div
+            className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
+          />
+
+          <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <main className="main-content">
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/reviews" element={<ReviewsPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/media" element={<MediaPage />} />
+              <Route path="/access" element={<AccessPage />} />
+            </Routes>
+          </main>
+          <BottomNav />
+        </div>
+      </BrowserRouter>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
