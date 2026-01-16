@@ -21,7 +21,8 @@ jobs:
         node --version
         npm --version
         npm install
-        npx expo export --platform web
+        npm install -g expo-cli
+        expo export --platform web
     
     - name: 📂 Sync files
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
