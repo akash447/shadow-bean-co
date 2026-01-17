@@ -1,10 +1,10 @@
-# Deploy workflow v4 - Build in CI and force clean upload
+# Deploy workflow v5 - Fixed expo export command
 name: Deploy to Hostinger
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 jobs:
   web-deploy:
     name: 🎉 Build & Deploy
@@ -19,13 +19,11 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
-    - name: � Install dependencies
+    - name: 📥 Install dependencies
       run: npm ci
 
     - name: 🔨 Build web export
-      run: npx expo export --platform web
-      env:
-        CI: true
+      run: npm run build:web
 
     - name: 📂 Deploy to Hostinger
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
