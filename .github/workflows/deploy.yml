@@ -1,4 +1,4 @@
-# Deploy workflow v6 - Simple upload of pre-built dist
+# Deploy workflow v7 - Use hostname instead of IP
 name: Deploy to Hostinger
 on:
   push:
@@ -16,9 +16,10 @@ jobs:
     - name: 📂 Deploy to Hostinger
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
-        server: 82.25.125.133
+        server: ftp.shadowbeanco.com
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: ./public_html/
+        server-dir: /public_html/
         dangerous-clean-slate: true
+        log-level: verbose
