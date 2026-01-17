@@ -4,31 +4,57 @@ import {
     Text,
     StyleSheet,
     ScrollView,
-    Image,
     Pressable,
     Dimensions,
     StatusBar,
     ImageBackground,
     useWindowDimensions,
     Platform,
+    Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getReviews } from '@/src/services/supabase';
-import { SupabaseImage, useSupabaseImage } from '@/src/components/SupabaseImage';
 import { ImageKeys } from '@/src/constants/imageKeys';
 import { useCartStore } from '@/src/stores/cartStore';
+import { UniversalImage } from '@/src/components/UniversalImage';
 
-// --- 4 Key USPs with PNG icons ---
-// --- 4 Key USPs with PNG icons ---
+// --- Static Assets (Conditional: Web Public URL / Native Require) ---
+// On Web, we serve from /public/images/ to bypass bundler issues.
+// On Native, we use standard require().
+
+const getImgSource = (filename: string, nativeRequire: any) => {
+    if (Platform.OS === 'web') {
+        return { uri: `/images/${filename}` };
+    }
+    return nativeRequire;
+};
+
+// DEBUG: Hardcoded URL to test rendering
+// const iconShadeGrown = { uri: 'http://localhost:8084/images/icon_shade_grown.png' };
+const iconShadeGrown = getImgSource('icon_shade_grown.png', require('../../assets/images/icon_shade_grown.png'));
+
+const iconSaltRoasted = getImgSource('icon_salt_roasted.png', require('../../assets/images/icon_salt_roasted.png'));
+const iconSmallBatch = getImgSource('icon_small_batch.png', require('../../assets/images/icon_small_batch.png'));
+const iconPersonalised = getImgSource('icon_personalised.png', require('../../assets/images/icon_personalised.png'));
+const iconPourOver = getImgSource('icon_pour_over_kit.png', require('../../assets/images/icon_pour_over_kit.png'));
+const iconFrenchPress = getImgSource('icon_french_press.png', require('../../assets/images/icon_french_press.png'));
+const iconChhani = getImgSource('icon_chhani.png', require('../../assets/images/icon_chhani.png'));
+const homeHeroBg = getImgSource('home_hero.png', require('../../assets/images/home_hero.png'));
+const farmerBg = getImgSource('coffee_farmer.jpg', require('../../assets/images/coffee_farmer.jpg'));
+
+// Redesign Assets
+const productBag = getImgSource('product_bag.png', require('../../assets/images/product_bag.png'));
+const pourOverAction = getImgSource('pour_over_brewing_action.jpg', require('../../assets/images/pour_over_brewing_action.jpg'));
+const coffeeCherries = getImgSource('coffee_cherries.jpg', require('../../assets/images/coffee_cherries.jpg'));
+
+// --- 4 Key USPs (2x2 matrix layout) ---
 const USP_FEATURES = [
-    { key: ImageKeys.ICON_SHADE_GROWN, default: require('@/assets/images/icon_shade_grown.png'), title: 'SHADE GROWN', desc: 'Naturally grown under shade for richer flavor' },
-    { key: ImageKeys.ICON_SALT_ROASTED, default: require('@/assets/images/icon_salt_roasted.png'), title: 'SALT ROASTED', desc: 'Signature salt-air roast for smooth, clean taste' },
-    { key: ImageKeys.ICON_SMALL_BATCH, default: require('@/assets/images/icon_small_batch.png'), title: 'SMALL BATCH', desc: 'Roasted in small lots for freshness and precision' },
-    { key: ImageKeys.ICON_PERSONALISED, default: require('@/assets/images/icon_personalised.png'), title: 'PERSONALISED', desc: 'Roast profiles tailored to your taste' },
+    { source: iconShadeGrown, title: 'SHADE GROWN', desc: 'Naturally grown under shade for richer flavor.' },
+    { source: iconSaltRoasted, title: 'SALT ROASTED', desc: 'Signature salt-air roast for smooth, clean taste' },
+    { source: iconSmallBatch, title: 'SMALL BATCH', desc: 'Roasted in small lots for freshness and precision' },
+    { source: iconPersonalised, title: 'PERSONALISED ROASTS', desc: 'Roast profiles tailored to your taste' },
 ];
-
-const { height: STATIC_SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -36,12 +62,19 @@ export default function HomeScreen() {
     const { items } = useCartStore();
     const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Responsive dimensions
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
     const isWeb = Platform.OS === 'web';
-    // On web, use min-height instead of fixed height for better scrolling
-    const BLOCK_HEIGHT = isWeb ? undefined : SCREEN_HEIGHT;
+
+    // DEBUG: Check what the image import resolves to
+    if (isWeb) {
+        console.log('DEBUG: iconShadeGrown value:', iconShadeGrown);
+        console.log('DEBUG: farmerBg value:', farmerBg);
+        console.log('DEBUG: ImageKeys constant:', ImageKeys);
+    }
+
+    // On Web, use VH units for the full Viewport
+    const BLOCK_HEIGHT = isWeb ? '100vh' : SCREEN_HEIGHT;
 
     useEffect(() => {
         const defaultReviews = [
@@ -55,26 +88,326 @@ export default function HomeScreen() {
         });
     }, []);
 
-    // Load background image for story section
-    const storyBgSource = useSupabaseImage(ImageKeys.FARMER_HIGHLIGHT, require('@/assets/images/coffee_farmer.jpg'));
+    // --- RENDER CONTENT BLOCKS ---
+    const renderContent = () => (
+        <>
+            {/* ========== BLOCK 1: HERO (Dark Forest + USP) ========== */}
+            <View style={[styles.block, { height: BLOCK_HEIGHT, backgroundColor: '#000' }, isWeb && webStyles.webBlock] as any}>
+                {isWeb ? (
+                    <View
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            justifyContent: 'center',
+                            backgroundImage: `url(${homeHeroBg.uri})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                        } as any}
+                    >
+                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+
+                        <View style={[styles.heroContent, { justifyContent: 'center', paddingBottom: 100 }]}>
+                            <Text style={[styles.mainHeading, { color: '#fff', textAlign: 'center' }, isTablet && { fontSize: 50, lineHeight: 60 }]}>
+                                COFFEE MADE{'\n'}JUST FOR YOU
+                            </Text>
+                            <Text style={[
+                                styles.literallyText,
+                                isTablet && { fontSize: 60 },
+                                isWeb && { WebkitTextStroke: '1px #fff', color: 'transparent' } as any
+                            ]}>
+                                (LITERALLY)
+                            </Text>
+                        </View>
+
+                        <View style={styles.uspMatrix}>
+                            <View style={styles.uspMatrixRow}>
+                                {USP_FEATURES.slice(0, 2).map((item, i) => (
+                                    <View key={i} style={styles.uspMatrixItem}>
+                                        <UniversalImage
+                                            source={item.source}
+                                            style={[styles.uspIcon, { tintColor: '#fff' }]}
+                                            resizeMode="contain"
+                                        />
+                                        <Text style={[styles.uspText, { color: '#fff' }]}>{item.title}</Text>
+                                        <Text style={styles.uspDesc}>{item.desc}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={styles.uspMatrixRow}>
+                                {USP_FEATURES.slice(2, 4).map((item, i) => (
+                                    <View key={i} style={styles.uspMatrixItem}>
+                                        <UniversalImage
+                                            source={item.source}
+                                            style={[styles.uspIcon, { tintColor: '#fff' }]}
+                                            resizeMode="contain"
+                                        />
+                                        <Text style={[styles.uspText, { color: '#fff' }]}>{item.title}</Text>
+                                        <Text style={styles.uspDesc}>{item.desc}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+                ) : (
+                    <ImageBackground
+                        source={homeHeroBg}
+                        style={{ width: '100%', height: '100%', justifyContent: 'center' }}
+                        imageStyle={{ opacity: 1 }}
+                        resizeMode="cover"
+                    >
+                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+
+                        <View style={[styles.heroContent, { justifyContent: 'center', paddingBottom: 100 }]}>
+                            <Text style={[styles.mainHeading, { color: '#fff', textAlign: 'center' }, isTablet && { fontSize: 50, lineHeight: 60 }]}>
+                                COFFEE MADE{'\n'}JUST FOR YOU
+                            </Text>
+                            <Text style={[styles.literallyText, isTablet && { fontSize: 60 }]}>
+                                (LITERALLY)
+                            </Text>
+                        </View>
+
+                        <View style={styles.uspMatrix}>
+                            <View style={styles.uspMatrixRow}>
+                                {USP_FEATURES.slice(0, 2).map((item, i) => (
+                                    <View key={i} style={styles.uspMatrixItem}>
+                                        <UniversalImage
+                                            source={item.source}
+                                            style={[styles.uspIcon, { tintColor: '#fff' }]}
+                                            resizeMode="contain"
+                                        />
+                                        <Text style={[styles.uspText, { color: '#fff' }]}>{item.title}</Text>
+                                        <Text style={styles.uspDesc}>{item.desc}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={styles.uspMatrixRow}>
+                                {USP_FEATURES.slice(2, 4).map((item, i) => (
+                                    <View key={i} style={styles.uspMatrixItem}>
+                                        <UniversalImage
+                                            source={item.source}
+                                            style={[styles.uspIcon, { tintColor: '#fff' }]}
+                                            resizeMode="contain"
+                                        />
+                                        <Text style={[styles.uspText, { color: '#fff' }]}>{item.title}</Text>
+                                        <Text style={styles.uspDesc}>{item.desc}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </ImageBackground>
+                )}
+            </View>
+
+            {/* ========== BLOCK 2: PRODUCT FEATURE (White) ========== */}
+            <View style={[styles.block, styles.blockWhite, { height: BLOCK_HEIGHT, justifyContent: 'center' }, isWeb && webStyles.webBlock] as any}>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+                    <View style={{ width: isTablet ? 350 : 250, height: isTablet ? 350 : 250, marginBottom: 30 }}>
+                        <UniversalImage
+                            source={productBag}
+                            style={{ width: '100%', height: '100%' }}
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    <Text style={[styles.microHeading, { color: '#888', marginBottom: 16 }, isTablet && { fontSize: 14 }]}>YOUR PERFECT CUP</Text>
+                    <Text style={[styles.mainHeading, { color: '#000', textAlign: 'center', marginBottom: 40 }, isTablet && { fontSize: 40, lineHeight: 50 }]}>
+                        HOME OF THE WORLD'S{'\n'}FIRST SALT-ROASTED COFFEE
+                    </Text>
+
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.heroButton,
+                            {
+                                backgroundColor: pressed ? '#000' : 'transparent',
+                                borderColor: '#000',
+                                borderWidth: 2,
+                                ...(isWeb ? { cursor: 'pointer' } : {})
+                            } as any
+                        ]}
+                        onPress={() => router.push('/(tabs)/shop')}
+                    >
+                        {({ pressed }) => (
+                            <Text style={[styles.heroButtonText, { color: pressed ? '#fff' : '#000' }]}>
+                                PERSONALIZE AND BUY NOW
+                            </Text>
+                        )}
+                    </Pressable>
+                </View>
+            </View>
+
+            {/* ========== BLOCK 3: HOW TO USE (Start with Split Images) ========== */}
+            <View style={[styles.block, styles.blockCream, { minHeight: BLOCK_HEIGHT }, isWeb && webStyles.webBlock] as any}>
+                {/* Split Images Header - Fixed height to prevent full screen coverage */}
+                <View style={{ flexDirection: 'row', height: isWeb ? '40%' : 280, width: '100%' }}>
+                    <View style={{ flex: 1 }}>
+                        <UniversalImage source={pourOverAction} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <UniversalImage source={coffeeCherries} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    </View>
+                </View>
+
+                {/* Content Below */}
+                <View style={[styles.howToContainer, { flex: 1, justifyContent: 'center' }]}>
+                    <Text style={[styles.howToTitle, isTablet && { fontSize: 36 }]}>HOW TO USE STEPS</Text>
+                    <View style={styles.greenUnderline} />
+                    <Text style={[styles.howToSubtitle, isTablet && { fontSize: 18 }]}>
+                        To experience the full depth of our shade-grown, salt-roasted coffee — brew it black.
+                    </Text>
+
+                    <View style={[styles.stepsRow, { marginTop: 30 }, isTablet && { marginTop: 50, gap: 40 }]}>
+                        <View style={styles.stepItem}>
+                            <UniversalImage
+                                source={iconPourOver}
+                                style={[styles.stepIcon, isTablet && { width: 80, height: 80 }]}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.stepTitle}>BREW WITH{'\n'}OUR POUR-OVER{'\n'}KIT</Text>
+                            <Text style={styles.stepDesc}>Experience café-style clarity and flavor with our easy pour-over setup.</Text>
+                        </View>
+                        <View style={styles.stepItem}>
+                            <UniversalImage
+                                source={iconFrenchPress}
+                                style={[styles.stepIcon, isTablet && { width: 80, height: 80 }]}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.stepTitle}>USE YOUR{'\n'}OWN BREWER</Text>
+                            <Text style={styles.stepDesc}>Aeropress, Moka Pot, South Indian filter — brew it your way, your style.</Text>
+                        </View>
+                        <View style={styles.stepItem}>
+                            <UniversalImage
+                                source={iconChhani}
+                                style={[styles.stepIcon, isTablet && { width: 80, height: 80 }]}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.stepTitle}>BREW WITH A{'\n'}SIMPLE CHHANI</Text>
+                            <Text style={styles.stepDesc}>No equipment? No problem. A household strainer makes a smooth, honest cup.</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+
+            {/* ========== BLOCK 4: OUR STORY (Black) ========== */}
+            <View style={[styles.block, { height: BLOCK_HEIGHT, backgroundColor: '#000' }, isWeb && webStyles.webBlock] as any}>
+                {isWeb ? (
+                    <View
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            justifyContent: 'center',
+                            backgroundImage: `url(${farmerBg.uri})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                        } as any}
+                    >
+                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' }} />
+
+                        <View style={styles.storyContent}>
+                            <Text style={styles.storyLabel}>OUR JOURNEY</Text>
+                            <Text style={[styles.storyHeading, isTablet && { fontSize: 60 }]}>OUR{'\n'}STORY</Text>
+                            <Text style={[styles.storyBody, isTablet && { fontSize: 16, lineHeight: 28 }]}>
+                                We celebrate India's shade-grown coffee tradition with a unique salt-air roasting method that preserves depth, aroma, and sweetness.
+                            </Text>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.storyButton,
+                                    {
+                                        backgroundColor: pressed ? '#fff' : 'transparent',
+                                        ...(isWeb ? { cursor: 'pointer' } : {})
+                                    } as any
+                                ]}
+                                onPress={() => router.push('/(tabs)/about')}
+                            >
+                                {({ pressed }) => (
+                                    <Text style={[styles.storyButtonText, { color: pressed ? '#000' : '#fff' }]}>
+                                        DISCOVER MORE
+                                    </Text>
+                                )}
+                            </Pressable>
+                        </View>
+                    </View>
+                ) : (
+                    <ImageBackground
+                        source={farmerBg}
+                        style={{ width: '100%', height: '100%', justifyContent: 'center' }}
+                        imageStyle={{ opacity: 0.4 }}
+                        resizeMode="cover"
+                    >
+                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' }} />
+
+                        <View style={styles.storyContent}>
+                            <Text style={styles.storyLabel}>OUR JOURNEY</Text>
+                            <Text style={[styles.storyHeading, isTablet && { fontSize: 60 }]}>OUR{'\n'}STORY</Text>
+                            <Text style={[styles.storyBody, isTablet && { fontSize: 16, lineHeight: 28 }]}>
+                                We celebrate India's shade-grown coffee tradition with a unique salt-air roasting method that preserves depth, aroma, and sweetness.
+                            </Text>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.storyButton,
+                                    { backgroundColor: pressed ? '#fff' : 'transparent' }
+                                ]}
+                                onPress={() => router.push('/(tabs)/about')}
+                            >
+                                {({ pressed }) => (
+                                    <Text style={[styles.storyButtonText, { color: pressed ? '#000' : '#fff' }]}>
+                                        DISCOVER MORE
+                                    </Text>
+                                )}
+                            </Pressable>
+                        </View>
+                    </ImageBackground>
+                )}
+            </View>
+
+            {/* ========== BLOCK 4: TESTIMONIALS (Cream) ========== */}
+            <View style={[styles.block, styles.blockCream, { height: BLOCK_HEIGHT, justifyContent: 'center' }, isWeb && webStyles.webBlock] as any}>
+                <View style={styles.reviewsContent}>
+                    <Text style={styles.brandLabelSmall}>TESTIMONIALS</Text>
+                    <Text style={styles.reviewsHeading}>Loved By Coffee Lovers</Text>
+
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 20, gap: 20, paddingTop: 30 }}
+                    >
+                        {reviews.map((r, i) => (
+                            <View key={i} style={styles.reviewCard}>
+                                <Text style={styles.reviewQuote}>"</Text>
+                                <Text style={styles.reviewText}>{r.comment}</Text>
+                                <View style={styles.reviewFooter}>
+                                    <Text style={styles.reviewAuthor}>{r.profiles?.full_name}</Text>
+                                    <Text style={styles.starText}>★★★★★</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <Text style={styles.footerBrand}>SHADOW BEAN CO.</Text>
+                    <Text style={styles.copyright}>© 2024 Shadow Bean Co.</Text>
+                </View>
+            </View>
+        </>
+    );
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" translucent={false} />
 
-            {/* FIXED HEADER - 80% white transparent */}
+            {/* FIXED HEADER - Light Bar with Logo */}
             <View style={styles.fixedHeader}>
-                <View style={styles.headerLeft}>
-                    <SupabaseImage
-                        remoteKey={ImageKeys.LOGO_MAIN}
-                        defaultSource={require('@/assets/images/logo_bird.png')}
+                <View style={styles.headerLogoContainer}>
+                    <UniversalImage
+                        source={getImgSource('logo_bird.png', require('../../assets/images/logo_bird.png'))}
                         style={styles.headerLogo}
                         resizeMode="contain"
                     />
-                    <Text style={styles.headerTitle}>SHADOW BEAN CO.</Text>
+                    <Text style={styles.headerBrandText}>SHADOW BEAN CO.</Text>
                 </View>
                 <Pressable onPress={() => router.push('/cart')} style={{ position: 'relative' }}>
-                    <Ionicons name="cart-outline" size={24} color="#2C2724" />
+                    <Ionicons name="cart-outline" size={24} color="#000" />
                     {cartCount > 0 && (
                         <View style={styles.cartBadge}>
                             <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -83,318 +416,51 @@ export default function HomeScreen() {
                 </Pressable>
             </View>
 
-            {/* SMOOTH BLOCK SCROLL */}
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                pagingEnabled={Platform.OS !== 'web'}
-                decelerationRate={Platform.OS === 'web' ? 'normal' : 'fast'}
-                snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-                snapToInterval={Platform.OS === 'web' ? undefined : BLOCK_HEIGHT}
-                scrollEventThrottle={16}
-            >
-                {/* ========== BLOCK 1: HERO + USP MATRIX OVERLAY ========== */}
-                <View style={[styles.block, { height: BLOCK_HEIGHT }]}>
-                    <SupabaseImage
-                        remoteKey={ImageKeys.HOME_HERO}
-                        defaultSource={require('@/assets/images/coffee_farm.png')}
-                        style={styles.blockImage}
-                        resizeMode="cover"
-                        showLoading={true}
-                    />
-                    <View style={styles.blockOverlay} />
-
-                    {/* Hero Content - CENTERED */}
-                    <View style={styles.heroContentCenter}>
-                        <Text style={[
-                            styles.heroTitle,
-                            isTablet && { fontSize: 48, lineHeight: 64 }
-                        ]}>COFFEE MADE{'\n'}JUST FOR YOU</Text>
-                        <Text style={[
-                            styles.heroLiterally,
-                            isTablet && { fontSize: 60, letterSpacing: 14 }
-                        ]}>(LITERALLY)</Text>
-                    </View>
-
-                    {/* USP MATRIX - Overlaying lower part of hero (NO Background) */}
-                    <View style={[
-                        styles.uspOverlay,
-                        isTablet && { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', bottom: 120, paddingHorizontal: 40 }
-                    ]}>
-                        {USP_FEATURES.map((item, i) => (
-                            <View key={i} style={[
-                                styles.uspItem,
-                                isTablet && { width: '25%', maxWidth: 200 }
-                            ]}>
-                                <SupabaseImage
-                                    remoteKey={item.key}
-                                    defaultSource={item.default}
-                                    style={[styles.uspIcon, isTablet && { width: 56, height: 56 }]}
-                                    resizeMode="contain"
-                                />
-                                <Text style={[styles.uspTitle, isTablet && { fontSize: 13 }]}>{item.title}</Text>
-                                <Text style={[styles.uspDesc, isTablet && { fontSize: 11, lineHeight: 16 }]}>{item.desc}</Text>
-                            </View>
-                        ))}
-                    </View>
+            {isWeb ? (
+                // WEB: Use a pure View with CSS scroll snapping
+                // We cast styles to any to bypass strict RN types for web-only props
+                <View style={webStyles.webScrollContainer as any}>
+                    {renderContent()}
                 </View>
-
-                {/* ========== BLOCK 2: PRODUCT ========== */}
-                <View style={[styles.block, styles.blockWhite, { height: BLOCK_HEIGHT }]}>
-                    <View style={styles.productContent}>
-                        <SupabaseImage
-                            remoteKey={ImageKeys.PRODUCT_PLACEHOLDER}
-                            defaultSource={require('@/assets/images/product_bag.png')}
-                            style={[
-                                styles.productImage,
-                                isTablet && { width: 340, height: 400 }
-                            ]}
-                            resizeMode="contain"
-                        />
-                        <Text style={[
-                            styles.productLabel,
-                            isTablet && { fontSize: 14, letterSpacing: 3 }
-                        ]}>YOUR PERFECT CUP</Text>
-                        <Text style={[
-                            styles.productHeading,
-                            isTablet && { fontSize: 32, lineHeight: 44, maxWidth: 500 }
-                        ]}>
-                            HOME OF THE WORLD'S{'\n'}FIRST SALT-ROASTED COFFEE
-                        </Text>
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.ctaButton,
-                                isTablet && { paddingVertical: 20, paddingHorizontal: 40 },
-                                { backgroundColor: pressed ? '#000' : 'transparent', borderColor: pressed ? '#000' : '#2C2724' }
-                            ]}
-                            onPress={() => router.push('/(tabs)/shop')}
-                        >
-                            {({ pressed }) => (
-                                <Text style={[
-                                    styles.ctaButtonText,
-                                    isTablet && { fontSize: 14 },
-                                    { color: pressed ? '#fff' : '#2C2724' }
-                                ]}>PERSONALIZE AND BUY NOW</Text>
-                            )}
-                        </Pressable>
-                    </View>
-                </View>
-
-                {/* ========== BLOCK 2.5: HOW TO USE STEPS ========== */}
-                <View style={[styles.block, styles.blockWhite, styles.howToBlock, { height: BLOCK_HEIGHT }]}>
-                    {/* Single Banner Image */}
-                    <View style={[styles.howToImageRow, isTablet && { height: '25%' }]}>
-                        <SupabaseImage
-                            remoteKey={ImageKeys.JOURNEY_BANNER}
-                            defaultSource={require('@/assets/images/coffee_journey_banner.jpg')}
-                            style={styles.howToSingleBanner}
-                            resizeMode="cover"
-                        />
-                    </View>
-
-                    {/* Title */}
-                    <View style={[
-                        styles.howToTitleSection,
-                        isTablet && { paddingVertical: 40, paddingHorizontal: 60 }
-                    ]}>
-                        <Text style={[
-                            styles.howToTitle,
-                            isTablet && { fontSize: 32, letterSpacing: 3 }
-                        ]}>HOW TO USE STEPS</Text>
-                        <View style={[styles.howToDivider, isTablet && { width: 80, height: 4 }]} />
-                        <Text style={[
-                            styles.howToSubtitle,
-                            isTablet && { fontSize: 18, lineHeight: 28, maxWidth: 600 }
-                        ]}>
-                            To experience the full depth of our shade-grown, salt-roasted coffee — brew it black.
-                        </Text>
-                    </View>
-
-                    {/* 3 Methods */}
-                    <View style={[
-                        styles.howToMethodsRow,
-                        isTablet && { paddingHorizontal: 60, maxWidth: 1000, alignSelf: 'center' }
-                    ]}>
-                        <View style={[styles.howToMethod, isTablet && { paddingHorizontal: 20 }]}>
-                            <SupabaseImage
-                                remoteKey={ImageKeys.ICON_POUR_OVER}
-                                defaultSource={require('@/assets/images/icon_pour_over_kit.png')}
-                                style={[styles.howToMethodIcon, isTablet && { width: 80, height: 80, marginBottom: 16 }]}
-                                resizeMode="contain"
-                            />
-                            <Text style={[
-                                styles.howToMethodTitle,
-                                isTablet && { fontSize: 14, marginBottom: 10 }
-                            ]}>BREW WITH OUR{'\n'}POUR-OVER KIT</Text>
-                            <Text style={[
-                                styles.howToMethodDesc,
-                                isTablet && { fontSize: 13, lineHeight: 20 }
-                            ]}>
-                                Experience café-style clarity and flavor with our easy pour-over setup.
-                            </Text>
-                        </View>
-                        <View style={[styles.howToMethod, isTablet && { paddingHorizontal: 20 }]}>
-                            <SupabaseImage
-                                remoteKey={ImageKeys.ICON_FRENCH_PRESS}
-                                defaultSource={require('@/assets/images/icon_french_press.png')}
-                                style={[styles.howToMethodIcon, isTablet && { width: 80, height: 80, marginBottom: 16 }]}
-                                resizeMode="contain"
-                            />
-                            <Text style={[
-                                styles.howToMethodTitle,
-                                isTablet && { fontSize: 14, marginBottom: 10 }
-                            ]}>USE YOUR{'\n'}OWN BREWER</Text>
-                            <Text style={[
-                                styles.howToMethodDesc,
-                                isTablet && { fontSize: 13, lineHeight: 20 }
-                            ]}>
-                                Aeropress, Moka Pot, South Indian filter — brew it your way, your style.
-                            </Text>
-                        </View>
-                        <View style={[styles.howToMethod, isTablet && { paddingHorizontal: 20 }]}>
-                            <SupabaseImage
-                                remoteKey={ImageKeys.ICON_CHHANI}
-                                defaultSource={require('@/assets/images/icon_chhani.png')}
-                                style={[styles.howToMethodIcon, isTablet && { width: 80, height: 80, marginBottom: 16 }]}
-                                resizeMode="contain"
-                            />
-                            <Text style={[
-                                styles.howToMethodTitle,
-                                isTablet && { fontSize: 14, marginBottom: 10 }
-                            ]}>BREW WITH A{'\n'}SIMPLE CHHANI</Text>
-                            <Text style={[
-                                styles.howToMethodDesc,
-                                isTablet && { fontSize: 13, lineHeight: 20 }
-                            ]}>
-                                No equipment? No problem. A household strainer makes a smooth, honest cup.
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* ========== BLOCK 3: OUR STORY ========== */}
-                <ImageBackground
-                    source={storyBgSource}
-                    style={[styles.block, { height: BLOCK_HEIGHT }]}
-                    resizeMode="cover"
+            ) : (
+                // NATIVE: Use ScrollView with pagingEnabled
+                <ScrollView
+                    style={styles.scrollView}
+                    showsVerticalScrollIndicator={false}
+                    pagingEnabled={true}
+                    snapToInterval={SCREEN_HEIGHT}
+                    decelerationRate="fast"
+                    snapToAlignment="start"
+                    scrollEventThrottle={16}
                 >
-                    <View style={styles.storyOverlay} />
-
-                    <View style={styles.storyFullContent}>
-                        <Text style={[
-                            styles.storyLabel,
-                            isTablet && { fontSize: 16, letterSpacing: 6 }
-                        ]}>OUR JOURNEY</Text>
-                        <Text style={[
-                            styles.storyHeadingBig,
-                            isTablet && { fontSize: 64, letterSpacing: 14 }
-                        ]}>OUR STORY</Text>
-                        <Text style={[
-                            styles.storyBodyBig,
-                            isTablet && { fontSize: 18, lineHeight: 30, maxWidth: 500 }
-                        ]}>
-                            We celebrate India's shade-grown coffee tradition with a unique salt-air roasting method that preserves depth, aroma, and sweetness.
-                        </Text>
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.storyButton,
-                                isTablet && { paddingVertical: 16, paddingHorizontal: 32 },
-                                { backgroundColor: pressed ? '#000' : 'transparent', borderColor: pressed ? '#000' : '#fff' }
-                            ]}
-                            onPress={() => router.push('/(tabs)/about')}
-                        >
-                            {({ pressed }) => (
-                                <Text style={[
-                                    styles.storyButtonText,
-                                    isTablet && { fontSize: 13 },
-                                    { color: pressed ? '#fff' : '#fff' }
-                                ]}>DISCOVER MORE</Text>
-                            )}
-                        </Pressable>
-                    </View>
-                </ImageBackground>
-
-                {/* ========== BLOCK 4: REVIEWS ========== */}
-                <View style={[styles.block, styles.blockCream, { height: BLOCK_HEIGHT }]}>
-                    <View style={styles.reviewsFullContent}>
-                        <View style={styles.reviewsHeader}>
-                            <Text style={[
-                                styles.reviewsSectionLabel,
-                                isTablet && { fontSize: 12, letterSpacing: 3 }
-                            ]}>TESTIMONIALS</Text>
-                            <Text style={[
-                                styles.reviewsHeading,
-                                isTablet && { fontSize: 32 }
-                            ]}>Loved By Coffee Lovers</Text>
-                        </View>
-
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={[
-                                styles.reviewsScroll,
-                                isTablet && { paddingHorizontal: 40, gap: 24 }
-                            ]}
-                        >
-                            {reviews.map((r, i) => (
-                                <View key={i} style={[
-                                    styles.reviewCard,
-                                    isTablet && { width: 320, padding: 28 }
-                                ]}>
-                                    <Text style={[styles.reviewQuote, isTablet && { fontSize: 48 }]}>"</Text>
-                                    <Text style={[
-                                        styles.reviewText,
-                                        isTablet && { fontSize: 16, lineHeight: 26 }
-                                    ]}>{r.comment}</Text>
-                                    <View style={styles.reviewBottom}>
-                                        <Text style={[
-                                            styles.reviewAuthor,
-                                            isTablet && { fontSize: 15 }
-                                        ]}>{r.profiles?.full_name}</Text>
-                                        <View style={styles.reviewStars}>
-                                            {[...Array(5)].map((_, idx) => (
-                                                <Text key={idx} style={[
-                                                    styles.starText,
-                                                    isTablet && { fontSize: 14 }
-                                                ]}>★</Text>
-                                            ))}
-                                        </View>
-                                    </View>
-                                </View>
-                            ))}
-                        </ScrollView>
-
-                        {/* Footer */}
-                        <View style={styles.footerInline}>
-                            <SupabaseImage
-                                remoteKey={ImageKeys.LOGO_MAIN}
-                                defaultSource={require('@/assets/images/logo_bird.png')}
-                                style={[styles.footerLogo, isTablet && { width: 56, height: 56 }]}
-                                resizeMode="contain"
-                            />
-                            <Text style={[
-                                styles.footerBrand,
-                                isTablet && { fontSize: 16, letterSpacing: 3 }
-                            ]}>SHADOW BEAN CO.</Text>
-                            <Text style={[styles.copyright, isTablet && { fontSize: 12 }]}>© 2024 Shadow Bean Co.</Text>
-                        </View>
-                    </View>
-                </View>
-            </ScrollView>
+                    {renderContent()}
+                </ScrollView>
+            )}
         </View>
     );
 }
 
+const webStyles = {
+    webScrollContainer: {
+        height: '100vh',
+        overflowY: 'scroll',
+        scrollSnapType: 'y mandatory',
+        flex: 1,
+    },
+    webBlock: {
+        scrollSnapAlign: 'start',
+    },
+};
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#fff',
     },
     scrollView: {
         flex: 1,
     },
 
-    // ========== FIXED HEADER ==========
     fixedHeader: {
         position: 'absolute',
         top: 0,
@@ -403,385 +469,252 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: 60,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
+        paddingTop: 50,
         paddingBottom: 16,
-        zIndex: 1000,
-        backgroundColor: 'rgba(255, 255, 255, 0.80)',
+        backgroundColor: 'rgba(245, 245, 240, 0.95)',
+        zIndex: 100,
     },
-    headerLeft: {
+    cartBadge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        backgroundColor: '#D32F2F',
+        borderRadius: 10,
+        width: 16,
+        height: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cartBadgeText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
+
+    block: {
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    blockWhite: { backgroundColor: '#fff' },
+    blockCream: { backgroundColor: '#F9F9F9' },
+
+    // BLOCK 1
+    heroContent: {
+        flex: 1,
+        alignItems: 'center',
+        paddingTop: 80,
+    },
+    brandLabel: {
+        fontSize: 12,
+        letterSpacing: 3,
+        fontWeight: '700',
+        color: '#2C2724',
+        marginBottom: 'auto',
+    },
+    microHeading: {
+        fontSize: 10,
+        letterSpacing: 2,
+        fontWeight: 'bold',
+        color: '#888',
+        marginBottom: 16,
+    },
+    mainHeading: {
+        fontSize: 32,
+        fontWeight: '900',
+        textAlign: 'center',
+        color: '#000',
+        lineHeight: 40,
+        marginBottom: 8,
+        paddingHorizontal: 20,
+    },
+    literallyText: {
+        fontSize: 42,
+        fontWeight: '900',
+        textAlign: 'center',
+        color: '#fff',
+        marginBottom: 32,
+        letterSpacing: 4,
+    },
+    heroButton: {
+        borderWidth: 2,
+        borderColor: '#000',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+    },
+    heroButtonText: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    uspRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingBottom: 80, // Increased padding to avoid tab bar overlap
+        paddingHorizontal: 10,
+    },
+    uspItem: { alignItems: 'center', width: '25%' },
+    uspIcon: { width: 32, height: 32, marginBottom: 8, tintColor: '#000' },
+    uspText: { fontSize: 10, fontWeight: '700', color: '#000', textAlign: 'center' },
+    uspDesc: { fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2, textAlign: 'center' },
+
+    // USP 2x2 Matrix Layout
+    uspMatrix: {
+        position: 'absolute',
+        bottom: 60,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 40,
+    },
+    uspMatrixRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 24,
+    },
+    uspMatrixItem: {
+        alignItems: 'center',
+        width: '45%',
+    },
+
+    // Header with Logo
+    headerLogoContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     headerLogo: {
-        width: 32,
-        height: 32,
-        marginRight: 10,
+        width: 28,
+        height: 28,
+        marginRight: 8,
     },
-    headerTitle: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#2C2724',
-        letterSpacing: 1.5,
-    },
-
-    // ========== BLOCKS ==========
-    block: {
-        width: '100%',
-        position: 'relative',
-    },
-    blockWhite: {
-        backgroundColor: '#fff',
-    },
-    blockCream: {
-        backgroundColor: '#FDFBF7',
-    },
-    howToBlock: {
-        justifyContent: 'flex-start',
-    },
-    blockImage: {
-        ...StyleSheet.absoluteFillObject,
-        width: '100%',
-        height: '100%',
-    },
-    blockOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-
-    // ========== HERO ==========
-    heroContentCenter: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: 180, // Make room for overlaying USP
-    },
-    heroTitle: {
-        fontSize: 32,
-        color: '#fff',
-        textAlign: 'center',
-        fontWeight: '300',
-        letterSpacing: 4,
-        lineHeight: 44,
-    },
-    heroLiterally: {
-        fontSize: 46,
-        color: '#fff',
-        marginTop: 12,
-        letterSpacing: 10,
-        fontWeight: '700',
-    },
-
-    // ========== USP MATRIX OVERLAY (On Hero, NO Background) ==========
-    uspOverlay: {
-        position: 'absolute',
-        bottom: 100, // Above tab bar
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-around',
-        paddingHorizontal: 16,
-        // NO backgroundColor - transparent overlay on hero
-    },
-    uspItem: {
-        width: '48%',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    uspIcon: {
-        width: 40,
-        height: 40,
-        marginBottom: 8,
-        tintColor: '#fff', // White icons on dark hero
-    },
-    uspTitle: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#fff',
-        letterSpacing: 1,
-        marginBottom: 2,
-    },
-    uspDesc: {
-        fontSize: 9,
-        color: 'rgba(255,255,255,0.8)',
-        textAlign: 'center',
-        lineHeight: 12,
-        paddingHorizontal: 4,
-    },
-
-    // ========== PRODUCT ==========
-    productContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 60,
-        paddingHorizontal: 24,
-    },
-    productImage: {
-        width: 220,
-        height: 280,
-        marginBottom: 24,
-    },
-    productLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 2,
-        color: '#999',
-        marginBottom: 14,
-    },
-    productHeading: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#2C2724',
-        lineHeight: 32,
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    ctaButton: {
-        borderWidth: 2,
-        borderColor: '#2C2724',
-        paddingVertical: 16,
-        paddingHorizontal: 28,
-    },
-    ctaButtonText: {
-        color: '#2C2724',
-        fontWeight: '700',
-        fontSize: 12,
-        letterSpacing: 1,
-    },
-
-    // ========== STORY ==========
-    storyOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    storyFullContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 30,
-        paddingTop: 60,
-    },
-    storyLabel: {
+    headerBrandText: {
         fontSize: 14,
-        fontWeight: '300',
-        letterSpacing: 4,
-        color: '#fff',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    storyHeadingBig: {
-        fontSize: 46,
         fontWeight: '700',
-        color: '#fff',
-        marginBottom: 20,
-        letterSpacing: 10,
-        textAlign: 'center',
-    },
-    storyBodyBig: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: 'rgba(255,255,255,0.9)',
-        textAlign: 'center',
-        marginBottom: 28,
-        maxWidth: 300,
-    },
-    storyButton: {
-        borderWidth: 2,
-        borderColor: '#fff',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-    },
-    storyButtonText: {
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1.5,
+        color: '#000',
+        letterSpacing: 1,
     },
 
-    // ========== REVIEWS ==========
-    reviewsFullContent: {
+    // BLOCK 2
+    howToContainer: {
         flex: 1,
-        paddingTop: 120,
-    },
-    reviewsHeader: {
         alignItems: 'center',
-        marginBottom: 24,
-    },
-    reviewsSectionLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 2.5,
-        color: '#6B8E23',
-        marginBottom: 6,
-    },
-    reviewsHeading: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#2C2724',
-    },
-    reviewsScroll: {
+        justifyContent: 'center',
         paddingHorizontal: 20,
-        gap: 14,
-    },
-    reviewCard: {
-        width: 240,
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        elevation: 3,
-    },
-    reviewQuote: {
-        fontSize: 40,
-        color: '#6B8E23',
-        fontWeight: '700',
-        marginTop: -10,
-        marginBottom: -10,
-    },
-    reviewText: {
-        fontSize: 14,
-        lineHeight: 22,
-        color: '#444',
-        marginBottom: 16,
-    },
-    reviewBottom: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    reviewAuthor: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#2C2724',
-    },
-    reviewStars: {
-        flexDirection: 'row',
-    },
-    starText: {
-        fontSize: 12,
-        color: '#6B8E23',
-    },
-
-    // ========== FOOTER ==========
-    footerInline: {
-        alignItems: 'center',
-        paddingVertical: 24,
-        marginTop: 'auto',
-        paddingBottom: 100,
-        backgroundColor: 'rgba(255, 255, 255, 0.80)',
-    },
-    footerLogo: {
-        width: 40,
-        height: 40,
-        marginBottom: 10,
-    },
-    footerBrand: {
-        color: '#2C2724',
-        fontSize: 14,
-        letterSpacing: 2,
-        fontWeight: '700',
-        marginBottom: 6,
-    },
-    copyright: {
-        color: '#888',
-        fontSize: 10,
-    },
-
-    // ========== HOW TO USE STEPS ==========
-    howToImageRow: {
-        flexDirection: 'row',
-        height: '35%',  // Reduced from 50% - smaller image area
-    },
-    howToImage: {
-        flex: 1,
-        height: '100%',
-    },
-    howToSingleBanner: {
-        width: '100%',
-        height: '100%',
-    },
-    howToTitleSection: {
-        flex: 1,  // Take up remaining space in the middle
-        alignItems: 'center',
-        justifyContent: 'center',  // Center vertically
-        paddingVertical: 24,
-        paddingHorizontal: 28,
     },
     howToTitle: {
-        fontSize: 26,  // Larger title
-        fontWeight: '700',
+        fontSize: 24,
+        fontWeight: '800',
+        letterSpacing: 2,
         color: '#2C2724',
-        letterSpacing: 3,
-        marginBottom: 14,
+        marginBottom: 8,
+        textAlign: 'center',
     },
-    howToDivider: {
-        width: 60,
-        height: 3,
-        backgroundColor: '#6B8E23',
-        marginBottom: 16,
-    },
+    greenUnderline: { width: 40, height: 3, backgroundColor: '#556B2F', marginBottom: 24 },
     howToSubtitle: {
-        fontSize: 15,
+        fontSize: 14,
         color: '#666',
         textAlign: 'center',
-        lineHeight: 24,
+        marginBottom: 40,
         maxWidth: 300,
+        lineHeight: 22,
     },
-    howToMethodsRow: {
+    stepsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingHorizontal: 12,
-        paddingTop: 16,
-        paddingBottom: 90,  // Space for tab bar
-        alignItems: 'flex-start',
-        backgroundColor: '#fff',
+        justifyContent: 'space-between',
+        width: '100%',
+        maxWidth: 800,
     },
-    howToMethod: {
+    stepItem: {
         flex: 1,
         alignItems: 'center',
-        paddingHorizontal: 6,
+        paddingHorizontal: 5,
     },
-    howToMethodIcon: {
-        width: 40,
-        height: 40,
-        marginBottom: 8,
-    },
-    howToMethodTitle: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#2C2724',
+    stepIcon: { width: 70, height: 70, marginBottom: 16 },
+    stepTitle: {
+        fontSize: 10,
+        fontWeight: '800',
         textAlign: 'center',
-        letterSpacing: 0.3,
-        marginBottom: 5,
-        lineHeight: 13,
+        marginBottom: 8,
+        letterSpacing: 0.5,
+        color: '#2C2724',
     },
-    howToMethodDesc: {
-        fontSize: 9,
+    stepDesc: {
+        fontSize: 10,
         color: '#888',
         textAlign: 'center',
         lineHeight: 14,
     },
-    cartBadge: {
-        position: 'absolute',
-        top: -8,
-        right: -8,
-        backgroundColor: '#D32F2F',
-        borderRadius: 10,
-        width: 18,
-        height: 18,
-        justifyContent: 'center',
+
+    // BLOCK 3
+    storyContent: {
+        flex: 1,
         alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: '#fff',
+        justifyContent: 'center',
+        paddingHorizontal: 30,
     },
-    cartBadgeText: {
+    storyLabel: {
+        fontSize: 12,
+        letterSpacing: 4,
         color: '#fff',
-        fontSize: 9,
-        fontWeight: 'bold',
+        marginBottom: 20,
     },
+    storyHeading: {
+        fontSize: 42,
+        fontWeight: '800',
+        color: '#fff',
+        textAlign: 'center',
+        letterSpacing: 8,
+        marginBottom: 30,
+    },
+    storyBody: {
+        fontSize: 14,
+        color: '#ccc',
+        textAlign: 'center',
+        lineHeight: 24,
+        marginBottom: 40,
+        maxWidth: 400,
+    },
+    storyButton: {
+        borderWidth: 1,
+        borderColor: '#fff',
+        paddingVertical: 14,
+        paddingHorizontal: 32,
+    },
+    storyButtonText: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 2,
+    },
+
+    // BLOCK 4 (TESTIMONIALS)
+    reviewsContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 40,
+    },
+    brandLabelSmall: {
+        fontSize: 10, letterSpacing: 2, fontWeight: '700', color: '#888', marginBottom: 10
+    },
+    reviewsHeading: {
+        fontSize: 24, fontWeight: '700', color: '#2C2724', marginBottom: 20
+    },
+    reviewCard: {
+        width: 260,
+        backgroundColor: '#fff',
+        padding: 24,
+        borderRadius: 4,
+        shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+        elevation: 2,
+    },
+    reviewQuote: { fontSize: 32, color: '#556B2F', height: 30 },
+    reviewText: { fontSize: 13, lineHeight: 20, color: '#444', marginBottom: 16, minHeight: 60 },
+    reviewFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    reviewAuthor: { fontSize: 12, fontWeight: '700', color: '#000' },
+    starText: { color: '#556B2F', fontSize: 10 },
+
+    footer: {
+        width: '100%',
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    footerBrand: { fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#2C2724', marginBottom: 4 },
+    copyright: { fontSize: 10, color: '#999' },
 });

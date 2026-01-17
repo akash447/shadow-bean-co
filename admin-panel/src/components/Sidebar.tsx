@@ -12,7 +12,8 @@ import {
     LogOut,
     Coffee,
     Package,
-    Shield
+    Shield,
+    RefreshCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         { path: '/terms', icon: FileText, label: 'Terms & Conditions' },
         { path: '/media', icon: Image, label: 'Media' },
         { path: '/access', icon: Shield, label: 'Admin Access' },
+        { path: '/woocommerce-sync', icon: RefreshCw, label: 'WooCommerce Sync' },
     ];
 
     return (
