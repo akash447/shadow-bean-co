@@ -1,4 +1,4 @@
-# Deploy workflow v7 - Use hostname instead of IP
+# Deploy workflow v8 - Updated FTP credentials  
 name: Deploy to Hostinger
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
     - name: 📂 Deploy to Hostinger
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
-        server: ftp.shadowbeanco.com
+        server: 82.25.125.133
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
