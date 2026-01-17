@@ -44,7 +44,7 @@ const syncService = {
         });
 
         // 4. Upsert using standard client
-        const { data, error } = await supabase.from('products').upsert(upsertPayload);
+        const { error } = await supabase.from('products').upsert(upsertPayload);
 
         if (error) throw error;
         return wcProducts.length;
@@ -78,7 +78,7 @@ const syncService = {
         });
 
         // 4. Upsert using standard client
-        const { data, error } = await supabase.from('orders').upsert(upsertPayload);
+        const { error } = await supabase.from('orders').upsert(upsertPayload);
 
         if (error) throw error;
         return wcOrders.length;
