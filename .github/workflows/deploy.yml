@@ -1,4 +1,4 @@
-# Deploy workflow v2 - Forces reupload
+# Deploy workflow v3 - Force complete re-upload
 name: Deploy to Hostinger
 on:
   push:
@@ -20,3 +20,4 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         server-dir: ./public_html/
+        dangerous-clean-slate: true
