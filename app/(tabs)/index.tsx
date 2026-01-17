@@ -10,6 +10,7 @@ import {
     StatusBar,
     ImageBackground,
     useWindowDimensions,
+    Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +39,9 @@ export default function HomeScreen() {
     // Responsive dimensions
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
     const isTablet = SCREEN_WIDTH >= 768;
-    const BLOCK_HEIGHT = SCREEN_HEIGHT;
+    const isWeb = Platform.OS === 'web';
+    // On web, use min-height instead of fixed height for better scrolling
+    const BLOCK_HEIGHT = isWeb ? undefined : SCREEN_HEIGHT;
 
     useEffect(() => {
         const defaultReviews = [
@@ -84,10 +87,10 @@ export default function HomeScreen() {
             <ScrollView
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
-                pagingEnabled={true}
-                decelerationRate="fast"
-                snapToAlignment="start"
-                snapToInterval={BLOCK_HEIGHT}
+                pagingEnabled={Platform.OS !== 'web'}
+                decelerationRate={Platform.OS === 'web' ? 'normal' : 'fast'}
+                snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
+                snapToInterval={Platform.OS === 'web' ? undefined : BLOCK_HEIGHT}
                 scrollEventThrottle={16}
             >
                 {/* ========== BLOCK 1: HERO + USP MATRIX OVERLAY ========== */}
