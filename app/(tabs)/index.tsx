@@ -23,30 +23,26 @@ import { UniversalImage } from '@/src/components/UniversalImage';
 // On Web, we serve from /public/images/ to bypass bundler issues.
 // On Native, we use standard require().
 
-const getImgSource = (filename: string, nativeRequire: any) => {
-    if (Platform.OS === 'web') {
-        return { uri: `/images/${filename}` };
-    }
-    return nativeRequire;
-};
+const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
+
+const getImgSource = (filename: string) => ({ uri: `${BASE_URL}${filename}` });
 
 // DEBUG: Hardcoded URL to test rendering
 // const iconShadeGrown = { uri: 'http://localhost:8084/images/icon_shade_grown.png' };
-const iconShadeGrown = getImgSource('icon_shade_grown.png', require('../../assets/images/icon_shade_grown.png'));
-
-const iconSaltRoasted = getImgSource('icon_salt_roasted.png', require('../../assets/images/icon_salt_roasted.png'));
-const iconSmallBatch = getImgSource('icon_small_batch.png', require('../../assets/images/icon_small_batch.png'));
-const iconPersonalised = getImgSource('icon_personalised.png', require('../../assets/images/icon_personalised.png'));
-const iconPourOver = getImgSource('icon_pour_over_kit.png', require('../../assets/images/icon_pour_over_kit.png'));
-const iconFrenchPress = getImgSource('icon_french_press.png', require('../../assets/images/icon_french_press.png'));
-const iconChhani = getImgSource('icon_chhani.png', require('../../assets/images/icon_chhani.png'));
-const homeHeroBg = getImgSource('home_hero.png', require('../../assets/images/home_hero.png'));
-const farmerBg = getImgSource('coffee_farmer.jpg', require('../../assets/images/coffee_farmer.jpg'));
+const iconShadeGrown = getImgSource('icon_shade_grown.png');
+const iconSaltRoasted = getImgSource('icon_salt_roasted.png');
+const iconSmallBatch = getImgSource('icon_small_batch.png');
+const iconPersonalised = getImgSource('icon_personalised.png');
+const iconPourOver = getImgSource('icon_pour_over_kit.png');
+const iconFrenchPress = getImgSource('icon_french_press.png');
+const iconChhani = getImgSource('icon_chhani.png');
+const homeHeroBg = getImgSource('home_hero.png');
+const farmerBg = getImgSource('coffee_farmer.jpg');
 
 // Redesign Assets
-const productBag = getImgSource('product_bag.png', require('../../assets/images/product_bag.png'));
-const pourOverAction = getImgSource('pour_over_brewing_action.jpg', require('../../assets/images/pour_over_brewing_action.jpg'));
-const coffeeCherries = getImgSource('coffee_cherries.jpg', require('../../assets/images/coffee_cherries.jpg'));
+const productBag = getImgSource('product_bag.png');
+const pourOverAction = getImgSource('pour_over_brewing_action.jpg');
+const coffeeCherries = getImgSource('coffee_cherries.jpg');
 
 // --- 4 Key USPs (2x2 matrix layout) ---
 const USP_FEATURES = [
@@ -400,7 +396,7 @@ export default function HomeScreen() {
             <View style={styles.fixedHeader}>
                 <View style={styles.headerLogoContainer}>
                     <UniversalImage
-                        source={getImgSource('logo_bird.png', require('../../assets/images/logo_bird.png'))}
+                        source={getImgSource('logo_bird.png')}
                         style={styles.headerLogo}
                         resizeMode="contain"
                     />

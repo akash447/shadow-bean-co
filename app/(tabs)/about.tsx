@@ -18,17 +18,13 @@ import { ImageKeys } from '@/src/constants/imageKeys';
 import { UniversalImage } from '@/src/components/UniversalImage';
 
 // --- Static Assets ---
-const getImgSource = (filename: string, nativeRequire: any) => {
-    if (Platform.OS === 'web') {
-        return { uri: `/images/${filename}` };
-    }
-    return nativeRequire;
-};
+const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
+const getImgSource = (filename: string) => ({ uri: `${BASE_URL}${filename}` });
 
-const aboutHeroBg = getImgSource('about_hero.jpg', require('../../assets/images/about_hero.jpg'));
-const coffeeFarm = getImgSource('coffee_farm.png', require('../../assets/images/coffee_farm.png'));
-const logoBird = getImgSource('logo_bird.png', require('../../assets/images/logo_bird.png'));
-const journeyBanner = getImgSource('coffee_journey_banner.jpg', require('../../assets/images/coffee_journey_banner.jpg'));
+const aboutHeroBg = getImgSource('about_hero.jpg');
+const coffeeFarm = getImgSource('coffee_farm.png');
+const logoBird = getImgSource('logo_bird.png');
+const journeyBanner = getImgSource('coffee_journey_banner.jpg');
 
 export default function AboutScreen() {
     const router = useRouter();

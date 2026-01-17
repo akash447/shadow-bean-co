@@ -1,22 +1,25 @@
 // Image assets for Shadow Bean Co App
-// All images are stored in assets/images/
+// All images are stored in Supabase Storage 'media' bucket
+// URL Format: https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/[filename]
+
+const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 // Brand images
 export const images = {
     // Product
-    productBag: require('../../assets/images/product_bag.png'),
+    productBag: { uri: `${BASE_URL}product_bag.png` },
 
     // Hero & Background
-    coffeeFarm: require('../../assets/images/coffee_farm.png'),
-    pourOverBrewing: require('../../assets/images/pour_over_brewing.png'),
+    coffeeFarm: { uri: `${BASE_URL}coffee_farm.png` },
+    pourOverBrewing: { uri: `${BASE_URL}pour_over_brewing.png` },
 
     // Story & About
-    farmerHarvesting: require('../../assets/images/farmer_harvesting.jpg'),
-    latteArt: require('../../assets/images/latte_art.png'),
+    farmerHarvesting: { uri: `${BASE_URL}farmer_harvesting.jpg` },
+    latteArt: { uri: `${BASE_URL}latte_art.png` },
 
     // Placeholder for app icons
-    iconPlaceholder: require('../../assets/images/icon.png'),
-    splashPlaceholder: require('../../assets/images/splash-icon.png'),
+    iconPlaceholder: { uri: `${BASE_URL}icon.png` },
+    splashPlaceholder: { uri: `${BASE_URL}splash-icon.png` },
 };
 
 // Image descriptions for accessibility
