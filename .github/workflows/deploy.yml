@@ -1,3 +1,4 @@
+# Deploy workflow v2 - Forces reupload
 name: Deploy to Hostinger
 on:
   push:
