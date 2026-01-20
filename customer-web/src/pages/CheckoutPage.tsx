@@ -86,16 +86,19 @@ export default function CheckoutPage() {
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
+        console.log('Form submitted!');
         e.preventDefault();
 
         // Check if user is logged in
         if (!user) {
+            console.log('User not logged in, redirecting...');
             // Save current shipping address (already saved via useEffect)
             // Redirect to login with return URL
             navigate('/login?redirect=/checkout&message=login_required');
             return;
         }
 
+        console.log('User is logged in:', user.id);
         setIsSubmitting(true);
 
         try {
@@ -112,7 +115,9 @@ export default function CheckoutPage() {
                 })),
             };
 
+            console.log('Order data:', orderData);
             const result = await createOrder(orderData);
+            console.log('Create order result:', result);
 
             if (result.error) {
                 throw result.error;
@@ -123,7 +128,7 @@ export default function CheckoutPage() {
             clearCart();
         } catch (error) {
             console.error('Order failed:', error);
-            alert('Failed to place order. Please try again.');
+            alert('Failed to place order. Please try again. Error: ' + (error as any)?.message || 'Unknown error');
         } finally {
             setIsSubmitting(false);
         }
