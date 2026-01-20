@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, cancelOrder } from '../lib/supabase';
+import { getOrders, updateOrderStatus, cancelOrder, subscribeToOrders } from '../lib/supabase';
 import { Search, XCircle, AlertTriangle } from 'lucide-react';
 
 const statusOptions = [
@@ -25,6 +25,16 @@ export const OrdersPage: React.FC = () => {
 
     useEffect(() => {
         loadOrders();
+
+        // Subscribe to real-time updates
+        const unsubscribe = subscribeToOrders(() => {
+            console.log('Orders updated, reloading...');
+            loadOrders();
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, []);
 
     const loadOrders = async () => {

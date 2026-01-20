@@ -1,0 +1,178 @@
+.about-container {
+    min-height: 100vh;
+    font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+    background-color: #fff;
+    padding-top: 80px;
+    /* Space for fixed header */
+    color: #1c0d02;
+}
+
+.about-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.about-section {
+    margin-bottom: 120px;
+}
+
+.about-heading {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1c0d02;
+    margin-bottom: 24px;
+    letter-spacing: 2px;
+}
+
+.about-text {
+    font-size: 15px;
+    line-height: 1.8;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* Story Section */
+.story-section {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+}
+
+.story-left {
+    flex: 1;
+}
+
+.story-right {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.story-img-main {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.story-img-secondary {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-top: 40px;
+    /* Offset effect */
+}
+
+/* Philosophy Section */
+.philosophy-content {
+    display: flex;
+    gap: 60px;
+}
+
+.philosophy-left {
+    flex: 1;
+}
+
+.philosophy-right {
+    flex: 2;
+}
+
+/* Journey Section */
+.journey-section {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.journey-icons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.journey-icon {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+}
+
+.dashed-line {
+    color: #888;
+    letter-spacing: 4px;
+    font-weight: 700;
+}
+
+.journey-heading {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 40px;
+    font-weight: 700;
+    color: #1c0d02;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.journey-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* Footer */
+.about-footer {
+    padding: 40px;
+    text-align: center;
+    background-color: #f7f3ed;
+    margin-top: 60px;
+}
+
+.footer-brand {
+    font-family: 'Montserrat', sans-serif;
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #1c0d02;
+    margin-bottom: 8px;
+}
+
+.footer-copyright {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: #999;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .story-section,
+    .philosophy-content {
+        flex-direction: column;
+        gap: 40px;
+    }
+
+    .story-right {
+        grid-template-columns: 1fr;
+    }
+
+    .story-img-secondary {
+        margin-top: 20px;
+        height: 250px;
+    }
+
+    .story-img-main {
+        height: 250px;
+    }
+
+    .about-heading {
+        font-size: 40px;
+    }
+}

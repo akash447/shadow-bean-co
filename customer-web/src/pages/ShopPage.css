@@ -1,0 +1,1110 @@
+.shop-page {
+    min-height: 100vh;
+    background-color: #f7f3ed;
+    font-family: 'Montserrat', sans-serif;
+    color: #1c0d02;
+    padding-top: 80px;
+    /* Header space */
+    overflow-x: hidden;
+}
+
+.live-details-card {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.live-details-card h3 {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 18px;
+    margin-bottom: 2px;
+    /* Reduced from 12px */
+    color: #1c0d02;
+    letter-spacing: 1px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.detail-row span {
+    color: #666;
+}
+
+.detail-row strong {
+    color: #1c0d02;
+}
+
+.shop-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+    /* Fill screen */
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* LEFT: Product Image */
+.shop-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    /* Stack image and saved list */
+    align-items: center;
+    background-color: #f0ebe5;
+    position: relative;
+    padding: 40px;
+    overflow-y: auto;
+    /* Allow scrolling if list is long */
+}
+
+.product-showcase {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0;
+    /* Reduced further to 0 to shift tile up max */
+    flex: 1;
+    /* Take available space */
+    min-height: 300px;
+}
+
+.saved-roasts-container {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.saved-roasts-title {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: #1c0d02;
+    letter-spacing: 1px;
+}
+
+.saved-roast-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saved-roast-card:hover {
+    background-color: #f9f9f9;
+    border-color: #ddd;
+}
+
+.saved-roast-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.saved-roast-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1c0d02;
+}
+
+.saved-roast-desc {
+    font-size: 11px;
+    color: #666;
+}
+
+.btn-delete-roast {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.btn-delete-roast:hover {
+    color: #d00;
+}
+
+.no-saved-roasts {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+}
+
+.shop-product-img {
+    width: 60%;
+    max-width: 350px;
+    object-fit: contain;
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.1));
+}
+
+.sku-display {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #4f5130;
+    margin: 4px 0 20px;
+    /* Reduced margin-top (was 12px) */
+    letter-spacing: 2px;
+}
+
+.btn-save-profile {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px;
+    background: transparent;
+    border: 2px solid #1c0d02;
+    color: #1c0d02;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.btn-save-profile:hover {
+    background: #1c0d02;
+    color: #fff;
+}
+
+.blend-sku {
+    font-size: 14px;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+/* RIGHT: Customization */
+.shop-right {
+    flex: 1;
+    background-color: #f7f3ed;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-bottom: 90px;
+    /* Space for sticky cart */
+    overflow: hidden;
+    /* For carousel sliding */
+}
+
+/* Carousel Container */
+.customization-container {
+    flex: 1;
+    position: relative;
+    width: 85%;
+    /* Increased from 70% for wider cart tile */
+    height: 100%;
+    margin: 0 auto;
+    /* Center it */
+    min-height: 540px;
+    /* Reduced to lift cart button */
+    display: flex;
+    /* Ensure stretch */
+}
+
+/* Slides */
+.slide-view {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 60px 80px;
+    transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(50px);
+    box-sizing: border-box;
+
+    /* Layout for vertical alignment */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Active/Hidden States */
+.slide-view.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    z-index: 2;
+}
+
+.slide-view.hidden-left {
+    transform: translateX(-50px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.slide-view.hidden-right {
+    transform: translateX(50px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Headers */
+.step-header {
+    margin-bottom: 40px;
+}
+
+.step-header h2 {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    margin: 0;
+    color: #1c0d02;
+    letter-spacing: 1px;
+}
+
+.step-header p {
+    font-size: 14px;
+    color: #888;
+    margin-top: 8px;
+}
+
+.back-link {
+    background: none;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    cursor: pointer;
+    margin-bottom: 16px;
+    padding: 0;
+}
+
+.back-link:hover {
+    color: #1c0d02;
+}
+
+/* Sliders */
+.sliders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+    /* Increased spacing as requested */
+    margin-top: 20px;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.slider-labels label {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #1c0d02;
+}
+
+.slider-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1c0d02;
+}
+
+/* Styled Slider */
+.styled-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #e0deda;
+    border-radius: 3px;
+    outline: none;
+}
+
+.styled-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1c0d02;
+    cursor: pointer;
+    border: 3px solid #f7f3ed;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Roast & Grind Tiles */
+.section-block {
+    margin-bottom: 40px;
+}
+
+.section-block h3 {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #1c0d02;
+}
+
+.roast-tiles {
+    display: flex;
+    flex-direction: row;
+    /* Horizontal layout as requested */
+    gap: 12px;
+}
+
+.grind-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    /* 3 Columns for smaller tiles */
+    gap: 10px;
+}
+
+.tile {
+    background: #f0ebe5;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    flex: 1;
+    /* Make items expand equally in flex container */
+}
+
+.tile:hover {
+    background: #e8e2dc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.tile.selected {
+    background: #fff;
+    border-color: #4f5130;
+    box-shadow: 0 4px 12px rgba(79, 81, 48, 0.15);
+}
+
+.roast-tile {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    /* Slightly plumper roast tiles as descriptions are gone, or keep same? User said remove desc. */
+    justify-content: center;
+    /* Center text since no desc */
+}
+
+.grind-tile {
+    align-items: center;
+    padding: 20px 10px;
+}
+
+.tile-icon {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 12px;
+    color: #1c0d02;
+}
+
+.tile.selected .tile-icon {
+    color: #4f5130;
+}
+
+.tile-title-sm {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Navigation & Cart */
+/* Navigation Next Button Container */
+.nav-next-container {
+    margin-top: 20px;
+    /* Space from content */
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-next {
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1c0d02;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    /* Align Next button to right */
+    transition: gap 0.2s;
+}
+
+.btn-next:hover {
+    gap: 12px;
+}
+
+/* Cart Anchor (Forces to bottom) */
+.cart-anchor-bottom {
+    margin-top: auto;
+    /* This does the heavy lifting */
+    padding-top: 20px;
+}
+
+/* Inline Cart Section */
+.cart-inline {
+    background: #fff;
+    padding: 20px 32px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f0ebe5;
+    width: 100%;
+    margin-top: 30px;
+    box-sizing: border-box;
+}
+
+.cart-summary {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+}
+
+.summary-text {
+    flex: 1;
+    /* Take up space to push button right */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    /* SKU ... Price */
+    gap: 20px;
+    white-space: nowrap;
+}
+
+.blend-specs {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.blend-sku {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 20px;
+    /* Reduced from 28px */
+    font-weight: 700;
+    color: #1c0d02;
+    letter-spacing: 0.5px;
+}
+
+/* Optional ellipsis or spacer can be simulated with margin if needed, 
+   but gap is cleaner. User asked for "Code.......Price". 
+   We'll use margin-right on SKU or spacer logic if strict, 
+   but Flex gap is usually preferred. */
+
+.price {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #4f5130;
+}
+
+.btn-add-cart {
+    background: #1c0d02;
+    color: #fff;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    white-space: nowrap;
+    min-width: 140px;
+    /* Reduced min-width to prevent overflow */
+    box-shadow: 0 4px 12px rgba(28, 13, 2, 0.15);
+}
+
+.btn-add-cart:hover {
+    background: #4f5130;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(79, 81, 48, 0.25);
+}
+
+/* Mobile Product Header - Hidden on desktop */
+.mobile-product-header {
+    display: none;
+}
+
+/* Mobile Customization Card */
+.mobile-customization-card {
+    background: #fff;
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* Mobile Grind Tiles Layout */
+.grind-tiles-mobile {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+/* Next Button for Roast Level */
+.btn-next-roast {
+    display: block;
+    width: 100%;
+    background: #4f5130;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 16px 24px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.2s;
+}
+
+.btn-next-roast:hover {
+    background: #3d3f26;
+}
+
+/* Mobile Sticky Cart Bar - Hidden on desktop */
+.mobile-sticky-cart {
+    display: none;
+}
+
+/* ========== 2-STEP FLOW STYLES (GLOBAL) ========== */
+
+/* Back Button */
+.btn-back {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #888;
+    padding: 0;
+    margin-bottom: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+    position: relative;
+}
+
+/* Step Sections (Roast & Grind separated) */
+.step-section {
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.step-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Horizontal Roast Chips */
+.roast-tiles-inline {
+    display: flex;
+    gap: 10px;
+}
+
+.roast-chip {
+    flex: 1;
+    padding: 12px 0;
+    background: #f7f3ed;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    color: #1c0d02;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.roast-chip.selected {
+    background: #1c0d02;
+    /* Black as requested */
+    color: #fff;
+    border-color: #1c0d02;
+    box-shadow: 0 2px 8px rgba(28, 13, 2, 0.2);
+}
+
+
+/* Desktop Add To Cart Button */
+.btn-add-to-cart-desktop {
+    width: 100%;
+    background: #1c0d02;
+    /* Black/Dark Coffee as requested */
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(79, 81, 48, 0.15);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-add-to-cart-desktop:hover {
+    background: #3d3f26;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 81, 48, 0.25);
+}
+
+
+.step1-spacer {
+    margin-top: 40px;
+    /* Matched to Step 2 for consistency */
+}
+
+/* Spacer to align Step 2 button with Step 1 */
+.step2-spacer {
+    margin-top: 40px;
+    /* Reduced from 60px to shift up */
+}
+
+/* Responsive - Mobile Design Matching App */
+@media (max-width: 900px) {
+    .btn-add-to-cart-desktop {
+        display: none !important;
+    }
+
+    .shop-page {
+        padding-top: 50px;
+        /* Reduced further to ensure fit */
+        padding-bottom: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .shop-layout {
+        flex-direction: column;
+        min-height: calc(100vh - 60px);
+        display: flex;
+        flex: 1;
+    }
+
+    /* Hide desktop left panel on mobile */
+    .shop-left {
+        display: none;
+    }
+
+    /* ========== MOBILE HEADER WITH PRODUCT ========== */
+    .mobile-product-header {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 12px 16px;
+        background: #f7f3ed;
+        flex-shrink: 0;
+    }
+
+    .mobile-product-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .mobile-product-img {
+        width: 80px;
+        height: 70px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+    }
+
+    .mobile-blend-info {
+        display: flex;
+        flex-direction: column;
+        margin-top: 4px;
+    }
+
+    .mobile-blend-label {
+        font-family: 'Agdasima', sans-serif;
+        font-size: 10px;
+        color: #7a8b2e;
+        letter-spacing: 1px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Roast label removed from preview as per request */
+
+    /* Step Indicator */
+    .step-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        padding-top: 4px;
+    }
+
+    .step-text {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        color: #888;
+        letter-spacing: 1.5px;
+        margin-bottom: 6px;
+    }
+
+    .step-dots {
+        display: flex;
+        gap: 6px;
+    }
+
+    .step-dot {
+        width: 28px;
+        height: 5px;
+        border-radius: 2.5px;
+        background: #e0dcd7;
+        transition: background 0.3s;
+    }
+
+    .step-dot.active {
+        background: #4f5130;
+    }
+
+    /* ========== SHOP RIGHT - CAROUSEL CONTAINER ========== */
+    .shop-right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 0;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .customization-container {
+        flex: 1;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .slide-view {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 0;
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    .slide-view.active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
+
+    .slide-view.hidden-left {
+        transform: translateX(-100%);
+    }
+
+    .slide-view.hidden-right {
+        transform: translateX(100%);
+    }
+
+    /* ========== CUSTOMIZATION CARD - HORIZONTAL SWIPE STYLE ========== */
+    .mobile-customization-card {
+        position: relative;
+        background: #fff;
+        border-radius: 20px;
+        padding: 16px 18px 14px;
+        margin: 0 12px 120px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+    }
+
+    /* Coffee bean texture decoration on left edge */
+    .mobile-customization-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 8px;
+        height: 60%;
+        background: linear-gradient(to bottom,
+                #d4a574 0%,
+                #8b5a2b 20%,
+                #654321 40%,
+                #8b5a2b 60%,
+                #d4a574 80%,
+                #8b5a2b 100%);
+        border-radius: 0 4px 4px 0;
+        opacity: 0.3;
+    }
+
+    .mobile-customization-card .step-header {
+        margin-bottom: 2px;
+        /* Decreased further */
+        flex-shrink: 0;
+    }
+
+    .step-section {
+        margin-bottom: 40px;
+        /* Increase gap between Roast and Grind */
+    }
+
+    .mobile-customization-card .step-header h2 {
+        font-family: 'Agdasima', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: #1c0d02;
+        margin: 0 0 2px;
+    }
+
+    .mobile-customization-card .step-header p {
+        font-size: 12px;
+        color: #888;
+        margin: 0;
+    }
+
+    /* ========== COMPACT SLIDERS ========== */
+    .mobile-customization-card .sliders-container {
+        display: flex;
+        flex-direction: column;
+        gap: 50px;
+        /* Increased from 32px to fill space */
+        padding-top: 10px;
+        padding-bottom: 20px;
+    }
+
+    .mobile-customization-card .slider-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        /* Increased from 4px */
+    }
+
+    .mobile-customization-card .slider-labels {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .mobile-customization-card .slider-labels label {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1c0d02;
+    }
+
+    .mobile-customization-card .slider-val {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1c0d02;
+    }
+
+    .mobile-customization-card .styled-slider {
+        height: 6px;
+        background: #e8e2dc;
+        border-radius: 3px;
+    }
+
+    .mobile-customization-card .styled-slider::-webkit-slider-thumb {
+        width: 18px;
+        height: 18px;
+        background: #4f5130;
+        border: 3px solid #fff;
+        box-shadow: 0 2px 6px rgba(79, 81, 48, 0.4);
+    }
+
+    /* ========== NEXT BUTTON INSIDE CARD ========== */
+    .nav-next-container {
+        margin-top: auto;
+        padding-top: 12px;
+        flex-shrink: 0;
+    }
+
+    .btn-next-roast {
+        display: block;
+        width: 100%;
+        background: #4f5130;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 14px 20px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-next-roast:hover {
+        background: #3d3f26;
+    }
+
+    /* ========== GRIND TILES - COMPACT 3x2 GRID ========== */
+    .grind-tiles-mobile {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        flex: 1;
+    }
+
+    .grind-tiles-mobile .grind-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 6px;
+        background: #f7f3ed;
+        border: 2px solid transparent;
+        border-radius: 10px;
+        transition: all 0.2s;
+    }
+
+    .grind-tiles-mobile .grind-tile .tile-icon {
+        width: 24px;
+        height: 24px;
+        margin-bottom: 6px;
+        color: #666;
+    }
+
+    .grind-tiles-mobile .grind-tile .tile-title-sm {
+        font-size: 10px;
+        font-weight: 600;
+        color: #1c0d02;
+        text-align: center;
+    }
+
+    .grind-tiles-mobile .grind-tile.selected {
+        background: #1c0d02;
+        /* Black */
+        border-color: #1c0d02;
+    }
+
+    .grind-tiles-mobile .grind-tile.selected .tile-icon {
+        color: #fff;
+    }
+
+    .grind-tiles-mobile .grind-tile.selected .tile-title-sm {
+        color: #fff;
+    }
+
+
+
+    /* ========== STICKY CART BAR - DARK OLIVE ========== */
+    .mobile-sticky-cart {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #3d3f26;
+        padding: 14px 16px;
+        z-index: 100;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .mobile-cart-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .mobile-cart-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .mobile-cart-label {
+        font-family: 'Agdasima', sans-serif;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.7);
+        font-style: italic;
+    }
+
+    .mobile-cart-desc {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .mobile-cart-btn {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        background: #7a8b2e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 14px 20px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mobile-cart-btn:hover {
+        background: #8fa332;
+    }
+
+    .mobile-cart-price {
+        background: rgba(0, 0, 0, 0.25);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+
+    /* Hide desktop elements on mobile */
+    .cart-anchor-bottom,
+    .cart-inline {
+        display: none;
+    }
+}

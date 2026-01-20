@@ -1,8 +1,8 @@
 // Supabase client for Admin Panel
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://yyqoagncaxzpxodwnuax.supabase.co';
-const supabaseAnonKey = 'sb_publishable_eyQzRNo7TbvJP1KNGJA-Cg_awO9iGmP';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -275,4 +275,22 @@ export const deleteAsset = async (key: string) => {
         .eq('key', key);
 
     return { error };
+};
+// Real-time Subscriptions
+export const subscribeToOrders = (callback: () => void) => {
+    const channel = supabase
+        .channel('public:orders')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'orders' },
+            (payload) => {
+                console.log('Real-time order update:', payload);
+                callback();
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
 };

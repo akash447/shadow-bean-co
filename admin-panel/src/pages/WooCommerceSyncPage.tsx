@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase';
 
 
 const WC_URL = 'https://shadowbeanco.com/wp';
-const CONSUMER_KEY = 'ck_5bd030c25ef0b9156685f3c72e68528c5f54e9ec';
-const CONSUMER_SECRET = 'cs_ffa5d47481be553b2488aef1ba245cd81ac86ccb';
+const CONSUMER_KEY = 'ck_a999ef5cdc6bc57141a54082d6789d7b78b649f3';
+const CONSUMER_SECRET = 'cs_1df32fb3710fa79a72c1f2ba119cc0102d1d4649';
 
 const wcApi = axios.create({
     baseURL: `${WC_URL}/wp-json/wc/v3`,

@@ -1,0 +1,618 @@
+.home-container {
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+}
+
+/* Scroll Snap Container */
+.scroll-container {
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+/* Hide scrollbar */
+.scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+.scroll-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Each Block */
+.block {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    position: relative;
+}
+
+/* ================================ */
+/* BLOCK 1: HERO */
+/* ================================ */
+.hero-block {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.hero-image {
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.hero-text {
+    text-align: center;
+    z-index: 1;
+}
+
+/* Agdasima font for hero title - NOT italic */
+.hero-title {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 48px;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    letter-spacing: 4px;
+}
+
+/* (LITERALLY) - Bigger, NOT italic, Agdasima */
+.hero-literally {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 72px;
+    font-weight: 700;
+    font-style: normal;
+    /* NOT italic */
+    color: #fff;
+    letter-spacing: 12px;
+    display: block;
+}
+
+/* USP Section - White Background */
+.usp-section {
+    background-color: #fff;
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    padding: 40px 20px;
+    flex-wrap: wrap;
+}
+
+.usp-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 160px;
+}
+
+.usp-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+}
+
+.usp-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1c0d02;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.usp-desc {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: #666;
+    line-height: 1.4;
+}
+
+/* ================================ */
+/* BLOCK 2: PRODUCT - Larger image */
+/* ================================ */
+.product-section {
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+.product-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 20px 40px;
+}
+
+.product-image {
+    width: 380px;
+    height: 380px;
+    object-fit: contain;
+    margin-bottom: 30px;
+}
+
+.section-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #888;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #1c0d02;
+    text-align: center;
+    margin-bottom: 40px;
+    line-height: 1.3;
+}
+
+.cta-button {
+    font-family: 'Montserrat', sans-serif;
+    background-color: transparent;
+    color: #1c0d02;
+    border: 2px solid #1c0d02;
+    padding: 14px 32px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: 0.2s all;
+}
+
+.cta-button:hover {
+    background-color: #1c0d02;
+    color: #fff;
+}
+
+/* ================================ */
+/* BLOCK 3: BREWING */
+/* ================================ */
+.brewing-section {
+    background-color: #f7f3ed;
+    display: flex;
+    flex-direction: column;
+}
+
+.brewing-images {
+    display: flex;
+    height: 30vh;
+    margin-top: 60px;
+}
+
+.brewing-images img {
+    flex: 1;
+    object-fit: cover;
+}
+
+.brewing-content {
+    flex: 1;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.green-underline {
+    width: 40px;
+    height: 3px;
+    background-color: #4f5130;
+    margin-bottom: 24px;
+}
+
+.brewing-subtitle {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.6;
+    margin-bottom: 40px;
+}
+
+.brew-methods {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    flex-wrap: wrap;
+}
+
+.brew-method {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 180px;
+}
+
+.brew-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+}
+
+.brew-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    color: #1c0d02;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.brew-desc {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: #888;
+    line-height: 1.4;
+}
+
+/* ================================ */
+/* BLOCK 4: STORY */
+/* ================================ */
+.story-section {
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.story-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.story-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 30px;
+}
+
+.story-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: #fff;
+    display: block;
+    margin-bottom: 20px;
+}
+
+.story-title {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 8px;
+    margin-bottom: 30px;
+    line-height: 1.2;
+}
+
+.story-body {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.7;
+    max-width: 400px;
+    margin: 0 auto 40px;
+}
+
+.story-button {
+    font-family: 'Montserrat', sans-serif;
+    background: transparent;
+    color: #fff;
+    border: 1px solid #fff;
+    padding: 14px 32px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: 0.2s all;
+}
+
+.story-button:hover {
+    background-color: #fff;
+    color: #1c0d02;
+}
+
+/* ================================ */
+/* BLOCK 5: TESTIMONIALS */
+/* ================================ */
+.testimonials-section {
+    background-color: #f7f3ed;
+    display: flex;
+    flex-direction: column;
+}
+
+.testimonials-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 20px 40px;
+}
+
+.testimonials-title {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #1c0d02;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+}
+
+.reviews-grid {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.review-card {
+    background-color: #fff;
+    padding: 24px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    width: 280px;
+    text-align: left;
+}
+
+.review-quote {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 36px;
+    color: #4f5130;
+    line-height: 1;
+}
+
+.review-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #444;
+    margin: 8px 0 16px;
+    min-height: 60px;
+}
+
+.review-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.review-author {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1c0d02;
+}
+
+.review-stars {
+    color: #4f5130;
+    font-size: 12px;
+}
+
+/* Footer */
+.home-footer {
+    padding: 24px;
+    text-align: center;
+    background-color: #f7f3ed;
+}
+
+.footer-brand {
+    font-family: 'Montserrat', sans-serif;
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #1c0d02;
+    margin-bottom: 4px;
+}
+
+.footer-copyright {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    color: #999;
+}
+
+/* ================================ */
+/* RESPONSIVE */
+/* ================================ */
+@media (min-width: 768px) {
+    .hero-title {
+        font-size: 56px;
+    }
+
+    .hero-literally {
+        font-size: 88px;
+    }
+
+    .usp-section {
+        gap: 80px;
+    }
+
+    .product-image {
+        width: 450px;
+        height: 450px;
+    }
+
+    .section-title {
+        font-size: 36px;
+    }
+}
+
+@media (max-width: 767px) {
+
+    /* Hero - Smaller text */
+    .hero-title {
+        font-size: 32px;
+        letter-spacing: 2px;
+    }
+
+    .hero-literally {
+        font-size: 42px;
+        letter-spacing: 4px;
+    }
+
+    /* USP - 2x2 Grid */
+    .usp-section {
+        gap: 20px;
+        padding: 30px 16px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .usp-item {
+        width: 100%;
+        max-width: none;
+    }
+
+    .usp-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .usp-title {
+        font-size: 10px;
+    }
+
+    .usp-desc {
+        font-size: 10px;
+    }
+
+    /* Product Section - Smaller image like app */
+    .product-content {
+        padding: 80px 16px 30px;
+    }
+
+    .product-image {
+        width: 200px;
+        height: 200px;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 22px;
+        letter-spacing: 1px;
+    }
+
+    .cta-button {
+        padding: 12px 24px;
+        font-size: 11px;
+    }
+
+    /* Brewing Section - 2x2 Grid */
+    .brewing-images {
+        height: 25vh;
+        margin-top: 60px;
+    }
+
+    .brewing-content {
+        padding: 30px 16px;
+    }
+
+    .brewing-subtitle {
+        font-size: 13px;
+        margin-bottom: 30px;
+    }
+
+    /* Brew Methods - 2 on top, chhani centered below */
+    .brew-methods {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 24px;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .brew-method {
+        width: 45%;
+        max-width: none;
+    }
+
+    /* Third brew method (chhani) - full width, centered */
+    .brew-method:nth-child(3) {
+        width: 50%;
+        margin-top: 8px;
+    }
+
+    .brew-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .brew-title {
+        font-size: 10px;
+    }
+
+    .brew-desc {
+        font-size: 10px;
+    }
+
+    /* Story Section */
+    .story-title {
+        font-size: 36px;
+        letter-spacing: 4px;
+    }
+
+    .story-body {
+        font-size: 13px;
+    }
+
+    /* Testimonials - Horizontal Swipe */
+    .testimonials-content {
+        padding: 80px 16px 30px;
+    }
+
+    .testimonials-title {
+        font-size: 24px;
+    }
+
+    .reviews-grid {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 16px;
+        padding-bottom: 16px;
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .reviews-grid::-webkit-scrollbar {
+        display: none;
+    }
+
+    .review-card {
+        flex: 0 0 280px;
+        scroll-snap-align: start;
+        min-width: 280px;
+        width: 280px;
+        max-width: 280px;
+    }
+
+    /* Hide footer on mobile */
+    .home-footer {
+        display: none;
+    }
+}
