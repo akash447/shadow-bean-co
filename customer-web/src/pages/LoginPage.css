@@ -111,6 +111,10 @@
     cursor: not-allowed;
 }
 
+.auth-button-black {
+    background: #1c0d02;
+}
+
 .auth-links {
     display: flex;
     justify-content: center;
