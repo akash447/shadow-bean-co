@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import './LoginPage.css'; // Reuse auth styles
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const redirectTo = searchParams.get('redirect') || '/profile';
+
     const { register } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -35,7 +38,7 @@ export default function RegisterPage() {
             setError(registerError.message);
             setLoading(false);
         } else {
-            navigate('/profile');
+            navigate(redirectTo);
         }
     };
 
@@ -103,7 +106,7 @@ export default function RegisterPage() {
 
                     <div className="auth-links">
                         <span>Already have an account?</span>
-                        <Link to="/login">Sign in</Link>
+                        <Link to={`/login${redirectTo !== '/profile' ? `?redirect=${redirectTo}` : ''}`}>Sign in</Link>
                     </div>
                 </div>
             </main>

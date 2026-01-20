@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import './LoginPage.css';
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const redirectTo = searchParams.get('redirect') || '/profile';
+    const message = searchParams.get('message');
+
     const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -23,7 +27,7 @@ export default function LoginPage() {
             setError(loginError.message);
             setLoading(false);
         } else {
-            navigate('/profile');
+            navigate(redirectTo);
         }
     };
 
@@ -36,6 +40,12 @@ export default function LoginPage() {
                 <div className="auth-card">
                     <h1>Welcome Back</h1>
                     <p className="auth-subtitle">Sign in to your account</p>
+
+                    {message === 'login_required' && (
+                        <div className="info-message">
+                            🔐 Please login or create an account to complete your order. Your shipping details have been saved.
+                        </div>
+                    )}
 
                     {error && <div className="error-message">{error}</div>}
 
@@ -70,7 +80,7 @@ export default function LoginPage() {
                     <div className="auth-links">
                         <Link to="/forgot-password">Forgot password?</Link>
                         <span>•</span>
-                        <Link to="/register">Create account</Link>
+                        <Link to={`/register${redirectTo !== '/profile' ? `?redirect=${redirectTo}` : ''}`}>Create account</Link>
                     </div>
                 </div>
             </main>

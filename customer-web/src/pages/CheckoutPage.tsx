@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
 import { createOrder } from '../services/supabase';
@@ -15,6 +15,8 @@ interface ShippingAddress {
     pincode: string;
 }
 
+const SHIPPING_STORAGE_KEY = 'shadow_bean_shipping_address';
+
 export default function CheckoutPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -22,15 +24,34 @@ export default function CheckoutPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
     const [orderId, setOrderId] = useState<string | null>(null);
-    const [address, setAddress] = useState<ShippingAddress>({
-        fullName: '',
-        phone: '',
-        addressLine1: '',
-        addressLine2: '',
-        city: '',
-        state: '',
-        pincode: '',
-    });
+
+    // Load saved shipping address from localStorage
+    const getSavedAddress = (): ShippingAddress => {
+        const saved = localStorage.getItem(SHIPPING_STORAGE_KEY);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch {
+                // Ignore parse errors
+            }
+        }
+        return {
+            fullName: '',
+            phone: '',
+            addressLine1: '',
+            addressLine2: '',
+            city: '',
+            state: '',
+            pincode: '',
+        };
+    };
+
+    const [address, setAddress] = useState<ShippingAddress>(getSavedAddress());
+
+    // Save shipping address to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem(SHIPPING_STORAGE_KEY, JSON.stringify(address));
+    }, [address]);
 
     if (items.length === 0 && !orderSuccess) {
         return (
@@ -44,6 +65,8 @@ export default function CheckoutPage() {
     }
 
     if (orderSuccess) {
+        // Clear saved shipping address after successful order
+        localStorage.removeItem(SHIPPING_STORAGE_KEY);
         return (
             <div className="checkout-container">
                 <div className="order-success">
@@ -64,11 +87,20 @@ export default function CheckoutPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Check if user is logged in
+        if (!user) {
+            // Save current shipping address (already saved via useEffect)
+            // Redirect to login with return URL
+            navigate('/login?redirect=/checkout&message=login_required');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             const orderData = {
-                user_id: user?.id || '',
+                user_id: user.id,
                 total_amount: getTotal(),
                 razorpay_payment_id: 'COD-' + Date.now(), // Cash on Delivery placeholder
                 shipping_address: address,
