@@ -26,6 +26,12 @@ export async function signUp(email: string, password: string, fullName: string) 
             data: { full_name: fullName },
         },
     });
+
+    // Create profile if signup successful
+    if (data.user && !error) {
+        await ensureProfile(data.user.id, email, fullName);
+    }
+
     return { data, error };
 }
 
@@ -33,6 +39,23 @@ export async function signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+    });
+
+    // Ensure profile exists on login
+    if (data.user && !error) {
+        await ensureProfile(data.user.id, data.user.email || email);
+    }
+
+    return { data, error };
+}
+
+// Google OAuth Sign In
+export async function signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin,
+        },
     });
     return { data, error };
 }
@@ -61,6 +84,33 @@ export async function getSession() {
 // PROFILE FUNCTIONS
 // =====================
 
+// Ensure a profile exists for the user (create if missing)
+export async function ensureProfile(userId: string, email?: string, fullName?: string) {
+    // Check if profile exists
+    const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+    if (!existingProfile) {
+        // Create profile if it doesn't exist
+        const { error: createError } = await supabase
+            .from('profiles')
+            .insert({
+                id: userId,
+                email: email || '',
+                full_name: fullName || '',
+            });
+
+        if (createError) {
+            console.error('Failed to create profile:', createError);
+        } else {
+            console.log('Profile created for user:', userId);
+        }
+    }
+}
+
 export async function getProfile(userId: string) {
     const { data, error } = await supabase
         .from('profiles')
@@ -77,6 +127,7 @@ export async function updateProfile(userId: string, updates: Record<string, any>
         .eq('id', userId);
     return { data, error };
 }
+
 
 // =====================
 // TASTE PROFILES
