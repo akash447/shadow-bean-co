@@ -28,14 +28,8 @@ export default function CartPage() {
     }
 
     const handleCheckout = () => {
-        // Integration with WooCommerce (WordPress is in /wp subdirectory)
-        const checkoutUrl = 'https://shadowbeanco.com/wp/checkout/';
-
-        // Log cart data for verification
-        console.log('Proceeding to checkout with items:', items);
-
-        // Redirect
-        window.location.href = checkoutUrl;
+        // Navigate to internal checkout page
+        navigate('/checkout');
     };
 
     return (
