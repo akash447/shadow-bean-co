@@ -2,13 +2,18 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import './HomePage.css';
 
+import iconShadow from '../assets/icons/icon_shadow_grown.png';
+import iconSalt from '../assets/icons/icon_salt_roasted.png';
+import iconSmallBatch from '../assets/icons/icon_small_batch.png';
+import iconPersonalized from '../assets/icons/icon_personalised.png';
+
 const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 const USP_FEATURES = [
-    { icon: '/icons/icon_shadow_grown.png', title: 'SHADE GROWN', desc: 'Naturally grown under shade for richer flavor.' },
-    { icon: '/icons/icon_salt_roasted.png', title: 'SALT ROASTED', desc: 'Signature salt-air roast for smooth, clean taste' },
-    { icon: '/icons/icon_small_batch.png', title: 'SMALL BATCH', desc: 'Roasted in small lots for freshness and precision' },
-    { icon: '/icons/icon_personalised.png', title: 'PERSONALISED ROASTS', desc: 'Roast profiles tailored to your taste' },
+    { icon: iconShadow, title: 'SHADE GROWN', desc: 'Naturally grown under shade for richer flavor.' },
+    { icon: iconSalt, title: 'SALT ROASTED', desc: 'Signature salt-air roast for smooth, clean taste' },
+    { icon: iconSmallBatch, title: 'SMALL BATCH', desc: 'Roasted in small lots for freshness and precision' },
+    { icon: iconPersonalized, title: 'PERSONALISED ROASTS', desc: 'Roast profiles tailored to your taste' },
 ];
 
 const BREW_METHODS = [
