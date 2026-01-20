@@ -163,20 +163,33 @@ export async function getOrders(userId: string) {
 }
 
 export async function createOrder(order: Order) {
-    // Create order
+    console.log('Creating order:', order);
+
+    // Create order - user_id can be null for guest orders
+    const orderPayload: Record<string, any> = {
+        total_amount: order.total_amount,
+        razorpay_payment_id: order.razorpay_payment_id,
+        shipping_address: order.shipping_address,
+        status: 'pending',
+    };
+
+    // Only include user_id if it's not empty
+    if (order.user_id && order.user_id.trim() !== '') {
+        orderPayload.user_id = order.user_id;
+    }
+
     const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .insert({
-            user_id: order.user_id,
-            total_amount: order.total_amount,
-            razorpay_payment_id: order.razorpay_payment_id,
-            shipping_address: order.shipping_address,
-            status: 'pending',
-        })
+        .insert(orderPayload)
         .select()
         .single();
 
-    if (orderError) return { order: null, error: orderError };
+    console.log('Order insert result:', { orderData, orderError });
+
+    if (orderError) {
+        console.error('Order creation failed:', orderError);
+        return { order: null, error: orderError };
+    }
 
     // Create order items
     const orderItems = order.items.map(item => ({
@@ -187,12 +200,18 @@ export async function createOrder(order: Order) {
         unit_price: item.unit_price,
     }));
 
+    console.log('Creating order items:', orderItems);
+
     const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
-    if (itemsError) return { order: orderData, error: itemsError };
+    if (itemsError) {
+        console.error('Order items creation failed:', itemsError);
+        return { order: orderData, error: itemsError };
+    }
 
+    console.log('Order created successfully:', orderData);
     return { order: orderData, error: null };
 }
 
