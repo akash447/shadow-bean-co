@@ -89,9 +89,9 @@ export default function CheckoutPage() {
         console.log('Form submitted!');
         e.preventDefault();
 
-        // Check if user is logged in
-        if (!user) {
-            console.log('User not logged in, redirecting...');
+        // Check if user is logged in AND has a valid user ID
+        if (!user || !user.id || user.id.trim() === '') {
+            console.log('User not logged in or invalid user ID, redirecting...');
             // Save current shipping address (already saved via useEffect)
             // Redirect to login with return URL
             navigate('/login?redirect=/checkout&message=login_required');
