@@ -215,16 +215,10 @@ export async function getOrders(userId: string) {
 
 
 export async function createOrder(order: Order) {
-    console.log('Creating order:', order);
+    console.log('=== CREATE ORDER START ===');
+    console.log('Order input:', JSON.stringify(order, null, 2));
 
-    // Debug: Check if we have an active session
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log('Current session:', sessionData?.session ? 'Active' : 'None', sessionData?.session?.user?.id);
-
-    // Skip profile check - profiles should be created by trigger on signup
-    // This was causing timeouts
-
-    // Create order - user_id can be null for guest orders
+    // Create order payload
     const orderPayload: Record<string, any> = {
         total_amount: order.total_amount,
         razorpay_payment_id: order.razorpay_payment_id,
@@ -237,8 +231,8 @@ export async function createOrder(order: Order) {
         orderPayload.user_id = order.user_id;
     }
 
-    console.log('Order payload:', orderPayload);
-    console.log('Inserting order into database (no timeout)...');
+    console.log('Order payload to insert:', JSON.stringify(orderPayload, null, 2));
+    console.log('Calling supabase.from("orders").insert()...');
 
     const { data: orderData, error: orderError } = await supabase
         .from('orders')
