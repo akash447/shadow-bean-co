@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase, signIn, signUp, signOut, getProfile } from '../services/supabase';
+import { supabase, signIn, signUp, signOut, getProfile, ensureProfile } from '../services/supabase';
 
 interface Profile {
     id: string;
@@ -68,7 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
-    const loadProfile = async (userId: string) => {
+    const loadProfile = async (userId: string, email?: string, fullName?: string) => {
+        // First ensure profile exists (creates if missing - important for OAuth users)
+        await ensureProfile(userId, email, fullName);
+
+        // Then load the profile
         const { profile: profileData, error } = await getProfile(userId);
         if (!error && profileData) {
             setProfile(profileData);
