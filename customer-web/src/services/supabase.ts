@@ -227,20 +227,12 @@ function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number, errorMes
 export async function createOrder(order: Order) {
     console.log('Creating order:', order);
 
-    // Ensure user profile exists before creating order (prevents foreign key constraint issues)
-    if (order.user_id && order.user_id.trim() !== '') {
-        console.log('Ensuring profile exists for user:', order.user_id);
-        try {
-            await withTimeout(
-                ensureProfile(order.user_id),
-                5000,
-                'Profile creation timed out'
-            );
-        } catch (profileError) {
-            console.warn('Profile ensure warning:', profileError);
-            // Continue anyway - the profile might already exist
-        }
-    }
+    // Debug: Check if we have an active session
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('Current session:', sessionData?.session ? 'Active' : 'None', sessionData?.session?.user?.id);
+
+    // Skip profile check - profiles should be created by trigger on signup
+    // This was causing timeouts
 
     // Create order - user_id can be null for guest orders
     const orderPayload: Record<string, any> = {
@@ -255,21 +247,19 @@ export async function createOrder(order: Order) {
         orderPayload.user_id = order.user_id;
     }
 
-    console.log('Inserting order into database...');
-    const { data: orderData, error: orderError } = await withTimeout(
-        supabase
-            .from('orders')
-            .insert(orderPayload)
-            .select()
-            .single(),
-        15000,
-        'Order creation timed out. Please check your connection and try again.'
-    );
+    console.log('Order payload:', orderPayload);
+    console.log('Inserting order into database (no timeout)...');
+
+    const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select()
+        .single();
 
     console.log('Order insert result:', { orderData, orderError });
 
     if (orderError) {
-        console.error('Order creation failed:', orderError);
+        console.error('Order creation failed with error:', orderError);
         return { order: null, error: orderError };
     }
 
