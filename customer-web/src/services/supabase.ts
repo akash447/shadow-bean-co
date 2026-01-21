@@ -234,12 +234,13 @@ export async function createOrder(order: Order) {
         status: 'pending',
     };
 
-    // TEMPORARY: Skip user_id to test if order insert works without it
-    // If this works, the issue is with the profile foreign key or RLS
-    // if (order.user_id && order.user_id.trim() !== '') {
-    //     orderPayload.user_id = order.user_id;
-    // }
-    console.log('NOTE: Creating as GUEST order (no user_id) for testing');
+    // Include user_id if provided
+    if (order.user_id && order.user_id.trim() !== '') {
+        orderPayload.user_id = order.user_id;
+        console.log('Order will be linked to user:', order.user_id);
+    } else {
+        console.log('Creating as guest order (no user_id)');
+    }
 
     console.log('Order payload to insert:', JSON.stringify(orderPayload, null, 2));
     console.log('Calling supabase.from("orders").insert()...');
