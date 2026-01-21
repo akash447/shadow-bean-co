@@ -15,8 +15,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         storage: localStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false, // Disabled to prevent AbortError
-        flowType: 'pkce',
+        detectSessionInUrl: true,
     },
 });
 
