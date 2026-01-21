@@ -33,14 +33,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initialize auth state
     useEffect(() => {
+        // Handle OAuth callback manually since detectSessionInUrl is disabled
+        const handleOAuthCallback = async () => {
+            const url = new URL(window.location.href);
+            const code = url.searchParams.get('code');
+
+            if (code) {
+                console.log('OAuth callback detected, exchanging code for session...');
+                try {
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+                    if (error) {
+                        console.error('OAuth code exchange error:', error);
+                    } else {
+                        console.log('OAuth session established:', data.user?.email);
+                        // Clean up URL
+                        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                    }
+                } catch (err) {
+                    console.error('OAuth callback error:', err);
+                }
+            }
+        };
+
         // Get initial session with error handling
         const initAuth = async () => {
             try {
+                // First handle any OAuth callback
+                await handleOAuthCallback();
+
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log('Initial session check:', session ? 'Found' : 'None');
                 setSession(session);
                 setUser(session?.user ?? null);
                 if (session?.user) {
-                    await loadProfile(session.user.id);
+                    await loadProfile(session.user.id, session.user.email);
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
@@ -53,11 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
+                console.log('Auth state changed:', _event, session?.user?.email);
                 setSession(session);
                 setUser(session?.user ?? null);
 
                 if (session?.user) {
-                    await loadProfile(session.user.id);
+                    await loadProfile(session.user.id, session.user.email);
                 } else {
                     setProfile(null);
                 }
