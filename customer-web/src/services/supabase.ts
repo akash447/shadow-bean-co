@@ -213,16 +213,6 @@ export async function getOrders(userId: string) {
     return { orders: data, error };
 }
 
-// Helper function to add timeout to promises
-function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number, errorMessage: string): Promise<T> {
-    const promise = Promise.resolve(promiseLike);
-    return Promise.race([
-        promise,
-        new Promise<T>((_, reject) =>
-            setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
-        ),
-    ]);
-}
 
 export async function createOrder(order: Order) {
     console.log('Creating order:', order);
