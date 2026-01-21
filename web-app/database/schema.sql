@@ -124,9 +124,14 @@ DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
+
 
 -- Policies for addresses
 DROP POLICY IF EXISTS "Users can view own addresses" ON addresses;
@@ -171,6 +176,14 @@ CREATE POLICY "Users can insert own orders" ON orders
 DROP POLICY IF EXISTS "Users can view own order items" ON order_items;
 CREATE POLICY "Users can view own order items" ON order_items
   FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can insert order items" ON order_items;
+CREATE POLICY "Users can insert order items" ON order_items
+  FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid()
     )
