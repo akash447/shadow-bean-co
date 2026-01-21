@@ -4,15 +4,23 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create Supabase client
+console.log('Initializing Supabase client...');
+console.log('URL:', supabaseUrl);
+console.log('Key:', supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'MISSING');
+
+// Create Supabase client with stable auth configuration
+// Note: detectSessionInUrl set to false to avoid AbortError issues
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         storage: localStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false, // Disabled to prevent AbortError
+        flowType: 'pkce',
     },
 });
+
+console.log('Supabase client created successfully');
 
 // =====================
 // AUTH FUNCTIONS
