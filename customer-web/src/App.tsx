@@ -1,7 +1,6 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { useEffect, useState } from 'react'
-import { supabase } from './services/supabase'
 import HomePage from './pages/HomePage'
 import ShopPage from './pages/ShopPage'
 import CartPage from './pages/CartPage'
@@ -29,32 +28,47 @@ function OAuthCallbackHandler({ children }: { children: React.ReactNode }) {
           const params = new URLSearchParams(hash.substring(1)); // Remove the #
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
+          const expiresIn = params.get('expires_in');
+          const tokenType = params.get('token_type');
 
           if (accessToken) {
-            // Set the session manually
-            const { data, error } = await supabase.auth.setSession({
+            // Store session directly in localStorage (Supabase format)
+            const expiresAt = Math.floor(Date.now() / 1000) + parseInt(expiresIn || '3600');
+            const sessionData = {
               access_token: accessToken,
               refresh_token: refreshToken || '',
-            });
+              token_type: tokenType || 'bearer',
+              expires_in: parseInt(expiresIn || '3600'),
+              expires_at: expiresAt,
+            };
 
-            if (error) {
-              console.error('Error setting session:', error);
-            } else {
-              console.log('OAuth session established:', data.user?.email);
-            }
+            // Store in Supabase's expected localStorage key format
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const projectRef = supabaseUrl?.match(/\/\/([^.]+)\./)?.[1] || 'supabase';
+            const storageKey = `sb-${projectRef}-auth-token`;
+
+            localStorage.setItem(storageKey, JSON.stringify(sessionData));
+            console.log('OAuth tokens stored in localStorage');
           }
         } catch (err) {
           console.error('Error processing OAuth callback:', err);
         }
 
-        // Clean the URL - redirect to home or the intended path
-        window.history.replaceState({}, '', window.location.pathname + '#/');
+        // Clean the URL - redirect to home
+        window.location.href = window.location.pathname + '#/';
+        return; // Will reload and AuthContext will pick up the session
       }
 
       setIsProcessing(false);
     };
 
-    handleOAuthCallback();
+    // Add a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log('OAuth processing timeout, continuing...');
+      setIsProcessing(false);
+    }, 5000);
+
+    handleOAuthCallback().finally(() => clearTimeout(timeout));
   }, []);
 
   if (isProcessing) {
