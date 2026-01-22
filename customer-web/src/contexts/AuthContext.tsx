@@ -38,13 +38,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const initAuth = async (retryCount = 0) => {
             const maxRetries = 3;
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                let currentSession = null;
 
-                console.log('Initial session check:', session ? 'Found' : 'None');
-                setSession(session);
-                setUser(session?.user ?? null);
-                if (session?.user) {
-                    await loadProfile(session.user.id, session.user.email);
+                // First try getSession
+                const { data: { session: existingSession } } = await supabase.auth.getSession();
+                currentSession = existingSession;
+
+                // If no session, check if we have stored OAuth tokens to restore
+                if (!currentSession) {
+                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+                    const match = supabaseUrl.match(/\/\/([^.]+)\./);
+                    const projectRef = match ? match[1] : 'supabase';
+                    const storageKey = `sb-${projectRef}-auth-token`;
+
+                    const storedTokens = localStorage.getItem(storageKey);
+                    if (storedTokens) {
+                        console.log('Found stored OAuth tokens, attempting to restore session...');
+                        try {
+                            const tokens = JSON.parse(storedTokens);
+                            if (tokens.access_token) {
+                                const { data, error } = await supabase.auth.setSession({
+                                    access_token: tokens.access_token,
+                                    refresh_token: tokens.refresh_token || '',
+                                });
+
+                                if (error) {
+                                    console.error('Error restoring session:', error);
+                                    // Clear invalid tokens
+                                    localStorage.removeItem(storageKey);
+                                } else if (data.session) {
+                                    console.log('Session restored from stored tokens:', data.user?.email);
+                                    currentSession = data.session;
+                                }
+                            }
+                        } catch (parseErr) {
+                            console.error('Error parsing stored tokens:', parseErr);
+                            localStorage.removeItem(storageKey);
+                        }
+                    }
+                }
+
+                console.log('Final session check:', currentSession ? 'Found' : 'None');
+                setSession(currentSession);
+                setUser(currentSession?.user ?? null);
+                if (currentSession?.user) {
+                    await loadProfile(currentSession.user.id, currentSession.user.email);
                 }
             } catch (error: any) {
                 // Handle AbortError specifically - retry after a short delay
