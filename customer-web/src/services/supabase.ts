@@ -221,10 +221,85 @@ export async function getOrders(userId: string) {
     return { orders: data, error };
 }
 
+// Helper function to make Supabase REST API calls with timeout
+async function supabaseRestCall(
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    body?: any,
+    accessToken?: string,
+    timeoutMs = 15000
+): Promise<{ data: any; error: any }> {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Prefer': 'return=representation',
+        };
+
+        // Use access token if available, otherwise use anon key
+        if (accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`;
+        } else {
+            headers['Authorization'] = `Bearer ${supabaseKey}`;
+        }
+
+        const response = await fetch(`${supabaseUrl}/rest/v1/${endpoint}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Supabase REST error:', response.status, errorText);
+            return { data: null, error: { message: errorText, status: response.status } };
+        }
+
+        const data = await response.json();
+        return { data, error: null };
+    } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+            return { data: null, error: { message: 'Request timed out', code: 'TIMEOUT' } };
+        }
+        return { data: null, error: err };
+    }
+}
+
+// Get access token from localStorage
+function getStoredAccessToken(): string | null {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const match = supabaseUrl.match(/\/\/([^.]+)\./);
+    const projectRef = match ? match[1] : 'supabase';
+    const storageKey = `sb-${projectRef}-auth-token`;
+
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+        try {
+            const tokens = JSON.parse(stored);
+            return tokens.access_token || null;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
 
 export async function createOrder(order: Order) {
-    console.log('=== CREATE ORDER START ===');
+    console.log('=== CREATE ORDER START (Direct REST API) ===');
     console.log('Order input:', JSON.stringify(order, null, 2));
+
+    const accessToken = getStoredAccessToken();
+    console.log('Using access token:', accessToken ? 'Yes' : 'No');
 
     // Create order payload
     const orderPayload: Record<string, any> = {
@@ -243,13 +318,15 @@ export async function createOrder(order: Order) {
     }
 
     console.log('Order payload to insert:', JSON.stringify(orderPayload, null, 2));
-    console.log('Calling supabase.from("orders").insert()...');
+    console.log('Calling REST API for orders insert...');
 
-    const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderPayload)
-        .select()
-        .single();
+    // Use direct REST API call instead of Supabase client
+    const { data: orderData, error: orderError } = await supabaseRestCall(
+        'orders',
+        'POST',
+        orderPayload,
+        accessToken ?? undefined
+    );
 
     console.log('Order insert result:', { orderData, orderError });
 
@@ -258,9 +335,12 @@ export async function createOrder(order: Order) {
         return { order: null, error: orderError };
     }
 
+    // Handle array response
+    const createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
+
     // Create order items
     const orderItems = order.items.map(item => ({
-        order_id: orderData.id,
+        order_id: createdOrder.id,
         taste_profile_id: item.taste_profile_id,
         taste_profile_name: item.taste_profile_name,
         quantity: item.quantity,
@@ -269,13 +349,16 @@ export async function createOrder(order: Order) {
 
     console.log('Creating order items:', orderItems);
 
-    const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+    const { error: itemsError } = await supabaseRestCall(
+        'order_items',
+        'POST',
+        orderItems,
+        accessToken ?? undefined
+    );
 
     if (itemsError) {
         console.error('Order items creation failed:', itemsError);
-        return { order: orderData, error: itemsError };
+        return { order: createdOrder, error: itemsError };
     }
 
     console.log('Order created successfully:', orderData);
