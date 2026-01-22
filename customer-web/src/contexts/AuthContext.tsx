@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase, signIn, signUp, signOut, getProfile, ensureProfile } from '../services/supabase';
+import { signIn, signUp, signOut, getProfile, ensureProfile } from '../services/supabase';
 
 interface Profile {
     id: string;
@@ -97,9 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                                 setSession(mockSession);
                                 setUser(mockUser);
 
-                                // Load profile
-                                await loadProfile(mockUser.id, mockUser.email);
+                                // Load profile in background - don't block
                                 setLoading(false);
+                                loadProfile(mockUser.id, mockUser.email).catch(err => {
+                                    console.warn('Profile load error (non-blocking):', err);
+                                });
                                 return;
                             }
                         }
@@ -120,22 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         initAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
-                console.log('Auth state changed:', _event, session?.user?.email);
-                setSession(session);
-                setUser(session?.user ?? null);
-
-                if (session?.user) {
-                    await loadProfile(session.user.id, session.user.email);
-                } else {
-                    setProfile(null);
-                }
-                setLoading(false);
-            }
-        );
-
-        return () => subscription.unsubscribe();
+        // Skip onAuthStateChange - we're bypassing Supabase auth
+        // Manual JWT decoding handles session restoration
     }, []);
 
     const loadProfile = async (userId: string, email?: string, fullName?: string) => {
