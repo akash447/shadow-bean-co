@@ -8,14 +8,15 @@ console.log('Initializing Supabase client...');
 console.log('URL:', supabaseUrl);
 console.log('Key:', supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'MISSING');
 
-// Create Supabase client with stable auth configuration
-// Note: detectSessionInUrl set to false to avoid AbortError issues
+// Create Supabase client with simplified configuration
+// Using implicit flow to avoid PKCE-related AbortError issues
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         storage: localStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+        flowType: 'implicit',
     },
 });
 
