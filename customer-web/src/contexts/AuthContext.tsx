@@ -34,8 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize auth state
     useEffect(() => {
 
-        // Get initial session with error handling
-        const initAuth = async () => {
+        // Get initial session with error handling and retry for AbortError
+        const initAuth = async (retryCount = 0) => {
+            const maxRetries = 3;
             try {
                 const { data: { session } } = await supabase.auth.getSession();
 
@@ -45,7 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (session?.user) {
                     await loadProfile(session.user.id, session.user.email);
                 }
-            } catch (error) {
+            } catch (error: any) {
+                // Handle AbortError specifically - retry after a short delay
+                if (error?.name === 'AbortError' && retryCount < maxRetries) {
+                    console.log(`Auth AbortError, retrying (${retryCount + 1}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return initAuth(retryCount + 1);
+                }
                 console.error('Auth initialization error:', error);
             } finally {
                 setLoading(false);
