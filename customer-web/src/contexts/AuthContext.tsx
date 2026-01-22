@@ -31,68 +31,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Helper to decode JWT without verification (for client-side user info only)
+    const decodeJWT = (token: string) => {
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) return null;
+            const payload = JSON.parse(atob(parts[1]));
+            return payload;
+        } catch {
+            return null;
+        }
+    };
+
     // Initialize auth state
     useEffect(() => {
 
-        // Get initial session with error handling and retry for AbortError
-        const initAuth = async (retryCount = 0) => {
-            const maxRetries = 3;
+        // Get initial session - bypass Supabase auth methods that hang
+        const initAuth = async () => {
             try {
-                let currentSession = null;
+                // Check for stored OAuth tokens
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+                const match = supabaseUrl.match(/\/\/([^.]+)\./);
+                const projectRef = match ? match[1] : 'supabase';
+                const storageKey = `sb-${projectRef}-auth-token`;
 
-                // First try getSession
-                const { data: { session: existingSession } } = await supabase.auth.getSession();
-                currentSession = existingSession;
+                const storedTokens = localStorage.getItem(storageKey);
+                if (storedTokens) {
+                    console.log('Found stored OAuth tokens, decoding JWT...');
+                    try {
+                        const tokens = JSON.parse(storedTokens);
+                        if (tokens.access_token) {
+                            // Decode JWT to get user info (bypass Supabase auth)
+                            const payload = decodeJWT(tokens.access_token);
 
-                // If no session, check if we have stored OAuth tokens to restore
-                if (!currentSession) {
-                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-                    const match = supabaseUrl.match(/\/\/([^.]+)\./);
-                    const projectRef = match ? match[1] : 'supabase';
-                    const storageKey = `sb-${projectRef}-auth-token`;
+                            if (payload && payload.sub) {
+                                console.log('JWT decoded successfully:', payload.email);
 
-                    const storedTokens = localStorage.getItem(storageKey);
-                    if (storedTokens) {
-                        console.log('Found stored OAuth tokens, attempting to restore session...');
-                        try {
-                            const tokens = JSON.parse(storedTokens);
-                            if (tokens.access_token) {
-                                const { data, error } = await supabase.auth.setSession({
+                                // Check if token is expired
+                                const now = Math.floor(Date.now() / 1000);
+                                if (payload.exp && payload.exp < now) {
+                                    console.log('Token expired, clearing...');
+                                    localStorage.removeItem(storageKey);
+                                    setLoading(false);
+                                    return;
+                                }
+
+                                // Create a mock user object from JWT payload
+                                const mockUser = {
+                                    id: payload.sub,
+                                    email: payload.email,
+                                    user_metadata: payload.user_metadata || {},
+                                    aud: payload.aud,
+                                    role: payload.role,
+                                } as any;
+
+                                // Create a mock session
+                                const mockSession = {
                                     access_token: tokens.access_token,
                                     refresh_token: tokens.refresh_token || '',
-                                });
+                                    expires_at: tokens.expires_at,
+                                    user: mockUser,
+                                } as Session;
 
-                                if (error) {
-                                    console.error('Error restoring session:', error);
-                                    // Clear invalid tokens
-                                    localStorage.removeItem(storageKey);
-                                } else if (data.session) {
-                                    console.log('Session restored from stored tokens:', data.user?.email);
-                                    currentSession = data.session;
-                                }
+                                console.log('Session created from JWT:', mockUser.email);
+                                setSession(mockSession);
+                                setUser(mockUser);
+
+                                // Load profile
+                                await loadProfile(mockUser.id, mockUser.email);
+                                setLoading(false);
+                                return;
                             }
-                        } catch (parseErr) {
-                            console.error('Error parsing stored tokens:', parseErr);
-                            localStorage.removeItem(storageKey);
                         }
+                    } catch (parseErr) {
+                        console.error('Error parsing stored tokens:', parseErr);
+                        localStorage.removeItem(storageKey);
                     }
                 }
 
-                console.log('Final session check:', currentSession ? 'Found' : 'None');
-                setSession(currentSession);
-                setUser(currentSession?.user ?? null);
-                if (currentSession?.user) {
-                    await loadProfile(currentSession.user.id, currentSession.user.email);
-                }
+                // No stored tokens - user is not logged in
+                console.log('No valid session found');
+                setLoading(false);
             } catch (error: any) {
-                // Handle AbortError specifically - retry after a short delay
-                if (error?.name === 'AbortError' && retryCount < maxRetries) {
-                    console.log(`Auth AbortError, retrying (${retryCount + 1}/${maxRetries})...`);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return initAuth(retryCount + 1);
-                }
                 console.error('Auth initialization error:', error);
-            } finally {
                 setLoading(false);
             }
         };
