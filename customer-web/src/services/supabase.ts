@@ -338,10 +338,16 @@ export async function createOrder(order: Order) {
     // Handle array response
     const createdOrder = Array.isArray(orderData) ? orderData[0] : orderData;
 
-    // Create order items
+    // Helper to validate UUID format
+    const isValidUUID = (id: string) => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(id);
+    };
+
+    // Create order items - send null for taste_profile_id if it's not a valid UUID
     const orderItems = order.items.map(item => ({
         order_id: createdOrder.id,
-        taste_profile_id: item.taste_profile_id,
+        taste_profile_id: isValidUUID(item.taste_profile_id) ? item.taste_profile_id : null,
         taste_profile_name: item.taste_profile_name,
         quantity: item.quantity,
         unit_price: item.unit_price,
