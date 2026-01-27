@@ -367,8 +367,8 @@ export async function createOrder(order: Order) {
         return { order: createdOrder, error: itemsError };
     }
 
-    console.log('Order created successfully:', orderData);
-    return { order: orderData, error: null };
+    console.log('Order created successfully:', createdOrder);
+    return { order: createdOrder, error: null };
 }
 
 // =====================
