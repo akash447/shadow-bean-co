@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder } from '../services/supabase';
+import { createOrder } from '../services/amplify-auth';
 import { useAuth } from '../contexts/AuthContext';
 import './CheckoutPage.css';
 

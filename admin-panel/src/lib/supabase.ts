@@ -1,38 +1,101 @@
-// Supabase client for Admin Panel
+// Supabase client for Admin Panel (Data only)
+// Auth is handled by AWS Amplify Cognito
 import { createClient } from '@supabase/supabase-js';
+import {
+    signIn as cognitoSignIn,
+    signOut as cognitoSignOut,
+    getCurrentUser,
+    fetchUserAttributes,
+    fetchAuthSession,
+} from 'aws-amplify/auth';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Auth functions
+// ===== AWS AMPLIFY AUTH FUNCTIONS =====
+
+// Sign in with Cognito
 export const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
-    return { data, error };
+    try {
+        const result = await cognitoSignIn({ username: email, password });
+        if (result.isSignedIn) {
+            const user = await getCurrentUser();
+            const attributes = await fetchUserAttributes();
+            const session = await fetchAuthSession();
+
+            // Check if user is in Admin group
+            const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
+            const isAdmin = groups.includes('Admin');
+
+            return {
+                data: {
+                    user: {
+                        id: user.userId,
+                        email: attributes.email || email,
+                        isAdmin
+                    }
+                },
+                error: null
+            };
+        }
+        return { data: null, error: { message: 'Sign in incomplete' } };
+    } catch (err: any) {
+        console.error('Cognito sign in error:', err);
+        return { data: null, error: { message: err.message || 'Sign in failed' } };
+    }
 };
 
 export const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+        await cognitoSignOut();
+        return { error: null };
+    } catch (err: any) {
+        return { error: { message: err.message || 'Sign out failed' } };
+    }
 };
 
+// Get current session from Cognito
 export const getSession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    return { session, error };
+    try {
+        const user = await getCurrentUser();
+        const attributes = await fetchUserAttributes();
+        const session = await fetchAuthSession();
+
+        // Check if user is in Admin group
+        const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
+        const isAdmin = groups.includes('Admin');
+
+        if (!isAdmin) {
+            return { session: null, error: null };
+        }
+
+        return {
+            session: {
+                user: {
+                    id: user.userId,
+                    email: attributes.email || '',
+                    isAdmin
+                }
+            },
+            error: null
+        };
+    } catch (err: any) {
+        // Not logged in
+        return { session: null, error: null };
+    }
 };
 
-// Admin users check
-export const isAdminUser = async (userId: string) => {
-    const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-    return { isAdmin: !!data, error };
+// Admin users check (via Cognito groups, not Supabase)
+export const isAdminUser = async (_userId: string) => {
+    try {
+        const session = await fetchAuthSession();
+        const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
+        return { isAdmin: groups.includes('Admin'), error: null };
+    } catch {
+        return { isAdmin: false, error: null };
+    }
 };
 
 // Users management (using test_profiles for demo)

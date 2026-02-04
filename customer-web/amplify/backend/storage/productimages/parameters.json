@@ -1,0 +1,5 @@
+{
+    "serviceName": "S3",
+    "bucketName": "shadowbeanco-productimages",
+    "resourceName": "productimages"
+}

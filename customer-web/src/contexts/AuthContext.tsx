@@ -1,7 +1,15 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { signIn, signUp, signOut, getProfile, ensureProfile } from '../services/supabase';
+import { Hub } from 'aws-amplify/utils';
+import {
+    signIn as amplifySignIn,
+    signUp as amplifySignUp,
+    signOut as amplifySignOut,
+    getCurrentUser,
+    fetchUserAttributes,
+    fetchAuthSession,
+    confirmSignUp,
+} from 'aws-amplify/auth';
 
 interface Profile {
     id: string;
@@ -12,13 +20,21 @@ interface Profile {
     address?: Record<string, any>;
 }
 
+interface AuthUser {
+    id: string;
+    email: string;
+    fullName?: string;
+    isAdmin?: boolean;
+}
+
 interface AuthContextType {
-    user: User | null;
-    session: Session | null;
+    user: AuthUser | null;
     profile: Profile | null;
     loading: boolean;
+    needsConfirmation: { email: string; password: string } | null;
     login: (email: string, password: string) => Promise<{ error: any }>;
-    register: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+    register: (email: string, password: string, fullName: string) => Promise<{ error: any; needsConfirmation?: boolean }>;
+    confirmSignUp: (code: string) => Promise<{ error: any }>;
     logout: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -26,149 +42,173 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [session, setSession] = useState<Session | null>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [needsConfirmation, setNeedsConfirmation] = useState<{ email: string; password: string } | null>(null);
 
-    // Helper to decode JWT without verification (for client-side user info only)
-    const decodeJWT = (token: string) => {
+    // Fetch the current authenticated user
+    const fetchCurrentUser = useCallback(async () => {
         try {
-            const parts = token.split('.');
-            if (parts.length !== 3) return null;
-            const payload = JSON.parse(atob(parts[1]));
-            return payload;
+            const cognitoUser = await getCurrentUser();
+            const attributes = await fetchUserAttributes();
+            const session = await fetchAuthSession();
+
+            // Check if user is in Admin group
+            const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
+            const isAdmin = groups.includes('Admin');
+
+            const authUser: AuthUser = {
+                id: cognitoUser.userId,
+                email: attributes.email || '',
+                fullName: attributes.name || '',
+                isAdmin,
+            };
+
+            setUser(authUser);
+
+            // Create profile from Cognito attributes
+            setProfile({
+                id: cognitoUser.userId,
+                email: attributes.email || '',
+                full_name: attributes.name || '',
+                phone: attributes.phone_number,
+            });
+
+            return authUser;
         } catch {
+            // Not authenticated
+            setUser(null);
+            setProfile(null);
             return null;
+        } finally {
+            setLoading(false);
         }
-    };
-
-    // Initialize auth state
-    useEffect(() => {
-
-        // Get initial session - bypass Supabase auth methods that hang
-        const initAuth = async () => {
-            try {
-                // Check for stored OAuth tokens
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-                const match = supabaseUrl.match(/\/\/([^.]+)\./);
-                const projectRef = match ? match[1] : 'supabase';
-                const storageKey = `sb-${projectRef}-auth-token`;
-
-                const storedTokens = localStorage.getItem(storageKey);
-                if (storedTokens) {
-                    console.log('Found stored OAuth tokens, decoding JWT...');
-                    try {
-                        const tokens = JSON.parse(storedTokens);
-                        if (tokens.access_token) {
-                            // Decode JWT to get user info (bypass Supabase auth)
-                            const payload = decodeJWT(tokens.access_token);
-
-                            if (payload && payload.sub) {
-                                console.log('JWT decoded successfully:', payload.email);
-
-                                // Check if token is expired
-                                const now = Math.floor(Date.now() / 1000);
-                                if (payload.exp && payload.exp < now) {
-                                    console.log('Token expired, clearing...');
-                                    localStorage.removeItem(storageKey);
-                                    setLoading(false);
-                                    return;
-                                }
-
-                                // Create a mock user object from JWT payload
-                                const mockUser = {
-                                    id: payload.sub,
-                                    email: payload.email,
-                                    user_metadata: payload.user_metadata || {},
-                                    aud: payload.aud,
-                                    role: payload.role,
-                                } as any;
-
-                                // Create a mock session
-                                const mockSession = {
-                                    access_token: tokens.access_token,
-                                    refresh_token: tokens.refresh_token || '',
-                                    expires_at: tokens.expires_at,
-                                    user: mockUser,
-                                } as Session;
-
-                                console.log('Session created from JWT:', mockUser.email);
-                                setSession(mockSession);
-                                setUser(mockUser);
-
-                                // Load profile in background - don't block
-                                setLoading(false);
-                                loadProfile(mockUser.id, mockUser.email).catch(err => {
-                                    console.warn('Profile load error (non-blocking):', err);
-                                });
-                                return;
-                            }
-                        }
-                    } catch (parseErr) {
-                        console.error('Error parsing stored tokens:', parseErr);
-                        localStorage.removeItem(storageKey);
-                    }
-                }
-
-                // No stored tokens - user is not logged in
-                console.log('No valid session found');
-                setLoading(false);
-            } catch (error: any) {
-                console.error('Auth initialization error:', error);
-                setLoading(false);
-            }
-        };
-
-        initAuth();
-
-        // Skip onAuthStateChange - we're bypassing Supabase auth
-        // Manual JWT decoding handles session restoration
     }, []);
 
-    const loadProfile = async (userId: string, email?: string, fullName?: string) => {
-        // First ensure profile exists (creates if missing - important for OAuth users)
-        await ensureProfile(userId, email, fullName);
+    // Initialize auth state and listen for auth events
+    useEffect(() => {
+        fetchCurrentUser();
 
-        // Then load the profile
-        const { profile: profileData, error } = await getProfile(userId);
-        if (!error && profileData) {
-            setProfile(profileData);
-        }
-        setLoading(false);
-    };
+        // Listen for Amplify Auth events
+        const hubListener = Hub.listen('auth', ({ payload }) => {
+            switch (payload.event) {
+                case 'signedIn':
+                    console.log('User signed in');
+                    fetchCurrentUser();
+                    break;
+                case 'signedOut':
+                    console.log('User signed out');
+                    setUser(null);
+                    setProfile(null);
+                    break;
+                case 'tokenRefresh':
+                    console.log('Token refreshed');
+                    break;
+                case 'tokenRefresh_failure':
+                    console.log('Token refresh failed');
+                    setUser(null);
+                    setProfile(null);
+                    break;
+            }
+        });
+
+        return () => hubListener();
+    }, [fetchCurrentUser]);
 
     const login = async (email: string, password: string) => {
-        const { error } = await signIn(email, password);
-        return { error };
+        try {
+            const result = await amplifySignIn({ username: email, password });
+
+            if (result.isSignedIn) {
+                await fetchCurrentUser();
+                return { error: null };
+            }
+
+            // Handle next steps (MFA, etc.)
+            if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+                setNeedsConfirmation({ email, password });
+                return { error: { message: 'Please confirm your email address' } };
+            }
+
+            return { error: { message: 'Sign in incomplete' } };
+        } catch (err: any) {
+            console.error('Login error:', err);
+            return { error: { message: err.message || 'Sign in failed' } };
+        }
     };
 
     const register = async (email: string, password: string, fullName: string) => {
-        const { error } = await signUp(email, password, fullName);
-        return { error };
+        try {
+            const result = await amplifySignUp({
+                username: email,
+                password,
+                options: {
+                    userAttributes: {
+                        email,
+                        name: fullName,
+                    },
+                },
+            });
+
+            if (!result.isSignUpComplete) {
+                // Need email confirmation
+                setNeedsConfirmation({ email, password });
+                return { error: null, needsConfirmation: true };
+            }
+
+            // Auto sign-in after registration
+            await login(email, password);
+            return { error: null };
+        } catch (err: any) {
+            console.error('Register error:', err);
+            return { error: { message: err.message || 'Registration failed' } };
+        }
+    };
+
+    const handleConfirmSignUp = async (code: string) => {
+        if (!needsConfirmation) {
+            return { error: { message: 'No pending confirmation' } };
+        }
+
+        try {
+            await confirmSignUp({
+                username: needsConfirmation.email,
+                confirmationCode: code,
+            });
+
+            // Auto sign-in after confirmation
+            await login(needsConfirmation.email, needsConfirmation.password);
+            setNeedsConfirmation(null);
+            return { error: null };
+        } catch (err: any) {
+            return { error: { message: err.message || 'Confirmation failed' } };
+        }
     };
 
     const logout = async () => {
-        await signOut();
+        try {
+            await amplifySignOut();
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
         setUser(null);
-        setSession(null);
         setProfile(null);
     };
 
     const refreshProfile = async () => {
-        if (user) {
-            await loadProfile(user.id);
-        }
+        await fetchCurrentUser();
     };
 
     return (
         <AuthContext.Provider value={{
             user,
-            session,
             profile,
             loading,
+            needsConfirmation,
             login,
             register,
+            confirmSignUp: handleConfirmSignUp,
             logout,
             refreshProfile,
         }}>

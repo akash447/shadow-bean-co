@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { supabase } from './supabase';
 
 const WC_URL = 'https://shadowbeanco.com/wp';
 const CONSUMER_KEY = 'ck_a999ef5cdc6bc57141a54082d6789d7b78b649f3';
@@ -76,25 +75,14 @@ export const woocommerce = {
         }
     },
 
-    // Create order and sync to Supabase
+    // TODO: Update to use DynamoDB instead of Supabase
     createOrderWithSync: async (orderData: WCOrder, userId: string) => {
         try {
             // Create order in WooCommerce
             const { data: wcOrder } = await wcApi.post('/orders', orderData);
 
-            // Sync to Supabase
-            const { error: supabaseError } = await supabase.from('orders').insert({
-                user_id: userId,
-                woocommerce_order_id: wcOrder.id,
-                total_amount: parseFloat(wcOrder.total),
-                status: wcOrder.status,
-                shipping_address: orderData.shipping,
-                created_at: new Date().toISOString(),
-            });
-
-            if (supabaseError) {
-                console.error('Failed to sync order to Supabase:', supabaseError);
-            }
+            // TODO: Sync to DynamoDB when API is ready
+            console.log('Order created in WooCommerce, DynamoDB sync pending:', userId, wcOrder.id);
 
             return { order: wcOrder, error: null };
         } catch (error) {
@@ -114,27 +102,10 @@ export const woocommerce = {
         }
     },
 
-    // Sync products to Supabase
+    // TODO: Update to use DynamoDB instead of Supabase
     syncProductsToSupabase: async () => {
-        try {
-            const { products } = await woocommerce.getProducts(1, 100);
-            const { error } = await supabase.from('products').upsert(
-                products.map((p: any) => ({
-                    name: p.name,
-                    description: p.description,
-                    price: parseFloat(p.price),
-                    sku: p.sku,
-                    stock: p.stock_quantity,
-                    meta_data: p.meta_data,
-                })),
-                { onConflict: 'sku' }
-            );
-            if (error) throw error;
-            return { success: true, count: products.length };
-        } catch (error) {
-            console.error('Sync failed:', error);
-            return { success: false, error };
-        }
+        console.log('syncProductsToSupabase - DynamoDB integration pending');
+        return { success: false, error: 'DynamoDB integration pending' };
     }
 };
 
