@@ -64,9 +64,6 @@ export async function confirmSignUpCode(email: string, code: string) {
 
 export async function signIn(email: string, password: string) {
     try {
-        // Clear any stale session first (Amplify v6 throws if already signed in)
-        try { await amplifySignOut(); } catch { /* ignore */ }
-
         const result = await amplifySignIn({ username: email, password });
         if (result.isSignedIn) {
             const user = await getAuthUser();

@@ -1,6 +1,7 @@
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Hub } from 'aws-amplify/utils';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
@@ -51,11 +52,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
+  const checkSession = useCallback(async () => {
     try {
       const { session, error } = await getSession();
       if (error) throw error;
@@ -64,11 +61,35 @@ function App() {
       }
     } catch (err: any) {
       console.error('Session check failed:', err);
-      setInitError(err.message || 'Failed to initialize app');
+      // Don't set init error for auth failures - just show login
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkSession();
+
+    // Listen for auth events (especially OAuth redirect callbacks)
+    const hubListener = Hub.listen('auth', ({ payload }) => {
+      switch (payload.event) {
+        case 'signedIn':
+        case 'signInWithRedirect':
+          console.log('Auth event:', payload.event);
+          checkSession();
+          break;
+        case 'signedOut':
+          setUser(null);
+          break;
+        case 'signInWithRedirect_failure':
+          console.error('OAuth redirect failed:', payload);
+          setLoading(false);
+          break;
+      }
+    });
+
+    return () => hubListener();
+  }, [checkSession]);
 
   if (loading) {
     return (

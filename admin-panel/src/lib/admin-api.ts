@@ -58,10 +58,7 @@ api.interceptors.response.use(
 // ==============================================
 
 export const signIn = async (email: string, password: string) => {
-    try {
-        // Clear any stale session first (Amplify v6 throws if already signed in)
-        try { await cognitoSignOut(); } catch { /* ignore */ }
-
+    const doSignIn = async () => {
         const result = await cognitoSignIn({ username: email, password });
         if (result.isSignedIn) {
             const user = await getCurrentUser();
@@ -96,7 +93,21 @@ export const signIn = async (email: string, password: string) => {
         }
 
         return { data: null, error: { message: `Sign in incomplete. Next step: ${nextStep || 'unknown'}` } };
+    };
+
+    try {
+        return await doSignIn();
     } catch (err: any) {
+        // If already signed in, sign out first then retry
+        if (err.name === 'UserAlreadyAuthenticatedException') {
+            try {
+                await cognitoSignOut();
+                return await doSignIn();
+            } catch (retryErr: any) {
+                console.error('Cognito sign in retry error:', retryErr);
+                return { data: null, error: { message: retryErr.message || 'Sign in failed' } };
+            }
+        }
         console.error('Cognito sign in error:', err);
         return { data: null, error: { message: err.message || 'Sign in failed' } };
     }
@@ -104,8 +115,6 @@ export const signIn = async (email: string, password: string) => {
 
 export const signInWithGoogle = async () => {
     try {
-        // Clear any stale session first
-        try { await cognitoSignOut(); } catch { /* ignore */ }
         await signInWithRedirect({ provider: 'Google' });
     } catch (err: any) {
         console.error('Google sign in error:', err);

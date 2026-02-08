@@ -92,11 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         fetchCurrentUser();
 
-        // Listen for Amplify Auth events
+        // Listen for Amplify Auth events (including OAuth redirect callbacks)
         const hubListener = Hub.listen('auth', ({ payload }) => {
+            console.log('Auth Hub event:', payload.event);
             switch (payload.event) {
                 case 'signedIn':
-                    console.log('User signed in');
+                case 'signInWithRedirect':
+                    console.log('User signed in via:', payload.event);
                     fetchCurrentUser();
                     break;
                 case 'signedOut':
@@ -112,6 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null);
                     setProfile(null);
                     break;
+                case 'signInWithRedirect_failure':
+                    console.error('Google OAuth redirect failed:', payload);
+                    break;
             }
         });
 
@@ -119,10 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [fetchCurrentUser]);
 
     const login = async (email: string, password: string) => {
-        try {
-            // Clear any stale session first (Amplify v6 throws if already signed in)
-            try { await amplifySignOut(); } catch { /* ignore */ }
-
+        const doLogin = async () => {
             const result = await amplifySignIn({ username: email, password });
 
             if (result.isSignedIn) {
@@ -137,7 +139,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             return { error: { message: 'Sign in incomplete' } };
+        };
+
+        try {
+            return await doLogin();
         } catch (err: any) {
+            // If already signed in, sign out first then retry
+            if (err.name === 'UserAlreadyAuthenticatedException') {
+                try {
+                    await amplifySignOut();
+                    return await doLogin();
+                } catch (retryErr: any) {
+                    return { error: { message: retryErr.message || 'Sign in failed' } };
+                }
+            }
             console.error('Login error:', err);
             return { error: { message: err.message || 'Sign in failed' } };
         }
@@ -207,8 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loginWithGoogle = async () => {
         try {
-            // Clear any stale session first
-            try { await amplifySignOut(); } catch { /* ignore */ }
             await signInWithRedirect({ provider: 'Google' });
         } catch (err: any) {
             console.error('Google login error:', err);
