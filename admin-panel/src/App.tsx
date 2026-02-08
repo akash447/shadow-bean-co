@@ -58,10 +58,11 @@ function App() {
       if (error) throw error;
       if (session?.user) {
         setUser(session.user);
+        setInitError(null);
       }
     } catch (err: any) {
       console.error('Session check failed:', err);
-      // Don't set init error for auth failures - just show login
+      setInitError(err.message || 'Session check failed');
     } finally {
       setLoading(false);
     }
