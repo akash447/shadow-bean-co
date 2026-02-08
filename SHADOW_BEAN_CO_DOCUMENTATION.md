@@ -223,7 +223,7 @@ Admin access is NOT based on Cognito groups. Instead:
 1. Master admin email is hardcoded in Lambda: `akasingh.singh6@gmail.com`
 2. Additional admins are stored in `admin_users` table
 3. Lambda endpoint `POST /admin/auth/check` verifies admin status
-4. Admin credentials: akasingh.singh6@gmail.com / @21Feb2910
+4. Admin credentials: akasingh.singh6@gmail.com / ShadowBean@2026
 
 ### Auth Flow (Amplify v6 Gen2 Format)
 ```typescript
@@ -452,15 +452,17 @@ aws amplify list-jobs --app-id dz6fvucmxdid9 --branch-name main --region ap-sout
 
 ## 14. KNOWN ISSUES / IN-PROGRESS
 
-1. **Google OAuth**: Flow works (Cognito redirects to Google correctly), but app-side detection of the callback after redirect may have timing issues. Hub listeners added to both apps. Verify by testing in incognito.
+1. **Google OAuth**: Cognito backend fully configured (OAuth flows, scopes, callback URLs, Google IdP). Front-end `signInWithRedirect` triggers correctly. Hub listeners in both apps detect `signInWithRedirect` events. Test in incognito. Ensure Google Cloud Console has redirect URI: `https://shadowbeanco.auth.ap-south-1.amazoncognito.com/oauth2/idpresponse`.
 
-2. **Two Cognito Users for Same Email**: User `akasingh.singh6@gmail.com` has both a password-based account and a Google OAuth account (`google_117476669980515650149`). These are separate Cognito users. Both should work for admin access since Lambda checks email, not username.
+2. **Two Cognito Users for Same Email**: User `akasingh.singh6@gmail.com` has both a password-based account (CONFIRMED) and a Google OAuth account (`google_117476669980515650149`, EXTERNAL_PROVIDER). These are separate Cognito users. Both should work for admin access since Lambda checks email, not username.
 
-3. **Profile Page**: Shows basic Cognito attributes only. Orders/reviews counts are hardcoded to 0 (need to fetch from API).
+3. **Profile Persistence**: `ensureProfile()` is now called after every successful auth (login, Google OAuth, session restore). Profiles are upserted to PostgreSQL `profiles` table via `POST /profiles/ensure`. Fallback to Cognito-only profile if API is unreachable.
 
-4. **Mobile App**: Auth migrated to Cognito (`cognito-auth.ts`) but the app hasn't been rebuilt/tested with the new dependencies since Firebase/Supabase removal.
+4. **Email Verification**: Registration now shows verification code input after signup. Login page also handles UNCONFIRMED users by showing the code entry form. Cognito sends codes via `COGNITO_DEFAULT` email (50/day limit, check spam).
 
-5. **Lighthouse Audit**: Step 38 in migration checklist - not yet completed.
+5. **Mobile App**: Auth migrated to Cognito (`cognito-auth.ts`) but the app hasn't been rebuilt/tested with the new dependencies since Firebase/Supabase removal.
+
+6. **Lighthouse Audit**: Step 38 in migration checklist - not yet completed.
 
 ---
 
