@@ -11,6 +11,7 @@ import {
     confirmSignUp,
     signInWithRedirect,
 } from 'aws-amplify/auth';
+import { ensureProfile } from '../services/api';
 
 interface Profile {
     id: string;
@@ -69,13 +70,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(authUser);
 
-            // Create profile from Cognito attributes
-            setProfile({
-                id: cognitoUser.userId,
-                email: attributes.email || '',
-                full_name: attributes.name || '',
-                phone: attributes.phone_number,
-            });
+            // Persist profile to database and use DB response
+            try {
+                const dbProfile = await ensureProfile(cognitoUser.userId, attributes.email || '', attributes.name || '');
+                setProfile({
+                    id: dbProfile.id || cognitoUser.userId,
+                    email: dbProfile.email || attributes.email || '',
+                    full_name: dbProfile.full_name || attributes.name || '',
+                    phone: dbProfile.phone || attributes.phone_number,
+                    avatar_url: dbProfile.avatar_url,
+                });
+            } catch {
+                // Fallback to Cognito-only profile if API is unreachable
+                setProfile({
+                    id: cognitoUser.userId,
+                    email: attributes.email || '',
+                    full_name: attributes.name || '',
+                    phone: attributes.phone_number,
+                });
+            }
 
             return authUser;
         } catch {
@@ -125,7 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const login = async (email: string, password: string) => {
         const doLogin = async () => {
-            const result = await amplifySignIn({ username: email, password });
+            const result = await amplifySignIn({
+                username: email,
+                password,
+                options: { authFlowType: 'USER_SRP_AUTH' },
+            });
 
             if (result.isSignedIn) {
                 await fetchCurrentUser();

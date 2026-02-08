@@ -59,7 +59,11 @@ api.interceptors.response.use(
 
 export const signIn = async (email: string, password: string) => {
     const doSignIn = async () => {
-        const result = await cognitoSignIn({ username: email, password });
+        const result = await cognitoSignIn({
+            username: email,
+            password,
+            options: { authFlowType: 'USER_SRP_AUTH' },
+        });
         if (result.isSignedIn) {
             const user = await getCurrentUser();
             const attributes = await fetchUserAttributes();
