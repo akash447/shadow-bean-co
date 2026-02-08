@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTasteProfileStore } from '@/src/stores/tasteProfileStore';
 import { useCartStore, TasteProfile } from '@/src/stores/cartStore';
 import { useAuthStore } from '@/src/stores/authStore';
-import { SupabaseImage } from '@/src/components/SupabaseImage';
+import { CDNImage } from '@/src/components/CDNImage';
 import { ImageKeys } from '@/src/constants/imageKeys';
 
 // Import pure web component for responsive web experience

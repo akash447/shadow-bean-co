@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../services/supabase';
+import { getTasteProfiles, createTasteProfile, deleteTasteProfile } from '../services/cognito-auth';
 
 export interface TasteProfile {
     id: string;
@@ -87,15 +87,11 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
     fetchProfiles: async (userId: string) => {
         set({ isLoading: true, error: null });
         try {
-            const { data, error } = await supabase
-                .from('taste_profiles')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false });
+            const { profiles: data, error } = await getTasteProfiles(userId);
 
             if (error) throw error;
 
-            const mappedProfiles: TasteProfile[] = data.map((p: any) => ({
+            const mappedProfiles: TasteProfile[] = (data || []).map((p: any) => ({
                 id: p.id,
                 userId: p.user_id,
                 name: p.name,
@@ -117,20 +113,16 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
 
     addProfile: async (profile, userId) => {
         try {
-            const { data, error } = await supabase
-                .from('taste_profiles')
-                .insert({
-                    user_id: userId,
-                    name: profile.name,
-                    bitterness: profile.bitterness,
-                    acidity: profile.acidity,
-                    body: profile.body,
-                    flavour: profile.flavour,
-                    roast_level: profile.roastLevel,
-                    grind_type: profile.grindType,
-                })
-                .select()
-                .single();
+            const { profile: data, error } = await createTasteProfile({
+                userId,
+                name: profile.name,
+                bitterness: profile.bitterness,
+                acidity: profile.acidity,
+                body: profile.body,
+                flavour: profile.flavour,
+                roastLevel: profile.roastLevel,
+                grindType: profile.grindType,
+            });
 
             if (error) throw error;
 
@@ -156,10 +148,7 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
 
     deleteProfile: async (id) => {
         try {
-            const { error } = await supabase
-                .from('taste_profiles')
-                .delete()
-                .eq('id', id);
+            const { error } = await deleteTasteProfile(id);
 
             if (error) throw error;
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getTerms, updateTerms } from '../lib/supabase';
+import { getTerms, updateTerms } from '../lib/admin-api';
 import { Save, FileText } from 'lucide-react';
 
 export const TermsPage: React.FC = () => {

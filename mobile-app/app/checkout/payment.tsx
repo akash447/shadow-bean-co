@@ -15,7 +15,7 @@ import { Colors } from '@/src/constants/Colors';
 import { useCartStore } from '@/src/stores/cartStore';
 import { useOrderStore, Order } from '@/src/stores/orderStore';
 import { useAuthStore } from '@/src/stores/authStore';
-import { supabase } from '@/src/services/supabase';
+import { createOrder } from '@/src/services/cognito-auth';
 
 type PaymentMethod = 'cod' | 'razorpay' | null;
 
@@ -29,36 +29,27 @@ export default function PaymentScreen() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null);
 
-    // Create order in Supabase
-    const createSupabaseOrder = async (paymentMethod: string) => {
+    // Create order via API
+    const createBackendOrder = async (paymentMethod: string) => {
         try {
-            const orderData = {
-                user_id: user?.id || '00000000-0000-0000-0000-000000000000',
-                user_name: user?.fullName || 'Guest',
-                user_email: user?.email || 'guest@shadowbean.co',
-                status: paymentMethod === 'cod' ? 'pending' : 'confirmed',
-                total_amount: getTotalPrice(),
-                items: items.map((item) => ({
-                    name: item.tasteProfile.name,
-                    quantity: item.quantity,
-                    price: item.unitPrice,
-                    taste_profile: item.tasteProfile,
-                })),
-                shipping_address: {
+            const { order: data, error } = await createOrder({
+                userId: user?.id || '00000000-0000-0000-0000-000000000000',
+                totalAmount: getTotalPrice(),
+                razorpayPaymentId: paymentMethod === 'cod' ? 'cod' : '',
+                shippingAddress: {
                     name: user?.fullName || 'Guest',
                     city: 'Bangalore',
                     state: 'Karnataka',
                 },
-                payment_method: paymentMethod,
-            };
+                items: items.map((item) => ({
+                    tasteProfileId: item.tasteProfile.id,
+                    tasteProfileName: item.tasteProfile.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                })),
+            });
 
-            const { data, error } = await supabase
-                .from('orders')
-                .insert(orderData)
-                .select()
-                .single();
-
-            if (error) throw error;
+            if (error) throw new Error(error.message);
             return data;
         } catch (error) {
             console.error('Error creating order:', error);
@@ -75,12 +66,12 @@ export default function PaymentScreen() {
         setIsProcessing(true);
 
         try {
-            // Create order in Supabase
-            const supabaseOrder = await createSupabaseOrder('cod');
+            // Create order via API
+            const apiOrder = await createBackendOrder('cod');
 
             // Create local order
             const order: Order = {
-                id: supabaseOrder.id || `order-${Date.now()}`,
+                id: apiOrder.id || `order-${Date.now()}`,
                 userId: user?.id || 'guest',
                 status: 'pending',
                 totalAmount: getTotalPrice(),

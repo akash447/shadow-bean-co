@@ -26,6 +26,14 @@ try {
         signUpVerificationMethod: 'code',
         loginWith: {
           email: true,
+          oauth: {
+            domain: 'shadowbeanco.auth.ap-south-1.amazoncognito.com',
+            scopes: ['openid', 'email', 'profile'],
+            redirectSignIn: ['https://admin.shadowbeanco.net', 'http://localhost:5173'],
+            redirectSignOut: ['https://admin.shadowbeanco.net', 'http://localhost:5173'],
+            responseType: 'code' as const,
+            providers: [{ custom: 'Google' }],
+          },
         },
       },
     },

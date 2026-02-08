@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
 import { useAuth } from '../contexts/AuthContext';
+import { useAsset } from '../contexts/AssetContext';
 import './Header.css';
-
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 // SVG Icons
 const CartIcon = () => (
@@ -61,6 +60,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
     const location = useLocation();
     const { items } = useCartStore();
     const { user, profile } = useAuth();
+    const logoBird = useAsset('logo_bird.png');
     const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -77,7 +77,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
         return (
             <header className={`header ${variant} minimal`}>
                 <div className="header-logo" onClick={() => navigate('/')}>
-                    <img src={`${BASE_URL}logo_bird.png`} alt="Shadow Bean Co" />
+                    <img src={logoBird} alt="Shadow Bean Co" />
                     <span className="logo-text">
                         SHADOW<br />BEAN CO.
                     </span>
@@ -91,7 +91,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
             <header className={`header ${variant}`}>
                 {/* Left: Logo */}
                 <div className="header-logo" onClick={() => navigate('/')}>
-                    <img src={`${BASE_URL}logo_bird.png`} alt="Shadow Bean Co" />
+                    <img src={logoBird} alt="Shadow Bean Co" />
                     <span className="logo-text">
                         SHADOW<br />BEAN CO.
                     </span>

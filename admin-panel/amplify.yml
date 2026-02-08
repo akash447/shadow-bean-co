@@ -4,17 +4,39 @@ applications:
       phases:
         preBuild:
           commands:
-            - cd admin-panel
             - npm ci
         build:
           commands:
             - npm run build
       artifacts:
-        baseDirectory: admin-panel/dist
+        baseDirectory: dist
         files:
           - '**/*'
       cache:
         paths:
           - node_modules/**/*
-      buildPath: /
+      customHeaders:
+        - pattern: '**/*'
+          headers:
+            - key: 'Strict-Transport-Security'
+              value: 'max-age=31536000; includeSubDomains'
+            - key: 'X-Content-Type-Options'
+              value: 'nosniff'
+            - key: 'X-Frame-Options'
+              value: 'DENY'
+            - key: 'X-XSS-Protection'
+              value: '1; mode=block'
+            - key: 'Referrer-Policy'
+              value: 'strict-origin-when-cross-origin'
+        - pattern: '/assets/**'
+          headers:
+            - key: 'Cache-Control'
+              value: 'public, max-age=31536000, immutable'
     appRoot: admin-panel
+  - customRules:
+      - source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>'
+        target: /index.html
+        status: '200'
+      - source: 'https://admin.shadowbeanco.com'
+        target: 'https://admin.shadowbeanco.net'
+        status: '301'

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useOrderStore } from '@/src/stores/orderStore';
 import { useTasteProfileStore } from '@/src/stores/tasteProfileStore';
-import { SupabaseImage } from '@/src/components/SupabaseImage';
+import { CDNImage } from '@/src/components/CDNImage';
 import { ImageKeys } from '@/src/constants/imageKeys';
 import { useCartStore } from '@/src/stores/cartStore';
 
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
                 {/* Fixed Header */}
                 <View style={styles.fixedHeader}>
                     <View style={styles.headerLeft}>
-                        <SupabaseImage
+                        <CDNImage
                             remoteKey={ImageKeys.LOGO_MAIN}
                             defaultSource={require('@/assets/images/logo_bird.png')}
                             style={styles.headerLogo}
@@ -111,7 +111,7 @@ export default function ProfileScreen() {
             {/* Fixed Header */}
             <View style={styles.fixedHeader}>
                 <View style={styles.headerLeft}>
-                    <SupabaseImage
+                    <CDNImage
                         remoteKey={ImageKeys.LOGO_MAIN}
                         defaultSource={require('@/assets/images/logo_bird.png')}
                         style={styles.headerLogo}

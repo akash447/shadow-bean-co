@@ -1,11 +1,13 @@
 /**
  * Image Service for Shadow Bean Co
- * Centralized image management via Supabase
+ * Centralized image management via CloudFront CDN
  * Supports caching for fast loading
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabase';
+
+// CloudFront CDN base URL (replaces Supabase storage)
+const CLOUDFRONT_BASE_URL = 'https://media.shadowbeanco.net';
 
 // Cache configuration
 const CACHE_PREFIX = 'img_cache_';
@@ -45,7 +47,7 @@ interface ImageAsset {
 const memoryCache: Map<string, string> = new Map();
 
 /**
- * Get image URL from Supabase with caching
+ * Get image URL from CloudFront CDN with caching
  * Falls back to local asset if not found
  */
 export const getAppImage = async (key: string): Promise<string | any> => {
@@ -68,27 +70,19 @@ export const getAppImage = async (key: string): Promise<string | any> => {
         console.warn('Cache read error:', error);
     }
 
-    // Fetch from Supabase
-    try {
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('url')
-            .eq('key', key)
-            .single();
+    // Build CloudFront CDN URL
+    const cdnUrl = `${CLOUDFRONT_BASE_URL}/${key}`;
 
-        if (!error && data?.url) {
-            // Save to cache
-            const cacheData: CachedImage = { url: data.url, timestamp: Date.now() };
-            await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
-            memoryCache.set(key, data.url);
-            return data.url;
-        }
+    // Save to cache
+    try {
+        const cacheData: CachedImage = { url: cdnUrl, timestamp: Date.now() };
+        await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
+        memoryCache.set(key, cdnUrl);
     } catch (error) {
-        console.warn('Supabase fetch error for image:', key, error);
+        console.warn('Cache write error:', error);
     }
 
-    // Fallback to local asset
-    return LOCAL_FALLBACKS[key] || null;
+    return cdnUrl;
 };
 
 /**
@@ -103,19 +97,11 @@ export const preloadCriticalImages = async (): Promise<void> => {
     ];
 
     try {
-        // Fetch all critical images in parallel
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('key, url')
-            .in('key', criticalKeys);
-
-        if (!error && data) {
-            // Cache all fetched images
-            for (const asset of data) {
-                const cacheData: CachedImage = { url: asset.url, timestamp: Date.now() };
-                await AsyncStorage.setItem(CACHE_PREFIX + asset.key, JSON.stringify(cacheData));
-                memoryCache.set(asset.key, asset.url);
-            }
+        for (const key of criticalKeys) {
+            const cdnUrl = `${CLOUDFRONT_BASE_URL}/${key}`;
+            const cacheData: CachedImage = { url: cdnUrl, timestamp: Date.now() };
+            await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
+            memoryCache.set(key, cdnUrl);
         }
     } catch (error) {
         console.warn('Preload images error:', error);
@@ -124,21 +110,12 @@ export const preloadCriticalImages = async (): Promise<void> => {
 
 /**
  * Get all images for a category
+ * Note: With CloudFront CDN, category-based fetching is handled by the API
  */
 export const getImagesByCategory = async (category: string): Promise<ImageAsset[]> => {
-    try {
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('key, url, title, category')
-            .eq('category', category)
-            .eq('type', 'image');
-
-        if (!error && data) {
-            return data;
-        }
-    } catch (error) {
-        console.warn('Fetch category images error:', error);
-    }
+    // With CloudFront, images are accessed directly by key.
+    // Return empty array - category browsing should be handled by the API layer.
+    console.warn('getImagesByCategory: Use the API for category-based image lookups');
     return [];
 };
 

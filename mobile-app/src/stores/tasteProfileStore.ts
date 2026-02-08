@@ -1,5 +1,36 @@
 import { create } from 'zustand';
-import { supabase } from '../services/supabase';
+import {
+    getTasteProfiles,
+    createTasteProfile,
+} from '../services/cognito-auth';
+
+// API base URL for delete endpoint (taste profile deletion)
+import { Platform } from 'react-native';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import axios from 'axios';
+
+const API_BASE_URL = Platform.OS === 'web'
+    ? (typeof window !== 'undefined' && (window as any).__ENV__?.API_URL) || 'https://api.shadowbeanco.net'
+    : 'https://api.shadowbeanco.net';
+
+const api = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 15000,
+    headers: { 'Content-Type': 'application/json' },
+});
+
+api.interceptors.request.use(async (config) => {
+    try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    } catch {
+        // Not authenticated
+    }
+    return config;
+});
 
 export interface TasteProfile {
     id: string;
@@ -30,9 +61,6 @@ interface TasteProfileState {
     setCurrentCustomization: (customization: Partial<TasteProfile>) => void;
 }
 
-// ... imports
-// ... imports
-
 export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
     profiles: [],
     isLoading: false,
@@ -45,8 +73,6 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
             currentCustomization: { ...state.currentCustomization, ...customization }
         }));
     },
-    // ... (rest of actions)
-
 
     saveProfile: async (userId) => {
         const { currentCustomization, profiles, addProfile } = get();
@@ -87,15 +113,11 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
     fetchProfiles: async (userId: string) => {
         set({ isLoading: true, error: null });
         try {
-            const { data, error } = await supabase
-                .from('taste_profiles')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false });
+            const { profiles: data, error } = await getTasteProfiles(userId);
 
             if (error) throw error;
 
-            const mappedProfiles: TasteProfile[] = data.map((p: any) => ({
+            const mappedProfiles: TasteProfile[] = (data || []).map((p: any) => ({
                 id: p.id,
                 userId: p.user_id,
                 name: p.name,
@@ -117,20 +139,16 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
 
     addProfile: async (profile, userId) => {
         try {
-            const { data, error } = await supabase
-                .from('taste_profiles')
-                .insert({
-                    user_id: userId,
-                    name: profile.name,
-                    bitterness: profile.bitterness,
-                    acidity: profile.acidity,
-                    body: profile.body,
-                    flavour: profile.flavour,
-                    roast_level: profile.roastLevel,
-                    grind_type: profile.grindType,
-                })
-                .select()
-                .single();
+            const { profile: data, error } = await createTasteProfile({
+                userId,
+                name: profile.name,
+                bitterness: profile.bitterness,
+                acidity: profile.acidity,
+                body: profile.body,
+                flavour: profile.flavour,
+                roastLevel: profile.roastLevel,
+                grindType: profile.grindType,
+            });
 
             if (error) throw error;
 
@@ -156,12 +174,7 @@ export const useTasteProfileStore = create<TasteProfileState>((set, get) => ({
 
     deleteProfile: async (id) => {
         try {
-            const { error } = await supabase
-                .from('taste_profiles')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
+            await api.delete(`/taste-profiles/${id}`);
 
             set((state) => ({
                 profiles: state.profiles.filter((p) => p.id !== id)

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getReviews, deleteReview } from '../lib/supabase';
+import { getReviews, deleteReview } from '../lib/admin-api';
 import { Star, Trash2 } from 'lucide-react';
 
 export const ReviewsPage: React.FC = () => {

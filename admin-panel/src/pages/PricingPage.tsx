@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getPricing, updatePricing, createPricing } from '../lib/supabase';
+import { getPricing, updatePricing, createPricing } from '../lib/admin-api';
 import { Plus, Save, Edit2, X } from 'lucide-react';
 
 export const PricingPage: React.FC = () => {

@@ -1,8 +1,8 @@
 // Image assets for Shadow Bean Co App
-// All images are stored in Supabase Storage 'media' bucket
-// URL Format: https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/[filename]
+// All images are served via CloudFront CDN (S3 origin)
+// URL Format: https://media.shadowbeanco.net/[filename]
 
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
+const BASE_URL = 'https://media.shadowbeanco.net/';
 
 // Brand images
 export const images = {

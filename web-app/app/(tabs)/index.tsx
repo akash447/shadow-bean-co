@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getReviews } from '@/src/services/supabase';
+import { getReviews } from '@/src/services/cognito-auth';
 import { ImageKeys } from '@/src/constants/imageKeys';
 import { useCartStore } from '@/src/stores/cartStore';
 import { UniversalImage } from '@/src/components/UniversalImage';
@@ -23,7 +23,7 @@ import { UniversalImage } from '@/src/components/UniversalImage';
 // On Web, we serve from /public/images/ to bypass bundler issues.
 // On Native, we use standard require().
 
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
+const BASE_URL = 'https://media.shadowbeanco.net/';
 
 const getImgSource = (filename: string) => ({ uri: `${BASE_URL}${filename}` });
 

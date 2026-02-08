@@ -18,7 +18,7 @@ import { ImageKeys } from '@/src/constants/imageKeys';
 import { UniversalImage } from '@/src/components/UniversalImage';
 
 // --- Static Assets ---
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
+const BASE_URL = 'https://media.shadowbeanco.net/';
 const getImgSource = (filename: string) => ({ uri: `${BASE_URL}${filename}` });
 
 const aboutHeroBg = getImgSource('about_hero.jpg');

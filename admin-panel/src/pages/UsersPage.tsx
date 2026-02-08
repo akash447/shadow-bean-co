@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getUsers } from '../lib/supabase';
+import { getUsers } from '../lib/admin-api';
 import { Search, Mail, Phone, Calendar } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {

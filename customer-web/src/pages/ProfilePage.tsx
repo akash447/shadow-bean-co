@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAsset } from '../contexts/AssetContext';
 import Header from '../components/Header';
 import './ProfilePage.css';
-
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
     const { user, profile, loading, logout } = useAuth();
+    const logoBird = useAsset('logo_bird.png');
 
     const handleLogout = async () => {
         await logout();
@@ -32,7 +32,7 @@ export default function ProfilePage() {
                 <Header variant="light" />
                 <main className="profile-main">
                     <div className="login-prompt">
-                        <img src={`${BASE_URL}logo_bird.png`} alt="Shadow Bean Co" className="prompt-logo" />
+                        <img src={logoBird} alt="Shadow Bean Co" className="prompt-logo" />
                         <h1>Welcome to Shadow Bean Co.</h1>
                         <p>Sign in to view your profile, saved blends, and order history.</p>
                         <div className="prompt-buttons">

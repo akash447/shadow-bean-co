@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/src/constants/Colors';
-import { createReview } from '@/src/services/supabase';
+import { createReview } from '@/src/services/cognito-auth';
 import { useAuthStore } from '@/src/stores/authStore';
 
 interface ReviewModalProps {

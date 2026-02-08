@@ -9,6 +9,7 @@ import {
     fetchUserAttributes,
     fetchAuthSession,
     confirmSignUp,
+    signInWithRedirect,
 } from 'aws-amplify/auth';
 
 interface Profile {
@@ -33,6 +34,7 @@ interface AuthContextType {
     loading: boolean;
     needsConfirmation: { email: string; password: string } | null;
     login: (email: string, password: string) => Promise<{ error: any }>;
+    loginWithGoogle: () => Promise<void>;
     register: (email: string, password: string, fullName: string) => Promise<{ error: any; needsConfirmation?: boolean }>;
     confirmSignUp: (code: string) => Promise<{ error: any }>;
     logout: () => Promise<void>;
@@ -200,6 +202,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetchCurrentUser();
     };
 
+    const loginWithGoogle = async () => {
+        try {
+            await signInWithRedirect({ provider: 'Google' });
+        } catch (err: any) {
+            console.error('Google login error:', err);
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -207,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             loading,
             needsConfirmation,
             login,
+            loginWithGoogle,
             register,
             confirmSignUp: handleConfirmSignUp,
             logout,

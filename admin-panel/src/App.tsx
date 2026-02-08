@@ -13,8 +13,7 @@ import { ReviewsPage } from './pages/ReviewsPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MediaPage } from './pages/MediaPage';
 import { AccessPage } from './pages/AccessPage';
-import { WooCommerceSyncPage } from './pages/WooCommerceSyncPage';
-import { getSession } from './lib/supabase';
+import { getSession } from './lib/admin-api';
 import './index.css';
 
 // Error Boundary to catch render crashes
@@ -143,7 +142,6 @@ function App() {
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/media" element={<MediaPage />} />
               <Route path="/access" element={<AccessPage />} />
-              <Route path="/woocommerce-sync" element={<WooCommerceSyncPage />} />
             </Routes>
           </main>
           <BottomNav />

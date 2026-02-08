@@ -4,6 +4,9 @@ import { Platform, View, useColorScheme } from 'react-native';
 import { Colors } from '@/src/constants/Colors';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useCartStore } from '@/src/stores/cartStore';
+import { configureAmplify } from '@/src/services/amplify-config';
+
+configureAmplify();
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();

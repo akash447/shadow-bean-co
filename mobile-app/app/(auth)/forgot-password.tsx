@@ -13,7 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/src/constants/Colors';
-import { resetPassword } from '@/src/services/supabase';
+import { resetPassword } from '@/src/services/cognito-auth';
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();

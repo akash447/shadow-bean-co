@@ -92,6 +92,35 @@ public
 # vintage webpack
 dist/
 dist-ssr/
+dist_prod/
 
 # macos
 .DS_Store
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl
+
+# AWS
+.env.local
+.env.production
+aws-exports.js
+
+# Secrets - NEVER commit
+*.pem
+*.key
+credentials.json
+google-services.json
+
+# Lambda deployment artifacts
+lambda/api/api.zip
+lambda/api/node_modules/
+
+# Temp/helper files
+*.txt
+s3-policy-*.json
+spa-*.json
+connect_claude.ps1

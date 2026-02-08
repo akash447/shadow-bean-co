@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import axios from 'axios';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { UserPlus, Shield, Trash2, Mail, Key, Check, X, Users } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.shadowbeanco.net';
+const api = axios.create({ baseURL: API_BASE_URL, timeout: 15000, headers: { 'Content-Type': 'application/json' } });
+api.interceptors.request.use(async (config) => {
+    try { const s = await fetchAuthSession(); const t = s.tokens?.idToken?.toString(); if (t) config.headers.Authorization = `Bearer ${t}`; } catch {} return config;
+});
 
 interface AdminUser {
     id: string;
@@ -27,13 +34,11 @@ export const AccessPage: React.FC = () => {
     }, []);
 
     const loadAdmins = async () => {
-        const { data, error } = await supabase
-            .from('admin_users')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (!error && data) {
-            setAdmins(data);
+        try {
+            const { data } = await api.get('/admin/access');
+            setAdmins(data || []);
+        } catch (err) {
+            console.error('Failed to load admins:', err);
         }
         setLoading(false);
     };
@@ -45,36 +50,38 @@ export const AccessPage: React.FC = () => {
         }
 
         setSaving(true);
-        const { error } = await supabase
-            .from('admin_users')
-            .insert({
+        try {
+            await api.post('/admin/access', {
                 user_id: newAdmin.user_id,
                 email: newAdmin.email,
                 role: newAdmin.role,
                 is_active: true,
             });
-
-        if (error) {
-            alert('Error adding admin: ' + error.message);
-        } else {
             setShowAddForm(false);
             setNewAdmin({ user_id: '', email: '', role: 'admin' });
             loadAdmins();
+        } catch (err: any) {
+            alert('Error adding admin: ' + (err.response?.data?.error || err.message));
         }
         setSaving(false);
     };
 
     const toggleActive = async (id: string, currentState: boolean) => {
-        await supabase
-            .from('admin_users')
-            .update({ is_active: !currentState })
-            .eq('id', id);
+        try {
+            await api.put(`/admin/access/${id}`, { is_active: !currentState });
+        } catch (err) {
+            console.error('Toggle failed:', err);
+        }
         loadAdmins();
     };
 
     const deleteAdmin = async (id: string) => {
         if (window.confirm('Are you sure you want to remove this admin?')) {
-            await supabase.from('admin_users').delete().eq('id', id);
+            try {
+                await api.delete(`/admin/access/${id}`);
+            } catch (err) {
+                console.error('Delete failed:', err);
+            }
             loadAdmins();
         }
     };

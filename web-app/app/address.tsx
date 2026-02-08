@@ -34,7 +34,7 @@ export default function AddressScreen() {
         pincode: '',
     });
 
-    // Mock data - in real app, fetch from Supabase
+    // Mock data - in real app, fetch from API
     useEffect(() => {
         setAddresses([
             {

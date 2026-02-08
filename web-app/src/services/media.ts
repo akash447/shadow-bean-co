@@ -1,10 +1,10 @@
 // Media Assets Service
-// Fetches images from Supabase media_assets table by key
+// Fetches images from CloudFront CDN (https://media.shadowbeanco.net)
 // This allows images to be updated in Admin Panel and automatically reflect in the app
 
-import { supabase } from './supabase';
+const CLOUDFRONT_BASE_URL = 'https://media.shadowbeanco.net';
 
-// Cache to avoid repeated fetches
+// Cache to avoid repeated lookups
 const mediaCache: Record<string, string> = {};
 
 // Default/fallback images (local assets)
@@ -29,23 +29,10 @@ export const getMediaUrl = async (key: string): Promise<string | null> => {
         return mediaCache[key];
     }
 
-    try {
-        const { data, error } = await supabase
-            .from('media_assets')
-            .select('url')
-            .eq('key', key)
-            .eq('is_active', true)
-            .single();
-
-        if (!error && data?.url) {
-            mediaCache[key] = data.url;
-            return data.url;
-        }
-    } catch (err) {
-        console.log('Error fetching media:', err);
-    }
-
-    return null;
+    // Build CloudFront URL from key
+    const url = `${CLOUDFRONT_BASE_URL}/${key}`;
+    mediaCache[key] = url;
+    return url;
 };
 
 // Get default local image for a key
@@ -55,25 +42,15 @@ export const getDefaultImage = (key: string): any => {
 
 // Get all media assets
 export const getAllMediaAssets = async (): Promise<Record<string, string>> => {
-    try {
-        const { data, error } = await supabase
-            .from('media_assets')
-            .select('key, url')
-            .eq('is_active', true);
-
-        if (!error && data) {
-            const assets: Record<string, string> = {};
-            data.forEach((item) => {
-                assets[item.key] = item.url;
-                mediaCache[item.key] = item.url;
-            });
-            return assets;
-        }
-    } catch (err) {
-        console.log('Error fetching all media:', err);
-    }
-
-    return {};
+    // With CloudFront CDN, assets are accessed directly by key
+    // Return the known keys with their CDN URLs
+    const assets: Record<string, string> = {};
+    Object.keys(defaultImages).forEach((key) => {
+        const url = `${CLOUDFRONT_BASE_URL}/${key}`;
+        assets[key] = url;
+        mediaCache[key] = url;
+    });
+    return assets;
 };
 
 // Get image source (for React Native Image component)

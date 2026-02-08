@@ -1,11 +1,13 @@
 // import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
-
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 export default function AboutPage() {
     // const navigate = useNavigate();
+    const coffeeFarm = useAsset('coffee_farm.png');
+    const roastingProcess = useAsset('roasting_process.jpg');
+    const productBag = useAsset('product_bag.png');
 
     return (
         <div className="about-container">
@@ -26,12 +28,12 @@ export default function AboutPage() {
                     </div>
                     <div className="story-right">
                         <img
-                            src={`${BASE_URL}coffee_farm.png`}
+                            src={coffeeFarm}
                             alt="Coffee Farm"
                             className="story-img-main"
                         />
                         <img
-                            src={`${BASE_URL}roasting_process.jpg`}
+                            src={roastingProcess}
                             alt="Roasting Process"
                             className="story-img-secondary"
                         />
@@ -68,7 +70,7 @@ export default function AboutPage() {
                     <div className="journey-icons">
                         <img src='/icons/icon_map_karnataka.png' alt="Karnataka Map" className="journey-icon" onError={(e) => e.currentTarget.style.display = 'none'} />
                         <span className="dashed-line">----------------</span>
-                        <img src={`${BASE_URL}product_bag.png`} alt="Coffee Bag" className="journey-icon" />
+                        <img src={productBag} alt="Coffee Bag" className="journey-icon" />
                         <span className="dashed-line">----------------</span>
                         <img src='/icons/icon_coffee_cup.png' alt="Coffee Cup" className="journey-icon" onError={(e) => e.currentTarget.style.display = 'none'} />
                     </div>

@@ -1,11 +1,12 @@
 /**
  * Image Service for Shadow Bean Co
- * Centralized image management via Supabase
+ * Centralized image management via CloudFront CDN
  * Supports caching for fast loading
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from './supabase';
+
+const CLOUDFRONT_BASE_URL = 'https://media.shadowbeanco.net';
 
 // Cache configuration
 const CACHE_PREFIX = 'img_cache_';
@@ -45,7 +46,7 @@ interface ImageAsset {
 const memoryCache: Map<string, string> = new Map();
 
 /**
- * Get image URL from Supabase with caching
+ * Get image URL from CloudFront CDN with caching
  * Falls back to local asset if not found
  */
 export const getAppImage = async (key: string): Promise<string | any> => {
@@ -68,23 +69,17 @@ export const getAppImage = async (key: string): Promise<string | any> => {
         console.warn('Cache read error:', error);
     }
 
-    // Fetch from Supabase
-    try {
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('url')
-            .eq('key', key)
-            .single();
+    // Build CloudFront CDN URL
+    const cdnUrl = `${CLOUDFRONT_BASE_URL}/${key}`;
 
-        if (!error && data?.url) {
-            // Save to cache
-            const cacheData: CachedImage = { url: data.url, timestamp: Date.now() };
-            await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
-            memoryCache.set(key, data.url);
-            return data.url;
-        }
+    try {
+        // Save to cache
+        const cacheData: CachedImage = { url: cdnUrl, timestamp: Date.now() };
+        await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
+        memoryCache.set(key, cdnUrl);
+        return cdnUrl;
     } catch (error) {
-        console.warn('Supabase fetch error for image:', key, error);
+        console.warn('Cache write error for image:', key, error);
     }
 
     // Fallback to local asset
@@ -103,19 +98,12 @@ export const preloadCriticalImages = async (): Promise<void> => {
     ];
 
     try {
-        // Fetch all critical images in parallel
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('key, url')
-            .in('key', criticalKeys);
-
-        if (!error && data) {
-            // Cache all fetched images
-            for (const asset of data) {
-                const cacheData: CachedImage = { url: asset.url, timestamp: Date.now() };
-                await AsyncStorage.setItem(CACHE_PREFIX + asset.key, JSON.stringify(cacheData));
-                memoryCache.set(asset.key, asset.url);
-            }
+        // Cache all critical images from CloudFront
+        for (const key of criticalKeys) {
+            const cdnUrl = `${CLOUDFRONT_BASE_URL}/${key}`;
+            const cacheData: CachedImage = { url: cdnUrl, timestamp: Date.now() };
+            await AsyncStorage.setItem(CACHE_PREFIX + key, JSON.stringify(cacheData));
+            memoryCache.set(key, cdnUrl);
         }
     } catch (error) {
         console.warn('Preload images error:', error);
@@ -126,16 +114,18 @@ export const preloadCriticalImages = async (): Promise<void> => {
  * Get all images for a category
  */
 export const getImagesByCategory = async (category: string): Promise<ImageAsset[]> => {
+    // With CloudFront CDN, category-based fetching is handled by the API
+    // For now, return images from local fallbacks that match common patterns
     try {
-        const { data, error } = await supabase
-            .from('app_assets')
-            .select('key, url, title, category')
-            .eq('category', category)
-            .eq('type', 'image');
-
-        if (!error && data) {
-            return data;
-        }
+        const assets: ImageAsset[] = Object.keys(LOCAL_FALLBACKS)
+            .filter((key) => key.startsWith(category) || category === 'all')
+            .map((key) => ({
+                key,
+                url: `${CLOUDFRONT_BASE_URL}/${key}`,
+                title: key.replace(/_/g, ' '),
+                category,
+            }));
+        return assets;
     } catch (error) {
         console.warn('Fetch category images error:', error);
     }
@@ -148,7 +138,7 @@ export const getImagesByCategory = async (category: string): Promise<ImageAsset[
 export const clearImageCache = async (): Promise<void> => {
     memoryCache.clear();
     const keys = await AsyncStorage.getAllKeys();
-    const cacheKeys = keys.filter(k => k.startsWith(CACHE_PREFIX));
+    const cacheKeys = keys.filter((k: string) => k.startsWith(CACHE_PREFIX));
     await AsyncStorage.multiRemove(cacheKeys);
 };
 

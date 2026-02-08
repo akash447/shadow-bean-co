@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { signOut } from '../lib/supabase';
+import { signOut } from '../lib/admin-api';
 import {
     LayoutDashboard,
     Users,
@@ -12,8 +12,7 @@ import {
     LogOut,
     Coffee,
     Package,
-    Shield,
-    RefreshCw
+    Shield
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -44,7 +43,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         { path: '/terms', icon: FileText, label: 'Terms & Conditions' },
         { path: '/media', icon: Image, label: 'Media' },
         { path: '/access', icon: Shield, label: 'Admin Access' },
-        { path: '/woocommerce-sync', icon: RefreshCw, label: 'WooCommerce Sync' },
     ];
 
     return (

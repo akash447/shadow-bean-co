@@ -1,13 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useAsset } from '../contexts/AssetContext';
 import './HomePage.css';
 
 import iconShadow from '../assets/icons/icon_shadow_grown.png';
 import iconSalt from '../assets/icons/icon_salt_roasted.png';
 import iconSmallBatch from '../assets/icons/icon_small_batch.png';
 import iconPersonalized from '../assets/icons/icon_personalised.png';
-
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 const USP_FEATURES = [
     { icon: iconShadow, title: 'SHADE GROWN', desc: 'Naturally grown under shade for richer flavor.' },
@@ -17,9 +16,9 @@ const USP_FEATURES = [
 ];
 
 const BREW_METHODS = [
-    { icon: `${BASE_URL}icon_pour_over_kit.png`, title: 'BREW WITH OUR POUR-OVER KIT', desc: 'Experience café-style clarity and flavor.' },
-    { icon: `${BASE_URL}icon_french_press.png`, title: 'USE YOUR OWN BREWER', desc: 'Aeropress, Moka Pot, South Indian filter.' },
-    { icon: `${BASE_URL}icon_chhani.png`, title: 'BREW WITH A SIMPLE CHHANI', desc: 'No equipment? No problem. Use a strainer.' },
+    { iconKey: 'icon_pour_over_kit.png', title: 'BREW WITH OUR POUR-OVER KIT', desc: 'Experience café-style clarity and flavor.' },
+    { iconKey: 'icon_french_press.png', title: 'USE YOUR OWN BREWER', desc: 'Aeropress, Moka Pot, South Indian filter.' },
+    { iconKey: 'icon_chhani.png', title: 'BREW WITH A SIMPLE CHHANI', desc: 'No equipment? No problem. Use a strainer.' },
 ];
 
 const REVIEWS = [
@@ -30,6 +29,19 @@ const REVIEWS = [
 
 export default function HomePage() {
     const navigate = useNavigate();
+    const homeHero = useAsset('home_hero.png');
+    const productBag = useAsset('product_bag.png');
+    const howToBrew = useAsset('how_to_brew.mp4');
+    const coffeeFarmer = useAsset('coffee_farmer.jpg');
+    const iconPourOverKit = useAsset('icon_pour_over_kit.png');
+    const iconFrenchPress = useAsset('icon_french_press.png');
+    const iconChhani = useAsset('icon_chhani.png');
+
+    const brewMethodIcons: Record<string, string> = {
+        'icon_pour_over_kit.png': iconPourOverKit,
+        'icon_french_press.png': iconFrenchPress,
+        'icon_chhani.png': iconChhani,
+    };
 
     return (
         <div className="home-container">
@@ -41,7 +53,7 @@ export default function HomePage() {
 
                     <div
                         className="hero-image"
-                        style={{ backgroundImage: `url(${BASE_URL}home_hero.png)` }}
+                        style={{ backgroundImage: `url(${homeHero})` }}
                     >
                         <div className="hero-text">
                             <h1 className="hero-title">
@@ -68,7 +80,7 @@ export default function HomePage() {
                     <Header variant="light" />
                     <div className="product-content">
                         <img
-                            src={`${BASE_URL}product_bag.png`}
+                            src={productBag}
                             alt="Coffee Bag"
                             className="product-image"
                         />
@@ -86,7 +98,14 @@ export default function HomePage() {
                 <section className="block brewing-section">
                     <Header variant="light" />
                     <div className="brewing-images">
-                        <img src={`${BASE_URL}coffee_cherries.jpg`} alt="Coffee Cherries" />
+                        <video
+                            src={howToBrew}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="brewing-video"
+                        />
                     </div>
                     <div className="brewing-content">
                         <h2 className="section-title">HOW TO USE STEPS</h2>
@@ -97,7 +116,7 @@ export default function HomePage() {
                         <div className="brew-methods">
                             {BREW_METHODS.map((method, i) => (
                                 <div key={i} className="brew-method">
-                                    <img src={method.icon} alt={method.title} className="brew-icon" />
+                                    <img src={brewMethodIcons[method.iconKey]} alt={method.title} className="brew-icon" />
                                     <span className="brew-title">{method.title}</span>
                                     <span className="brew-desc">{method.desc}</span>
                                 </div>
@@ -109,7 +128,7 @@ export default function HomePage() {
                 {/* Block 4: Story Section */}
                 <section
                     className="block story-section"
-                    style={{ backgroundImage: `url(${BASE_URL}coffee_farmer.jpg)` }}
+                    style={{ backgroundImage: `url(${coffeeFarmer})` }}
                 >
                     <Header variant="dark" />
                     <div className="story-overlay" />

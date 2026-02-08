@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/src/constants/Colors';
-import { signUp, updateProfile } from '@/src/services/supabase';
+import { signUp, updateProfile } from '@/src/services/cognito-auth';
 import { logSignUp } from '@/src/services/analytics';
 
 export default function RegisterScreen() {

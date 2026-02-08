@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Edit, Trash2, Loader2, X, Save } from 'lucide-react';
-import { getProducts, createProduct, updateProduct, deleteProduct } from '../lib/supabase';
+import { getProducts, createProduct, updateProduct, deleteProduct } from '../lib/admin-api';
 
 interface Product {
     id: string;

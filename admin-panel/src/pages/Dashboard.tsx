@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDashboardStats } from '../lib/supabase';
+import { getDashboardStats } from '../lib/admin-api';
 import { Users, ShoppingCart, DollarSign, Star, Clock } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {

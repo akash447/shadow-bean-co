@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, cancelOrder, subscribeToOrders } from '../lib/supabase';
+import { getOrders, updateOrderStatus, cancelOrder, subscribeToOrders } from '../lib/admin-api';
 import { Search, XCircle, AlertTriangle } from 'lucide-react';
 
 const statusOptions = [

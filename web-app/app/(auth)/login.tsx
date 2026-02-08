@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { signIn, getProfile } from '@/src/services/supabase';
+import { signIn, getProfile } from '@/src/services/cognito-auth';
 import { useAuthStore } from '@/src/stores/authStore';
 import { logLogin, logScreenView } from '@/src/services/analytics';
 

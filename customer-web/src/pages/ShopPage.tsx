@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useAsset } from '../contexts/AssetContext';
 import { useCartStore } from '../stores/cartStore';
 import type { TasteProfile } from '../stores/cartStore';
 import './ShopPage.css';
 import { useShopStore } from '../stores/shopStore';
-
-const BASE_URL = 'https://yyqoagncaxzpxodwnuax.supabase.co/storage/v1/object/public/media/';
 
 // We will use the SVGs we created earlier for Grind Types
 const GrindSVGs = {
@@ -61,6 +60,7 @@ const ROAST_LEVELS = [
 export default function ShopPage() {
     const navigate = useNavigate();
     const { addItem } = useCartStore();
+    const productBag = useAsset('product_bag.png');
 
     // Global Shop State (Persisted)
     const {
@@ -70,12 +70,12 @@ export default function ShopPage() {
         grindType, setGrindType
     } = useShopStore();
 
-    // Generate Dynamic SKU
-    const generateSKU = (b: number, a: number, f: number, r: string, g: string) => {
-        return `CR-${b}${a}${f}-${r.charAt(0).toUpperCase()}${g.charAt(0).toUpperCase()}`;
+    // Generate Dynamic SKU (without acidity)
+    const generateSKU = (b: number, f: number, r: string, g: string) => {
+        return `CR-${b}${f}-${r.charAt(0).toUpperCase()}${g.charAt(0).toUpperCase()}`;
     };
 
-    const currentSKU = generateSKU(bitterness, acidity, flavour, roastLevel, grindType);
+    const currentSKU = generateSKU(bitterness, flavour, roastLevel, grindType);
 
     // Mock Saved Profiles with updated naming convention
     const [savedProfiles, setSavedProfiles] = useState<TasteProfile[]>([
@@ -149,7 +149,7 @@ export default function ShopPage() {
                 <div className="mobile-product-header">
                     <div className="mobile-product-preview">
                         <img
-                            src={`${BASE_URL}product_bag.png`}
+                            src={productBag}
                             alt="Custom Coffee Blend"
                             className="mobile-product-img"
                         />
@@ -172,7 +172,7 @@ export default function ShopPage() {
                 <div className="shop-left">
                     <div className="product-showcase">
                         <img
-                            src={`${BASE_URL}product_bag.png`}
+                            src={productBag}
                             alt="Custom Coffee Blend"
                             className="shop-product-img"
                         />
@@ -193,7 +193,7 @@ export default function ShopPage() {
                         </div>
                         <div className="detail-row">
                             <span>Profile</span>
-                            <strong>{bitterness}/{acidity}/{flavour}</strong>
+                            <strong>{bitterness}/{flavour}</strong>
                         </div>
                         <button className="btn-save-profile" onClick={saveCurrentProfile}>
                             SAVE PROFILE
@@ -250,20 +250,6 @@ export default function ShopPage() {
 
                                     <div className="slider-group">
                                         <div className="slider-labels">
-                                            <label>Acidity</label>
-                                            <span className="slider-val">{acidity}/5</span>
-                                        </div>
-                                        <input
-                                            type="range" min="1" max="5" value={acidity}
-                                            onChange={(e) => setTaste('acidity', Number(e.target.value))}
-                                            className="styled-slider"
-                                        />
-                                    </div>
-
-
-
-                                    <div className="slider-group">
-                                        <div className="slider-labels">
                                             <label>Flavour</label>
                                             <span className="slider-val">{flavour}/5</span>
                                         </div>
@@ -275,27 +261,8 @@ export default function ShopPage() {
                                     </div>
                                 </div>
 
-                                <div className="nav-next-container">
-                                    <button className="btn-next-roast" onClick={() => setStep(2)}>
-                                        NEXT: ROAST & GRIND →
-                                    </button>
-                                </div>
-                                <button className="btn-add-to-cart-desktop desktop-only step1-spacer" onClick={handleAddToCart}>
-                                    ADD TO CART • ₹799
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* VIEW 2: Roast & Grind Combined */}
-                        <div className={`slide-view ${step === 2 ? 'active' : 'hidden-right'}`}>
-                            <div className="mobile-customization-card">
-                                {/* Back Button */}
-                                <button className="btn-back" onClick={() => setStep(1)}>
-                                    ← BACK
-                                </button>
-
-                                {/* Roast Level Section */}
-                                <div className="step-section">
+                                {/* Roast Level Section - Now in Step 1 */}
+                                <div className="step-section roast-in-step1">
                                     <div className="step-header">
                                         <h2>Roast Level</h2>
                                     </div>
@@ -312,10 +279,30 @@ export default function ShopPage() {
                                     </div>
                                 </div>
 
+                                <div className="nav-next-container">
+                                    <button className="btn-next-roast" onClick={() => setStep(2)}>
+                                        NEXT: GRIND TYPE →
+                                    </button>
+                                </div>
+                                <button className="btn-add-to-cart-desktop desktop-only step1-spacer" onClick={handleAddToCart}>
+                                    ADD TO CART • ₹799
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* VIEW 2: Grind Type Only */}
+                        <div className={`slide-view ${step === 2 ? 'active' : 'hidden-right'}`}>
+                            <div className="mobile-customization-card">
+                                {/* Back Button */}
+                                <button className="btn-back" onClick={() => setStep(1)}>
+                                    ← BACK
+                                </button>
+
                                 {/* Grind Type Section */}
                                 <div className="step-section">
                                     <div className="step-header">
-                                        <h2>Grind Type</h2>
+                                        <h2>Select Grind Type</h2>
+                                        <p>Choose based on your brewing method</p>
                                     </div>
                                     <div className="grind-tiles-mobile">
                                         {GRIND_TYPES.map((g) => (
