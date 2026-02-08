@@ -32,7 +32,7 @@ try {
             redirectSignIn: ['https://shadowbeanco.net', 'http://localhost:5173'],
             redirectSignOut: ['https://shadowbeanco.net', 'http://localhost:5173'],
             responseType: 'code' as const,
-            providers: [{ custom: 'Google' }],
+            providers: ['Google'],
           },
         },
       },

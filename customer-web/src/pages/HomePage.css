@@ -194,7 +194,7 @@
 
 .brewing-images {
     display: flex;
-    height: 30vh;
+    height: 39vh;
     margin-top: 60px;
 }
 
@@ -527,7 +527,7 @@
 
     /* Brewing Section - 2x2 Grid */
     .brewing-images {
-        height: 25vh;
+        height: 32.5vh;
         margin-top: 60px;
     }
 

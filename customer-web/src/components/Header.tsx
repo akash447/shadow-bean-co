@@ -60,7 +60,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
     const location = useLocation();
     const { items } = useCartStore();
     const { user, profile } = useAuth();
-    const logoBird = useAsset('logo_bird.png');
+    const logoMain = useAsset('logo_main');
     const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -77,10 +77,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
         return (
             <header className={`header ${variant} minimal`}>
                 <div className="header-logo" onClick={() => navigate('/')}>
-                    <img src={logoBird} alt="Shadow Bean Co" />
-                    <span className="logo-text">
-                        SHADOW<br />BEAN CO.
-                    </span>
+                    <img src={logoMain} alt="Shadow Bean Co" className="logo-full" />
                 </div>
             </header>
         );
@@ -91,10 +88,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
             <header className={`header ${variant}`}>
                 {/* Left: Logo */}
                 <div className="header-logo" onClick={() => navigate('/')}>
-                    <img src={logoBird} alt="Shadow Bean Co" />
-                    <span className="logo-text">
-                        SHADOW<br />BEAN CO.
-                    </span>
+                    <img src={logoMain} alt="Shadow Bean Co" className="logo-full" />
                 </div>
 
                 {/* Center: Navigation - Desktop only */}

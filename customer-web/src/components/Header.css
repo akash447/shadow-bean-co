@@ -42,6 +42,11 @@
     height: 35px;
 }
 
+.header-logo img.logo-full {
+    width: auto;
+    height: 40px;
+}
+
 .logo-text {
     font-family: 'Montserrat', sans-serif;
     font-size: 12px;
@@ -180,6 +185,11 @@
     .header-logo img {
         width: 32px;
         height: 32px;
+    }
+
+    .header-logo img.logo-full {
+        width: auto;
+        height: 36px;
     }
 }
 

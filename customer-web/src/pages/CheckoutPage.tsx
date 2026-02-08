@@ -19,7 +19,7 @@ const SHIPPING_STORAGE_KEY = 'shadow_bean_shipping_address';
 
 export default function CheckoutPage() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
     const { items, getTotal, clearCart } = useCartStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
@@ -88,6 +88,11 @@ export default function CheckoutPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         console.log('Form submitted!');
         e.preventDefault();
+
+        // Wait for auth to finish loading before checking user
+        if (loading) {
+            return;
+        }
 
         // Check if user is logged in AND has a valid user ID
         if (!user || !user.id || user.id.trim() === '') {
