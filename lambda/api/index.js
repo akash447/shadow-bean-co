@@ -115,7 +115,8 @@ async function isAdmin(user) {
 const ALLOWED_ORIGINS = [
     'https://shadowbeanco.net',
     'https://www.shadowbeanco.net',
-    'https://admin.shadowbeanco.net',
+    'https://admin-shadowbeanco.com',
+    'https://www.admin-shadowbeanco.com',
     'http://localhost:5173',
     'http://localhost:8081',
 ];

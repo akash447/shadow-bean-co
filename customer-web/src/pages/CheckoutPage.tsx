@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder } from '../services/amplify-auth';
+import { createOrder } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import './CheckoutPage.css';
 
@@ -121,14 +121,10 @@ export default function CheckoutPage() {
             };
 
             console.log('Order data:', orderData);
-            const result = await createOrder(orderData);
-            console.log('Create order result:', result);
+            const order = await createOrder(orderData);
+            console.log('Create order result:', order);
 
-            if (result.error) {
-                throw result.error;
-            }
-
-            setOrderId(result.order?.id || 'N/A');
+            setOrderId(order?.id || 'N/A');
             setOrderSuccess(true);
             clearCart();
         } catch (error) {
