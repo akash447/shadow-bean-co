@@ -120,6 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const login = async (email: string, password: string) => {
         try {
+            // Clear any stale session first (Amplify v6 throws if already signed in)
+            try { await amplifySignOut(); } catch { /* ignore */ }
+
             const result = await amplifySignIn({ username: email, password });
 
             if (result.isSignedIn) {
@@ -204,6 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loginWithGoogle = async () => {
         try {
+            // Clear any stale session first
+            try { await amplifySignOut(); } catch { /* ignore */ }
             await signInWithRedirect({ provider: 'Google' });
         } catch (err: any) {
             console.error('Google login error:', err);

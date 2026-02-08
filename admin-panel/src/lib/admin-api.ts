@@ -59,6 +59,9 @@ api.interceptors.response.use(
 
 export const signIn = async (email: string, password: string) => {
     try {
+        // Clear any stale session first (Amplify v6 throws if already signed in)
+        try { await cognitoSignOut(); } catch { /* ignore */ }
+
         const result = await cognitoSignIn({ username: email, password });
         if (result.isSignedIn) {
             const user = await getCurrentUser();
@@ -101,6 +104,8 @@ export const signIn = async (email: string, password: string) => {
 
 export const signInWithGoogle = async () => {
     try {
+        // Clear any stale session first
+        try { await cognitoSignOut(); } catch { /* ignore */ }
         await signInWithRedirect({ provider: 'Google' });
     } catch (err: any) {
         console.error('Google sign in error:', err);
