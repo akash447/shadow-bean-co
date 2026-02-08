@@ -10,9 +10,10 @@ export default function LoginPage() {
     const redirectTo = searchParams.get('redirect') || '/profile';
     const message = searchParams.get('message');
 
-    const { login, loginWithGoogle } = useAuth();
+    const { login, loginWithGoogle, needsConfirmation, confirmSignUp } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmationCode, setConfirmationCode] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -31,6 +32,21 @@ export default function LoginPage() {
         }
     };
 
+    const handleConfirmation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        const { error: confirmError } = await confirmSignUp(confirmationCode);
+
+        if (confirmError) {
+            setError(confirmError.message);
+            setLoading(false);
+        } else {
+            navigate(redirectTo);
+        }
+    };
+
     const handleGoogleLogin = async () => {
         setError('');
         try {
@@ -39,6 +55,48 @@ export default function LoginPage() {
             setError('Google login failed. Please try again.');
         }
     };
+
+    // Show confirmation code form if user needs to verify email
+    if (needsConfirmation) {
+        return (
+            <div className="auth-container">
+                <Header variant="light" minimal={true} />
+                <main className="auth-main">
+                    <div className="auth-card">
+                        <h1>Verify Your Email</h1>
+                        <p className="auth-subtitle">
+                            Enter the verification code sent to <strong>{needsConfirmation.email}</strong>
+                        </p>
+
+                        {error && <div className="error-message">{error}</div>}
+
+                        <form onSubmit={handleConfirmation}>
+                            <div className="form-group">
+                                <label>Verification Code</label>
+                                <input
+                                    type="text"
+                                    value={confirmationCode}
+                                    onChange={(e) => setConfirmationCode(e.target.value)}
+                                    placeholder="Enter 6-digit code"
+                                    required
+                                    autoFocus
+                                    style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '4px' }}
+                                />
+                            </div>
+
+                            <button type="submit" className="auth-button" disabled={loading}>
+                                {loading ? 'Verifying...' : 'Verify & Sign In'}
+                            </button>
+                        </form>
+
+                        <div className="auth-links">
+                            <span>Didn't receive the code? Check your spam folder.</span>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="auth-container">
@@ -52,7 +110,7 @@ export default function LoginPage() {
 
                     {message === 'login_required' && (
                         <div className="info-message">
-                            🔐 Please login or create an account to complete your order. Your shipping details have been saved.
+                            Please login or create an account to complete your order. Your shipping details have been saved.
                         </div>
                     )}
 
@@ -91,7 +149,7 @@ export default function LoginPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
+                                placeholder="Min. 8 characters"
                                 required
                             />
                         </div>
