@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.13.2",
-    "@supabase/supabase-js": "^2.94.1",
     "aws-amplify": "^6.16.0",
     "axios": "^1.13.2",
     "lucide-react": "^0.562.0",

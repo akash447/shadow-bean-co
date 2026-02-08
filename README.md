@@ -1,23 +1,47 @@
-# Shadow Bean Co - Project Structure
+# Shadow Bean Co - Specialty Coffee E-Commerce
 
-This project has been separated into independent environments to ensure stability.
+## Architecture (Pure AWS)
 
-## 📂 Folders
+| Service | AWS Resource |
+|---------|-------------|
+| Auth | Cognito (Google OAuth + email/password) |
+| Database | Aurora PostgreSQL Serverless v2 (Data API) |
+| API | Lambda + API Gateway (api.shadowbeanco.net) |
+| Media/CDN | S3 + CloudFront (media.shadowbeanco.net) |
+| Customer Site | Amplify Hosting (shadowbeanco.net) |
+| Admin Panel | Amplify Hosting (admin-shadowbeanco.com) |
+| Payments | Razorpay |
+| Shipping | Shiprocket |
 
-### 1. `web-app/` (Web Only)
-The Customer-facing website (Shop, Cart, Profile).
-- **Config**: Firebase v10 (Stable for Web), Metro Web Support.
-- **Run**: `cd web-app` then `npm run web` (or `npx expo start --web`).
-- **Port**: 8098 (Default).
+## Project Structure
 
-### 2. `mobile-app/` (Native Only)
-The Android/iOS Application.
-- **Config**: Optimized for Native Builds (Firebase v12+ allowed).
-- **Run**: `cd mobile-app` then `npm run android` / `npm run ios`.
+### `customer-web/` - Customer Website (React/Vite)
+- Shop, Cart, Checkout, Profile, About pages
+- Deployed via Amplify to **shadowbeanco.net**
+- Run: `cd customer-web && npm run dev`
 
-### 3. `admin-panel/` (Admin Dashboard)
-The internal tool for managing orders and products.
-- **Run**: `cd admin-panel` then `npm run dev`.
+### `admin-panel/` - Admin Dashboard (React/Vite)
+- Orders, Products, Pricing, Media, Users management
+- Deployed via Amplify to **admin-shadowbeanco.com**
+- Run: `cd admin-panel && npm run dev`
+
+### `mobile-app/` - Mobile App (React Native/Expo)
+- Android/iOS native app
+- Run: `cd mobile-app && npx expo start`
+
+### `web-app/` - Expo Web (React Native Web)
+- Web version of mobile app
+- Run: `cd web-app && npx expo start --web`
+
+### `lambda/api/` - Serverless API
+- Node.js Lambda handler for all API endpoints
+- Deployed to **api.shadowbeanco.net**
+
+### `terraform/` - Infrastructure as Code
+- All AWS resources defined in Terraform
+
+### `database/` - Database Schema
+- `rds_schema.sql` - PostgreSQL schema (12 tables)
 
 ---
-**Note**: Shared code must be manually synced or moved to a shared package in the future.
+**Region**: ap-south-1 (Mumbai) | **Domain**: shadowbeanco.net

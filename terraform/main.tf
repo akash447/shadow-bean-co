@@ -1,8 +1,8 @@
 # ==============================================
 # SHADOW BEAN CO - Main Terraform Configuration
 # ==============================================
-# Migrates from Supabase/Firebase/Hostinger/Vercel
-# to a pure AWS ecosystem.
+# Pure AWS ecosystem: Cognito, Aurora PostgreSQL, Lambda,
+# API Gateway, S3, CloudFront, Amplify Hosting.
 # ==============================================
 
 terraform {
