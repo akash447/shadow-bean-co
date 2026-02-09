@@ -50,9 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [needsConfirmation, setNeedsConfirmation] = useState<{ email: string; password: string } | null>(null);
     const isGoogleRedirecting = useRef(false);
+    const authResolved = useRef(false);
 
     // Fetch the current authenticated user
     const fetchCurrentUser = useCallback(async () => {
+        // Prevent duplicate calls after auth is already resolved
+        if (authResolved.current) return null;
+
         try {
             const cognitoUser = await getCurrentUser();
             const attributes = await fetchUserAttributes();
@@ -70,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             };
 
             setUser(authUser);
+            authResolved.current = true;
+
+            // Clean OAuth params from URL if present
+            if (window.location.search.includes('code=')) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
 
             // Persist profile to database and use DB response
             try {
@@ -104,20 +114,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initialize auth state and listen for auth events
     useEffect(() => {
-        // Check if this is an OAuth callback (URL has authorization code from Cognito)
         const isOAuthCallback = window.location.search.includes('code=');
 
-        // Set up Hub listener FIRST so we don't miss events
+        // Set up Hub listener for auth events
         const hubListener = Hub.listen('auth', ({ payload }) => {
             console.log('Auth Hub event:', payload.event);
             switch (payload.event) {
                 case 'signedIn':
                 case 'signInWithRedirect':
                     console.log('User signed in via:', payload.event);
-                    // Clean OAuth params from URL to prevent re-processing
-                    if (window.location.search.includes('code=')) {
-                        window.history.replaceState({}, '', window.location.pathname);
-                    }
+                    authResolved.current = false; // Allow fetchCurrentUser to run again
                     fetchCurrentUser();
                     break;
                 case 'signedOut':
@@ -129,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null);
                     setProfile(null);
                     setLoading(false);
+                    authResolved.current = false;
                     break;
                 case 'tokenRefresh':
                     console.log('Token refreshed');
@@ -138,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null);
                     setProfile(null);
                     setLoading(false);
+                    authResolved.current = false;
                     break;
                 case 'signInWithRedirect_failure':
                     console.error('Google OAuth redirect failed:', payload);
@@ -147,15 +155,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (isOAuthCallback) {
-            // OAuth callback: DON'T call fetchCurrentUser yet.
-            // Amplify is processing the ?code= parameter asynchronously.
-            // The Hub event (signInWithRedirect) will fire when done.
-            // Safety timeout: if Hub event doesn't fire in 5s, try anyway.
-            const timeout = setTimeout(() => {
-                console.log('OAuth callback timeout - attempting fetchCurrentUser');
+            // OAuth callback: Amplify processes ?code= asynchronously.
+            // We need to give it time, then call fetchCurrentUser which
+            // triggers getCurrentUser() → finds the newly stored tokens.
+            // Try at 1.5s (fast case) and 5s (safety net).
+            const timer1 = setTimeout(() => {
+                console.log('OAuth: trying fetchCurrentUser (1.5s)');
+                fetchCurrentUser();
+            }, 1500);
+            const timer2 = setTimeout(() => {
+                console.log('OAuth: trying fetchCurrentUser (5s fallback)');
+                authResolved.current = false;
                 fetchCurrentUser();
             }, 5000);
-            return () => { hubListener(); clearTimeout(timeout); };
+            return () => { hubListener(); clearTimeout(timer1); clearTimeout(timer2); };
         } else {
             // Normal page load: check for existing session immediately
             fetchCurrentUser();
@@ -172,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (result.isSignedIn) {
+                authResolved.current = false;
                 await fetchCurrentUser();
                 return { error: null };
             }
@@ -261,14 +275,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUser(null);
         setProfile(null);
+        authResolved.current = false;
     };
 
     const refreshProfile = async () => {
+        authResolved.current = false;
         await fetchCurrentUser();
     };
 
     const loginWithGoogle = async () => {
         isGoogleRedirecting.current = true;
+
+        // Clean any stale OAuth params from URL
+        if (window.location.search.includes('code=')) {
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
         try {
             await signInWithRedirect({ provider: 'Google' });
         } catch (err: any) {
@@ -279,11 +301,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     await signInWithRedirect({ provider: 'Google' });
                     return;
                 } catch (retryErr: any) {
-                    console.error('Google login retry error:', retryErr);
+                    isGoogleRedirecting.current = false;
+                    throw new Error(retryErr.message || 'Google sign-in failed after retry');
                 }
             }
             isGoogleRedirecting.current = false;
-            console.error('Google login error:', err);
+            // Re-throw so LoginPage can display the error
+            throw new Error(err.message || 'Google sign-in failed');
         }
     };
 

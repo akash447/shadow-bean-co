@@ -101,14 +101,17 @@ function App() {
     });
 
     if (isOAuthCallback) {
-      // OAuth callback: DON'T call checkSession yet.
-      // Amplify is processing the ?code= parameter asynchronously.
-      // Hub event will fire when done. Safety timeout after 5s.
-      const timeout = setTimeout(() => {
-        console.log('OAuth callback timeout - attempting checkSession');
+      // OAuth callback: Amplify processes ?code= asynchronously.
+      // Try after 1.5s (fast case) and 5s (safety net).
+      const timer1 = setTimeout(() => {
+        console.log('OAuth: trying checkSession (1.5s)');
+        checkSession();
+      }, 1500);
+      const timer2 = setTimeout(() => {
+        console.log('OAuth: trying checkSession (5s fallback)');
         checkSession();
       }, 5000);
-      return () => { hubListener(); clearTimeout(timeout); };
+      return () => { hubListener(); clearTimeout(timer1); clearTimeout(timer2); };
     } else {
       // Normal page load: check for existing session immediately
       checkSession();

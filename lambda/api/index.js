@@ -337,7 +337,7 @@ exports.handler = async (event) => {
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
             const orderRows = await query(
-                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address) VALUES ($1::uuid, $2, $3, $4, $5) RETURNING *',
+                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address) VALUES ($1::uuid, $2, $3, $4, $5::jsonb) RETURNING *',
                 [profileId, 'pending', body.total_amount, body.razorpay_payment_id, JSON.stringify(body.shipping_address)]
             );
             const order = orderRows[0];
@@ -443,7 +443,7 @@ exports.handler = async (event) => {
             // POST /admin/products
             if (method === 'POST' && path === '/admin/products') {
                 const rows = await query(
-                    'INSERT INTO products (name, description, base_price, sizes, image_url, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                    'INSERT INTO products (name, description, base_price, sizes, image_url, is_active) VALUES ($1, $2, $3, $4::jsonb, $5, $6) RETURNING *',
                     [body.name, body.description, body.base_price, JSON.stringify(body.sizes || []), body.image_url, body.is_active !== false]
                 );
                 return created(rows[0]);
