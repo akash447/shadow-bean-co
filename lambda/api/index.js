@@ -183,6 +183,8 @@ exports.handler = async (event) => {
     const body = event.body ? JSON.parse(event.body) : {};
     const qs = event.queryStringParameters || {};
 
+    console.log(`${method} ${path}`, JSON.stringify({ qs, bodyKeys: Object.keys(body) }));
+
     try {
         // --- PUBLIC ROUTES ---
 
@@ -333,7 +335,9 @@ exports.handler = async (event) => {
 
         // POST /orders
         if (method === 'POST' && path === '/orders') {
+            console.log('Creating order for user:', body.user_id, 'amount:', body.total_amount);
             const profileId = await resolveProfileId(body.user_id);
+            console.log('Resolved profileId:', profileId);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
             const orderRows = await query(
@@ -347,7 +351,7 @@ exports.handler = async (event) => {
                     // taste_profile_id may be a client-generated id (e.g. 'custom-xxx') — only insert valid UUIDs
                     const tpId = item.taste_profile_id && /^[0-9a-f-]{36}$/i.test(item.taste_profile_id) ? item.taste_profile_id : null;
                     await query(
-                        'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1, $2, $3, $4, $5)',
+                        'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
                         [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
                     );
                 }
@@ -361,7 +365,7 @@ exports.handler = async (event) => {
             const profileId = await resolveProfileId(body.user_id);
             if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
-                'INSERT INTO reviews (user_id, order_id, rating, comment) VALUES ($1::uuid, $2, $3, $4) RETURNING *',
+                'INSERT INTO reviews (user_id, order_id, rating, comment) VALUES ($1::uuid, $2::uuid, $3, $4) RETURNING *',
                 [profileId, body.order_id, body.rating, body.comment]
             );
             return created(rows[0]);
