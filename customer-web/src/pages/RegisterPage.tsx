@@ -12,6 +12,7 @@ export default function RegisterPage() {
     const { register, needsConfirmation, confirmSignUp } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [confirmationCode, setConfirmationCode] = useState('');
@@ -34,7 +35,7 @@ export default function RegisterPage() {
         }
 
         setLoading(true);
-        const { error: registerError, needsConfirmation: needsCode } = await register(email, password, name);
+        const { error: registerError, needsConfirmation: needsCode } = await register(email, password, name, phone || undefined);
 
         if (registerError) {
             setError(registerError.message);
@@ -135,6 +136,17 @@ export default function RegisterPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@example.com"
                                 required
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label>Phone Number <span style={{ color: '#999', fontWeight: 'normal' }}>(optional)</span></label>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="+91 9876543210"
+                                pattern="[+]?[0-9]{10,13}"
                             />
                         </div>
 

@@ -14,7 +14,7 @@ import { ReviewsPage } from './pages/ReviewsPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MediaPage } from './pages/MediaPage';
 import { AccessPage } from './pages/AccessPage';
-import { getSession } from './lib/admin-api';
+import { getSession, isGoogleRedirecting } from './lib/admin-api';
 import './index.css';
 
 // Error Boundary to catch render crashes
@@ -61,8 +61,12 @@ function App() {
         setInitError(null);
       }
     } catch (err: any) {
-      console.error('Session check failed:', err);
-      setInitError(err.message || 'Session check failed');
+      // Don't show errors during OAuth callback — token exchange may be in progress
+      const isOAuthCallback = window.location.search.includes('code=');
+      if (!isOAuthCallback) {
+        console.error('Session check failed:', err);
+        setInitError(err.message || 'Session check failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +84,7 @@ function App() {
           checkSession();
           break;
         case 'signedOut':
+          if (isGoogleRedirecting) break;
           setUser(null);
           break;
         case 'signInWithRedirect_failure':

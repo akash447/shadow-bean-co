@@ -29,8 +29,8 @@ try {
           oauth: {
             domain: 'shadowbeanco.auth.ap-south-1.amazoncognito.com',
             scopes: ['openid', 'email', 'profile'],
-            redirectSignIn: ['https://admin-shadowbeanco.com', 'http://localhost:5173'],
-            redirectSignOut: ['https://admin-shadowbeanco.com', 'http://localhost:5173'],
+            redirectSignIn: ['https://admin-shadowbeanco.com', 'https://www.admin-shadowbeanco.com', 'http://localhost:5173'],
+            redirectSignOut: ['https://admin-shadowbeanco.com', 'https://www.admin-shadowbeanco.com', 'http://localhost:5173'],
             responseType: 'code' as const,
             providers: ['Google'],
           },

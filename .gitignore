@@ -124,3 +124,15 @@ lambda/api/node_modules/
 s3-policy-*.json
 spa-*.json
 connect_claude.ps1
+amplify-rules-*.json
+dns-*.json
+s3-cors.json
+customer-web/dist.zip
+
+# Lambda presignup deployment
+lambda/cognito-presignup/presignup.zip
+lambda/cognito-presignup/node_modules/
+
+# Terraform extra backups
+terraform/*.backup
+terraform/tfplan

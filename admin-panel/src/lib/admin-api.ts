@@ -43,11 +43,15 @@ api.interceptors.request.use(async (config) => {
     return config;
 });
 
+// Handle 401 responses (skip redirect during OAuth callback)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            window.location.href = '/login';
+            const isOAuthCallback = window.location.search.includes('code=') || window.location.search.includes('state=');
+            if (!isOAuthCallback) {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
@@ -56,6 +60,9 @@ api.interceptors.response.use(
 // ==============================================
 // AUTH FUNCTIONS (Cognito - unchanged)
 // ==============================================
+
+// Flag to prevent Hub signedOut event from clearing state during Google redirect
+export let isGoogleRedirecting = false;
 
 export const signIn = async (email: string, password: string) => {
     const doSignIn = async () => {
@@ -118,9 +125,11 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signInWithGoogle = async () => {
+    isGoogleRedirecting = true;
     try {
         await signInWithRedirect({ provider: 'Google' });
     } catch (err: any) {
+        isGoogleRedirecting = false;
         console.error('Google sign in error:', err);
         throw err;
     }
@@ -409,8 +418,8 @@ export const deleteAsset = async (key: string) => {
     }
 };
 
-// Real-time order subscription (polling replacement for Supabase real-time)
+// Real-time order subscription (polling every 10s for responsive admin experience)
 export const subscribeToOrders = (callback: () => void) => {
-    const interval = setInterval(callback, 30000); // Poll every 30s
+    const interval = setInterval(callback, 10000);
     return () => clearInterval(interval);
 };

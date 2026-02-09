@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder } from '../services/api';
+import { createOrder, ensureProfile } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import './CheckoutPage.css';
 
@@ -107,13 +107,21 @@ export default function CheckoutPage() {
         setIsSubmitting(true);
 
         try {
+            // Ensure profile exists in DB before order placement
+            // This fixes the "Failed to place order" error if ensureProfile failed during login
+            if (user.email) {
+                await ensureProfile(user.id, user.email, user.fullName || '');
+            }
+
             const orderData = {
                 user_id: user.id,
                 total_amount: getTotal(),
                 razorpay_payment_id: 'COD-' + Date.now(), // Cash on Delivery placeholder
                 shipping_address: address,
                 items: items.map(item => ({
-                    taste_profile_id: item.profile.id,
+                    // Only send valid UUIDs as taste_profile_id, otherwise send null/undefined
+                    // This prevents FK violations if the ID is 'custom-123' or 'saved-123'
+                    taste_profile_id: item.profile.id && /^[0-9a-f-]{36}$/i.test(item.profile.id) ? item.profile.id : undefined,
                     taste_profile_name: item.profile.name,
                     quantity: item.quantity,
                     unit_price: 799,
@@ -129,7 +137,8 @@ export default function CheckoutPage() {
             clearCart();
         } catch (error) {
             console.error('Order failed:', error);
-            alert('Failed to place order. Please try again. Error: ' + (error as any)?.message || 'Unknown error');
+            const errMessage = (error as any)?.response?.data?.error || (error as any)?.message || 'Unknown error';
+            alert(`Failed to place order. Error: ${errMessage}`);
         } finally {
             setIsSubmitting(false);
         }

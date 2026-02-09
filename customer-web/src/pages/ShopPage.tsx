@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useCartStore } from '../stores/cartStore';
 import type { TasteProfile } from '../stores/cartStore';
+import { getTasteProfiles, createTasteProfile, deleteTasteProfile } from '../services/api';
 import './ShopPage.css';
 import { useShopStore } from '../stores/shopStore';
 
@@ -60,6 +62,7 @@ const ROAST_LEVELS = [
 export default function ShopPage() {
     const navigate = useNavigate();
     const { addItem } = useCartStore();
+    const { user, profile } = useAuth();
     const productBag = useAsset('product_bag.png');
 
     // Global Shop State (Persisted)
@@ -77,14 +80,44 @@ export default function ShopPage() {
 
     const currentSKU = generateSKU(bitterness, flavour, roastLevel, grindType);
 
-    // Mock Saved Profiles with updated naming convention
-    const [savedProfiles, setSavedProfiles] = useState<TasteProfile[]>([
-        { id: '1', name: 'CR-423-DF', bitterness: 4, acidity: 2, flavour: 3, body: 4, roastLevel: 'Balanced', grindType: 'French Press' },
-        { id: '2', name: 'CR-235-MP', bitterness: 2, acidity: 3, flavour: 5, body: 3, roastLevel: 'Medium', grindType: 'Pour Over' },
-    ]);
+    // Saved profiles — loaded from DB for logged-in users, local state for guests
+    const [savedProfiles, setSavedProfiles] = useState<TasteProfile[]>([]);
 
-    const removeProfile = (id: string) => {
+    const dbUserId = profile?.id || user?.id;
+
+    const fetchSavedProfiles = useCallback(async () => {
+        if (!dbUserId) return;
+        try {
+            const profiles = await getTasteProfiles(dbUserId);
+            setSavedProfiles(profiles.map(p => ({
+                id: p.id,
+                name: p.name,
+                bitterness: p.bitterness,
+                acidity: p.acidity,
+                body: p.body,
+                flavour: p.flavour,
+                roastLevel: p.roast_level,
+                grindType: p.grind_type,
+            })));
+        } catch (err) {
+            console.error('Failed to fetch saved profiles:', err);
+        }
+    }, [dbUserId]);
+
+    useEffect(() => {
+        fetchSavedProfiles();
+    }, [fetchSavedProfiles]);
+
+    const removeProfile = async (id: string) => {
         setSavedProfiles(prev => prev.filter(p => p.id !== id));
+        if (dbUserId) {
+            try {
+                await deleteTasteProfile(id);
+            } catch (err) {
+                console.error('Failed to delete profile:', err);
+                fetchSavedProfiles(); // Re-sync on error
+            }
+        }
     };
 
     const loadProfile = (p: TasteProfile) => {
@@ -95,36 +128,9 @@ export default function ShopPage() {
         if (p.grindType) setGrindType(p.grindType as any);
     };
 
-    const handleAddToCart = () => {
-        const profile: TasteProfile = {
+    const handleAddToCart = async () => {
+        const cartProfile: TasteProfile = {
             id: `custom-${Date.now()}`,
-            name: currentSKU,
-            bitterness,
-            acidity,
-            body: 3, // Default
-            flavour,
-            roastLevel,
-            grindType,
-        };
-
-        // Auto-save to catalogue if unique
-        const isDuplicate = savedProfiles.some(p => p.name === currentSKU);
-        if (!isDuplicate) {
-            const newSavedProfile: TasteProfile = {
-                ...profile,
-                id: `saved-${Date.now()}`, // Distinct ID for saved list
-            };
-            setSavedProfiles(prev => [...prev, newSavedProfile]);
-        }
-
-        addItem(profile);
-        navigate('/cart');
-    };
-
-    // Save current as new profile
-    const saveCurrentProfile = () => {
-        const newProfile: TasteProfile = {
-            id: `saved-${Date.now()}`,
             name: currentSKU,
             bitterness,
             acidity,
@@ -133,7 +139,54 @@ export default function ShopPage() {
             roastLevel,
             grindType,
         };
-        setSavedProfiles(prev => [...prev, newProfile]);
+
+        // Auto-save to catalogue if unique
+        const isDuplicate = savedProfiles.some(p => p.name === currentSKU);
+        if (!isDuplicate) {
+            if (dbUserId) {
+                try {
+                    await createTasteProfile({
+                        user_id: dbUserId,
+                        name: currentSKU,
+                        bitterness, acidity, body: 3, flavour,
+                        roast_level: roastLevel,
+                        grind_type: grindType,
+                    });
+                    fetchSavedProfiles();
+                } catch (err) {
+                    console.error('Failed to save profile:', err);
+                }
+            } else {
+                setSavedProfiles(prev => [...prev, { ...cartProfile, id: `saved-${Date.now()}` }]);
+            }
+        }
+
+        addItem(cartProfile);
+        navigate('/cart');
+    };
+
+    const saveCurrentProfile = async () => {
+        if (dbUserId) {
+            try {
+                await createTasteProfile({
+                    user_id: dbUserId,
+                    name: currentSKU,
+                    bitterness, acidity, body: 3, flavour,
+                    roast_level: roastLevel,
+                    grind_type: grindType,
+                });
+                fetchSavedProfiles();
+            } catch (err) {
+                console.error('Failed to save profile:', err);
+            }
+        } else {
+            setSavedProfiles(prev => [...prev, {
+                id: `saved-${Date.now()}`,
+                name: currentSKU,
+                bitterness, acidity, body: 3, flavour,
+                roastLevel, grindType,
+            }]);
+        }
     };
 
     // Total steps for the stepper (now 2 steps)

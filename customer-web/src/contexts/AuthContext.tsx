@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Hub } from 'aws-amplify/utils';
 import {
@@ -36,7 +36,7 @@ interface AuthContextType {
     needsConfirmation: { email: string; password: string } | null;
     login: (email: string, password: string) => Promise<{ error: any }>;
     loginWithGoogle: () => Promise<void>;
-    register: (email: string, password: string, fullName: string) => Promise<{ error: any; needsConfirmation?: boolean }>;
+    register: (email: string, password: string, fullName: string, phone?: string) => Promise<{ error: any; needsConfirmation?: boolean }>;
     confirmSignUp: (code: string) => Promise<{ error: any }>;
     logout: () => Promise<void>;
     refreshProfile: () => Promise<void>;
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [needsConfirmation, setNeedsConfirmation] = useState<{ email: string; password: string } | null>(null);
+    const isGoogleRedirecting = useRef(false);
 
     // Fetch the current authenticated user
     const fetchCurrentUser = useCallback(async () => {
@@ -115,6 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     fetchCurrentUser();
                     break;
                 case 'signedOut':
+                    if (isGoogleRedirecting.current) {
+                        console.log('Ignoring signedOut during Google redirect');
+                        break;
+                    }
                     console.log('User signed out');
                     setUser(null);
                     setProfile(null);
@@ -175,28 +180,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const register = async (email: string, password: string, fullName: string) => {
+    const register = async (email: string, password: string, fullName: string, phone?: string) => {
         try {
+            const userAttributes: Record<string, string> = {
+                email,
+                name: fullName,
+            };
+            if (phone) userAttributes.phone_number = phone.startsWith('+') ? phone : `+91${phone.replace(/\D/g, '')}`;
+
             const result = await amplifySignUp({
                 username: email,
                 password,
                 options: {
-                    userAttributes: {
-                        email,
-                        name: fullName,
-                    },
+                    userAttributes,
                 },
             });
 
-            if (!result.isSignUpComplete) {
-                // Need email confirmation
-                setNeedsConfirmation({ email, password });
-                return { error: null, needsConfirmation: true };
+            if (result.isSignUpComplete) {
+                // Auto-confirmed by pre-signup trigger — sign in immediately
+                await login(email, password);
+                return { error: null };
             }
 
-            // Auto sign-in after registration
-            await login(email, password);
-            return { error: null };
+            // Fallback: if pre-signup trigger isn't active, need email confirmation
+            setNeedsConfirmation({ email, password });
+            return { error: null, needsConfirmation: true };
         } catch (err: any) {
             console.error('Register error:', err);
             return { error: { message: err.message || 'Registration failed' } };
@@ -238,9 +246,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const loginWithGoogle = async () => {
+        isGoogleRedirecting.current = true;
         try {
             await signInWithRedirect({ provider: 'Google' });
         } catch (err: any) {
+            isGoogleRedirecting.current = false;
             console.error('Google login error:', err);
         }
     };

@@ -38,7 +38,10 @@ export const ProductsPage: React.FC = () => {
         setLoading(true);
         const { data, error } = await getProducts();
         if (data) {
-            setProducts(data);
+            setProducts(data.map((p: any) => ({
+                ...p,
+                sizes: typeof p.sizes === 'string' ? JSON.parse(p.sizes) : (p.sizes || []),
+            })));
         } else {
             console.error('Error loading products:', error);
         }

@@ -37,13 +37,15 @@ api.interceptors.request.use(async (config) => {
     return config;
 });
 
-// Handle 401 responses
+// Handle 401 responses (skip redirect during OAuth callback)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid - redirect to login
-            window.location.href = '/login';
+            const isOAuthCallback = window.location.search.includes('code=') || window.location.search.includes('state=');
+            if (!isOAuthCallback) {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
@@ -181,7 +183,7 @@ export async function deleteAddress(id: string): Promise<void> {
 
 export interface OrderItem {
     id?: string;
-    taste_profile_id: string;
+    taste_profile_id?: string;
     taste_profile_name: string;
     quantity: number;
     unit_price: number;

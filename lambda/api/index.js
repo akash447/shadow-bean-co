@@ -67,7 +67,14 @@ async function query(sql, parameters = []) {
         const obj = {};
         row.forEach((field, i) => {
             if (field.isNull) obj[columns[i]] = null;
-            else if (field.stringValue !== undefined) obj[columns[i]] = field.stringValue;
+            else if (field.stringValue !== undefined) {
+                const sv = field.stringValue;
+                if ((sv.startsWith('[') || sv.startsWith('{')) && sv.length > 1) {
+                    try { obj[columns[i]] = JSON.parse(sv); } catch { obj[columns[i]] = sv; }
+                } else {
+                    obj[columns[i]] = sv;
+                }
+            }
             else if (field.longValue !== undefined) obj[columns[i]] = field.longValue;
             else if (field.doubleValue !== undefined) obj[columns[i]] = field.doubleValue;
             else if (field.booleanValue !== undefined) obj[columns[i]] = field.booleanValue;
@@ -99,6 +106,16 @@ async function verifyToken(event) {
     }
 }
 
+// Resolve a user identifier (cognito sub or UUID) to the profile UUID
+async function resolveProfileId(identifier) {
+    if (!identifier) return null;
+    const rows = await query(
+        'SELECT id FROM profiles WHERE id::text = $1 OR cognito_sub = $1',
+        [identifier]
+    );
+    return rows.length ? rows[0].id : null;
+}
+
 async function isAdmin(user) {
     if (!user?.email) return false;
     // Master admin always has access
@@ -119,6 +136,7 @@ const ALLOWED_ORIGINS = [
     'https://www.admin-shadowbeanco.com',
     'http://localhost:5173',
     'http://localhost:8081',
+    'http://localhost:8098',
 ];
 
 function getCorsHeaders(event) {
@@ -249,59 +267,88 @@ exports.handler = async (event) => {
 
         // GET /taste-profiles
         if (method === 'GET' && path === '/taste-profiles') {
-            const rows = await query('SELECT * FROM taste_profiles WHERE user_id = $1 ORDER BY created_at DESC', [qs.user_id]);
+            const profileId = await resolveProfileId(qs.user_id);
+            if (!profileId) return ok([]);
+            const rows = await query('SELECT * FROM taste_profiles WHERE user_id = $1::uuid ORDER BY created_at DESC', [profileId]);
             return ok(rows);
         }
 
         // POST /taste-profiles
         if (method === 'POST' && path === '/taste-profiles') {
+            const profileId = await resolveProfileId(body.user_id);
+            if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
-                'INSERT INTO taste_profiles (user_id, name, bitterness, acidity, body, flavour, roast_level, grind_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-                [body.user_id, body.name, body.bitterness, body.acidity, body.body, body.flavour, body.roast_level, body.grind_type]
+                'INSERT INTO taste_profiles (user_id, name, bitterness, acidity, body, flavour, roast_level, grind_type) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                [profileId, body.name, body.bitterness, body.acidity, body.body, body.flavour, body.roast_level, body.grind_type]
             );
             return created(rows[0]);
         }
 
+        // DELETE /taste-profiles/:id
+        if (method === 'DELETE' && path.match(/^\/taste-profiles\/[\w-]+$/)) {
+            const id = path.split('/')[2];
+            const uid = body.user_id || qs.user_id;
+            const profileId = uid ? await resolveProfileId(uid) : null;
+            // Allow delete if profileId matches, or if no user_id provided just delete by id
+            if (profileId) {
+                await query('DELETE FROM taste_profiles WHERE id = $1 AND user_id = $2::uuid', [id, profileId]);
+            } else {
+                await query('DELETE FROM taste_profiles WHERE id = $1', [id]);
+            }
+            return ok({ deleted: true });
+        }
+
         // GET /addresses
         if (method === 'GET' && path === '/addresses') {
-            const rows = await query('SELECT * FROM addresses WHERE user_id = $1 ORDER BY is_default DESC, created_at DESC', [qs.user_id]);
+            const profileId = await resolveProfileId(qs.user_id);
+            if (!profileId) return ok([]);
+            const rows = await query('SELECT * FROM addresses WHERE user_id = $1::uuid ORDER BY is_default DESC, created_at DESC', [profileId]);
             return ok(rows);
         }
 
         // POST /addresses
         if (method === 'POST' && path === '/addresses') {
+            const profileId = await resolveProfileId(body.user_id);
+            if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
-                'INSERT INTO addresses (user_id, label, full_name, phone, address_line, city, state, pincode, country, is_default) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-                [body.user_id, body.label, body.full_name, body.phone, body.address_line, body.city, body.state, body.pincode, body.country || 'India', body.is_default || false]
+                'INSERT INTO addresses (user_id, label, full_name, phone, address_line, city, state, pincode, country, is_default) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+                [profileId, body.label, body.full_name, body.phone, body.address_line, body.city, body.state, body.pincode, body.country || 'India', body.is_default || false]
             );
             return created(rows[0]);
         }
 
         // GET /orders
         if (method === 'GET' && path === '/orders') {
+            const profileId = await resolveProfileId(qs.user_id);
+            if (!profileId) return ok([]);
             const rows = await query(
                 `SELECT o.*, json_agg(oi.*) as order_items
                  FROM orders o LEFT JOIN order_items oi ON o.id = oi.order_id
-                 WHERE o.user_id = $1
+                 WHERE o.user_id = $1::uuid
                  GROUP BY o.id ORDER BY o.created_at DESC`,
-                [qs.user_id]
+                [profileId]
             );
             return ok(rows);
         }
 
         // POST /orders
         if (method === 'POST' && path === '/orders') {
+            const profileId = await resolveProfileId(body.user_id);
+            if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
+
             const orderRows = await query(
-                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                [body.user_id, 'confirmed', body.total_amount, body.razorpay_payment_id, JSON.stringify(body.shipping_address)]
+                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address) VALUES ($1::uuid, $2, $3, $4, $5) RETURNING *',
+                [profileId, 'pending', body.total_amount, body.razorpay_payment_id, JSON.stringify(body.shipping_address)]
             );
             const order = orderRows[0];
 
             if (body.items?.length) {
                 for (const item of body.items) {
+                    // taste_profile_id may be a client-generated id (e.g. 'custom-xxx') — only insert valid UUIDs
+                    const tpId = item.taste_profile_id && /^[0-9a-f-]{36}$/i.test(item.taste_profile_id) ? item.taste_profile_id : null;
                     await query(
                         'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1, $2, $3, $4, $5)',
-                        [order.id, item.taste_profile_id, item.taste_profile_name, item.quantity, item.unit_price]
+                        [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
                     );
                 }
             }
@@ -311,9 +358,11 @@ exports.handler = async (event) => {
 
         // POST /reviews
         if (method === 'POST' && path === '/reviews') {
+            const profileId = await resolveProfileId(body.user_id);
+            if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
-                'INSERT INTO reviews (user_id, order_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING *',
-                [body.user_id, body.order_id, body.rating, body.comment]
+                'INSERT INTO reviews (user_id, order_id, rating, comment) VALUES ($1::uuid, $2, $3, $4) RETURNING *',
+                [profileId, body.order_id, body.rating, body.comment]
             );
             return created(rows[0]);
         }
@@ -331,11 +380,14 @@ exports.handler = async (event) => {
 
             // GET /admin/dashboard/stats
             if (method === 'GET' && path === '/admin/dashboard/stats') {
-                const [users, orders, reviews, products] = await Promise.all([
+                const [users, orders, reviews, products, recentOrders] = await Promise.all([
                     query('SELECT COUNT(*) as count FROM profiles'),
-                    query('SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue, COUNT(*) FILTER (WHERE status = \'pending\') as pending FROM orders'),
+                    query("SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue, COUNT(*) FILTER (WHERE status = 'pending') as pending FROM orders"),
                     query('SELECT COUNT(*) as count FROM reviews'),
                     query('SELECT COUNT(*) as count FROM products'),
+                    query(`SELECT o.id, o.status, o.total_amount, o.created_at, p.full_name as user_name
+                           FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
+                           ORDER BY o.created_at DESC LIMIT 5`),
                 ]);
                 return ok({
                     totalUsers: users[0]?.count || 0,
@@ -344,12 +396,18 @@ exports.handler = async (event) => {
                     pendingOrders: orders[0]?.pending || 0,
                     totalReviews: reviews[0]?.count || 0,
                     totalProducts: products[0]?.count || 0,
+                    recentOrders: recentOrders || [],
                 });
             }
 
-            // GET /admin/orders
+            // GET /admin/orders (with customer info and order items)
             if (method === 'GET' && path === '/admin/orders') {
-                const rows = await query('SELECT * FROM orders ORDER BY created_at DESC');
+                const rows = await query(
+                    `SELECT o.*, p.full_name as user_name, p.email as user_email, p.phone as user_phone
+                     FROM orders o
+                     LEFT JOIN profiles p ON o.user_id = p.id
+                     ORDER BY o.created_at DESC`
+                );
                 return ok(rows);
             }
 
