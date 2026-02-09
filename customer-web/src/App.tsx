@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { AssetProvider } from './contexts/AssetContext'
 import HomePage from './pages/HomePage'
@@ -50,7 +50,7 @@ function App() {
     <ErrorBoundary>
       <AssetProvider>
         <AuthProvider>
-          <HashRouter>
+          <BrowserRouter>
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/shop" element={<ShopPage />} />
@@ -61,7 +61,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
             </Routes>
-          </HashRouter>
+          </BrowserRouter>
         </AuthProvider>
       </AssetProvider>
     </ErrorBoundary>

@@ -37,15 +37,12 @@ api.interceptors.request.use(async (config) => {
     return config;
 });
 
-// Handle 401 responses (skip redirect during OAuth callback)
+// Handle 401 responses - just log, don't redirect (AuthContext handles auth state)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            const isOAuthCallback = window.location.search.includes('code=') || window.location.search.includes('state=');
-            if (!isOAuthCallback) {
-                window.location.href = '/login';
-            }
+            console.warn('API returned 401 - user may need to re-authenticate');
         }
         return Promise.reject(error);
     }
