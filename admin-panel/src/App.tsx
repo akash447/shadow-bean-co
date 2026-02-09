@@ -73,19 +73,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    checkSession();
+    // Check if this is an OAuth callback (URL has authorization code from Cognito)
+    const isOAuthCallback = window.location.search.includes('code=');
 
-    // Listen for auth events (especially OAuth redirect callbacks)
+    // Set up Hub listener FIRST so we don't miss events
     const hubListener = Hub.listen('auth', ({ payload }) => {
       switch (payload.event) {
         case 'signedIn':
         case 'signInWithRedirect':
           console.log('Auth event:', payload.event);
+          // Clean OAuth params from URL
+          if (window.location.search.includes('code=')) {
+            window.history.replaceState({}, '', window.location.pathname);
+          }
           checkSession();
           break;
         case 'signedOut':
           if (isGoogleRedirecting) break;
           setUser(null);
+          setLoading(false);
           break;
         case 'signInWithRedirect_failure':
           console.error('OAuth redirect failed:', payload);
@@ -94,7 +100,20 @@ function App() {
       }
     });
 
-    return () => hubListener();
+    if (isOAuthCallback) {
+      // OAuth callback: DON'T call checkSession yet.
+      // Amplify is processing the ?code= parameter asynchronously.
+      // Hub event will fire when done. Safety timeout after 5s.
+      const timeout = setTimeout(() => {
+        console.log('OAuth callback timeout - attempting checkSession');
+        checkSession();
+      }, 5000);
+      return () => { hubListener(); clearTimeout(timeout); };
+    } else {
+      // Normal page load: check for existing session immediately
+      checkSession();
+      return () => hubListener();
+    }
   }, [checkSession]);
 
   if (loading) {

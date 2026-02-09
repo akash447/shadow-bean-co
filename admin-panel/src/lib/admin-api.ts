@@ -1,7 +1,7 @@
 /**
  * Shadow Bean Co - Admin API Client
  * ==============================================
- * Replaces direct Supabase client calls in admin-panel.
+ * Admin panel data layer via AWS Lambda + RDS PostgreSQL.
  * Auth remains via AWS Amplify Cognito.
  * Data flows through API Gateway -> Lambda -> RDS PostgreSQL.
  * ==============================================
@@ -126,6 +126,16 @@ export const signInWithGoogle = async () => {
     try {
         await signInWithRedirect({ provider: 'Google' });
     } catch (err: any) {
+        // If already authenticated, sign out first then redirect
+        if (err.name === 'UserAlreadyAuthenticatedException') {
+            try {
+                await cognitoSignOut();
+                await signInWithRedirect({ provider: 'Google' });
+                return;
+            } catch (retryErr: any) {
+                console.error('Google sign in retry error:', retryErr);
+            }
+        }
         isGoogleRedirecting = false;
         console.error('Google sign in error:', err);
         throw err;

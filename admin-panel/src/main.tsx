@@ -22,7 +22,6 @@ try {
       Cognito: {
         userPoolId: 'ap-south-1_jZV6770zJ',
         userPoolClientId: '42vpa5vousikig0c4ohq2vmkge',
-        identityPoolId: 'ap-south-1:5dd67b93-9e3c-4de3-a74f-2df439437bbd',
         signUpVerificationMethod: 'code',
         loginWith: {
           email: true,

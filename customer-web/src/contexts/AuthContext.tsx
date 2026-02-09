@@ -104,15 +104,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initialize auth state and listen for auth events
     useEffect(() => {
-        fetchCurrentUser();
+        // Check if this is an OAuth callback (URL has authorization code from Cognito)
+        const isOAuthCallback = window.location.search.includes('code=');
 
-        // Listen for Amplify Auth events (including OAuth redirect callbacks)
+        // Set up Hub listener FIRST so we don't miss events
         const hubListener = Hub.listen('auth', ({ payload }) => {
             console.log('Auth Hub event:', payload.event);
             switch (payload.event) {
                 case 'signedIn':
                 case 'signInWithRedirect':
                     console.log('User signed in via:', payload.event);
+                    // Clean OAuth params from URL to prevent re-processing
+                    if (window.location.search.includes('code=')) {
+                        window.history.replaceState({}, '', window.location.pathname);
+                    }
                     fetchCurrentUser();
                     break;
                 case 'signedOut':
@@ -123,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     console.log('User signed out');
                     setUser(null);
                     setProfile(null);
+                    setLoading(false);
                     break;
                 case 'tokenRefresh':
                     console.log('Token refreshed');
@@ -131,14 +137,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     console.log('Token refresh failed');
                     setUser(null);
                     setProfile(null);
+                    setLoading(false);
                     break;
                 case 'signInWithRedirect_failure':
                     console.error('Google OAuth redirect failed:', payload);
+                    setLoading(false);
                     break;
             }
         });
 
-        return () => hubListener();
+        if (isOAuthCallback) {
+            // OAuth callback: DON'T call fetchCurrentUser yet.
+            // Amplify is processing the ?code= parameter asynchronously.
+            // The Hub event (signInWithRedirect) will fire when done.
+            // Safety timeout: if Hub event doesn't fire in 5s, try anyway.
+            const timeout = setTimeout(() => {
+                console.log('OAuth callback timeout - attempting fetchCurrentUser');
+                fetchCurrentUser();
+            }, 5000);
+            return () => { hubListener(); clearTimeout(timeout); };
+        } else {
+            // Normal page load: check for existing session immediately
+            fetchCurrentUser();
+            return () => hubListener();
+        }
     }, [fetchCurrentUser]);
 
     const login = async (email: string, password: string) => {
@@ -250,6 +272,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await signInWithRedirect({ provider: 'Google' });
         } catch (err: any) {
+            // If already authenticated, sign out first then redirect
+            if (err.name === 'UserAlreadyAuthenticatedException') {
+                try {
+                    await amplifySignOut();
+                    await signInWithRedirect({ provider: 'Google' });
+                    return;
+                } catch (retryErr: any) {
+                    console.error('Google login retry error:', retryErr);
+                }
+            }
             isGoogleRedirecting.current = false;
             console.error('Google login error:', err);
         }

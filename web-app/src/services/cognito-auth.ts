@@ -1,12 +1,7 @@
 /**
  * Shadow Bean Co - Web App Auth (AWS Cognito)
  * ==============================================
- * Replaces Supabase Auth for the Expo web-app.
- * Identical to mobile-app/src/services/cognito-auth.ts
- * since web-app and mobile-app share the same Expo codebase.
- *
- * This file provides the same export API as the old
- * supabase.ts so migration is a drop-in replacement.
+ * AWS Amplify v6 Cognito integration for the Expo web-app.
  * ==============================================
  */
 

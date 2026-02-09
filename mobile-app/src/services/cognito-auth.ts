@@ -1,11 +1,7 @@
 /**
  * Shadow Bean Co - Mobile App Auth (AWS Cognito)
  * ==============================================
- * Replaces Supabase Auth for React Native / Expo.
- * Uses AWS Amplify v6 for Cognito integration.
- *
- * This file provides the same export API as the old
- * supabase.ts so migration is a drop-in replacement.
+ * AWS Amplify v6 Cognito integration for React Native / Expo.
  * ==============================================
  */
 
@@ -166,14 +162,14 @@ export const getSession = async () => {
 };
 
 // ==============================================
-// AUTH STATE LISTENER (replaces supabase.auth.onAuthStateChange)
+// AUTH STATE LISTENER
 // ==============================================
 
 type AuthCallback = (event: string, session: any) => void;
 
 export const onAuthStateChange = (callback: AuthCallback) => {
     // Amplify Hub is used in the app layout (_layout.tsx)
-    // This is a compatibility shim for components that used supabase.auth.onAuthStateChange
+    // Compatibility shim for auth state change listeners
     let cancelled = false;
 
     // Check initial state
@@ -201,7 +197,7 @@ export const onAuthStateChange = (callback: AuthCallback) => {
 
 // ==============================================
 // DATA FUNCTIONS (via API -> RDS)
-// These replace the Supabase data queries.
+// API -> RDS PostgreSQL data queries.
 // ==============================================
 
 import axios from 'axios';

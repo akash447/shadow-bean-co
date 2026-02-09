@@ -2,7 +2,7 @@
  * Shadow Bean Co - API Client
  * ==============================================
  * Unified data layer backed by AWS Lambda + RDS PostgreSQL.
- * Replaces direct Supabase client calls.
+ * All data flows through API Gateway -> Lambda -> RDS PostgreSQL.
  *
  * All requests are authenticated via Cognito JWT tokens
  * which are automatically attached by the interceptor.
