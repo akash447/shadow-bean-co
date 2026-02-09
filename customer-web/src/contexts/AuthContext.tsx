@@ -9,9 +9,12 @@ import {
     fetchUserAttributes,
     fetchAuthSession,
     confirmSignUp,
-    signInWithRedirect,
 } from 'aws-amplify/auth';
 import { ensureProfile } from '../services/api';
+
+// Cognito OAuth constants
+const COGNITO_DOMAIN = 'shadowbeanco.auth.ap-south-1.amazoncognito.com';
+const CLIENT_ID = '42vpa5vousikig0c4ohq2vmkge';
 
 interface Profile {
     id: string;
@@ -44,25 +47,89 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ==============================================
+// PKCE helpers for manual Google OAuth
+// ==============================================
+
+function generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    return btoa(String.fromCharCode(...new Uint8Array(hash)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
+    const codeVerifier = sessionStorage.getItem('oauth_pkce_verifier');
+    if (!codeVerifier) throw new Error('Missing PKCE verifier');
+
+    const response = await fetch(`https://${COGNITO_DOMAIN}/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: CLIENT_ID,
+            redirect_uri: redirectUri,
+            code,
+            code_verifier: codeVerifier,
+        }),
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Token exchange failed: ${err}`);
+    }
+
+    return response.json();
+}
+
+function decodeJwtPayload(token: string): any {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+}
+
+function storeTokensForAmplify(tokens: { id_token: string; access_token: string; refresh_token?: string }) {
+    // Store tokens in the format Amplify v6 expects (CognitoIdentityServiceProvider keys)
+    const idPayload = decodeJwtPayload(tokens.id_token);
+    const username = idPayload['cognito:username'] || idPayload.sub;
+
+    const prefix = `CognitoIdentityServiceProvider.${CLIENT_ID}`;
+    localStorage.setItem(`${prefix}.LastAuthUser`, username);
+    localStorage.setItem(`${prefix}.${username}.idToken`, tokens.id_token);
+    localStorage.setItem(`${prefix}.${username}.accessToken`, tokens.access_token);
+    if (tokens.refresh_token) {
+        localStorage.setItem(`${prefix}.${username}.refreshToken`, tokens.refresh_token);
+    }
+    localStorage.setItem(`${prefix}.${username}.clockDrift`, '0');
+}
+
+// ==============================================
+// Auth Provider
+// ==============================================
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [needsConfirmation, setNeedsConfirmation] = useState<{ email: string; password: string } | null>(null);
     const isGoogleRedirecting = useRef(false);
-    const authResolved = useRef(false);
 
     // Fetch the current authenticated user
     const fetchCurrentUser = useCallback(async () => {
-        // Prevent duplicate calls after auth is already resolved
-        if (authResolved.current) return null;
-
         try {
             const cognitoUser = await getCurrentUser();
             const attributes = await fetchUserAttributes();
             const session = await fetchAuthSession();
 
-            // Check if user is in Admin group
             const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
             const isAdmin = groups.includes('Admin');
 
@@ -74,14 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             };
 
             setUser(authUser);
-            authResolved.current = true;
 
-            // Clean OAuth params from URL if present
-            if (window.location.search.includes('code=')) {
-                window.history.replaceState({}, '', window.location.pathname);
-            }
-
-            // Persist profile to database and use DB response
+            // Persist profile to database (also creates profile for new Google users)
             try {
                 const dbProfile = await ensureProfile(cognitoUser.userId, attributes.email || '', attributes.name || '');
                 setProfile({
@@ -92,7 +153,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     avatar_url: dbProfile.avatar_url,
                 });
             } catch {
-                // Fallback to Cognito-only profile if API is unreachable
                 setProfile({
                     id: cognitoUser.userId,
                     email: attributes.email || '',
@@ -103,7 +163,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return authUser;
         } catch {
-            // Not authenticated
             setUser(null);
             setProfile(null);
             return null;
@@ -112,69 +171,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // Initialize auth state and listen for auth events
-    useEffect(() => {
-        const isOAuthCallback = window.location.search.includes('code=');
+    // Handle OAuth callback: exchange code for tokens, store them, then fetch user
+    const handleOAuthCallback = useCallback(async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        if (!code) return;
 
-        // Set up Hub listener for auth events
+        try {
+            console.log('OAuth callback: exchanging code for tokens');
+            const tokens = await exchangeCodeForTokens(code, window.location.origin);
+            console.log('OAuth callback: tokens received, storing for Amplify');
+            storeTokensForAmplify(tokens);
+
+            // Clean URL
+            window.history.replaceState({}, '', window.location.pathname);
+            // Clean PKCE state
+            sessionStorage.removeItem('oauth_pkce_verifier');
+
+            // Now Amplify should find the tokens in localStorage
+            await fetchCurrentUser();
+        } catch (err) {
+            console.error('OAuth callback error:', err);
+            // Clean URL even on error
+            window.history.replaceState({}, '', window.location.pathname);
+            sessionStorage.removeItem('oauth_pkce_verifier');
+            setLoading(false);
+        }
+    }, [fetchCurrentUser]);
+
+    // Initialize auth state
+    useEffect(() => {
+        const isOAuthCallback = window.location.search.includes('code=') && sessionStorage.getItem('oauth_pkce_verifier');
+
+        // Hub listener for Amplify-initiated auth events
         const hubListener = Hub.listen('auth', ({ payload }) => {
             console.log('Auth Hub event:', payload.event);
             switch (payload.event) {
                 case 'signedIn':
                 case 'signInWithRedirect':
-                    console.log('User signed in via:', payload.event);
-                    authResolved.current = false; // Allow fetchCurrentUser to run again
                     fetchCurrentUser();
                     break;
                 case 'signedOut':
-                    if (isGoogleRedirecting.current) {
-                        console.log('Ignoring signedOut during Google redirect');
-                        break;
-                    }
-                    console.log('User signed out');
+                    if (isGoogleRedirecting.current) break;
                     setUser(null);
                     setProfile(null);
                     setLoading(false);
-                    authResolved.current = false;
                     break;
                 case 'tokenRefresh':
-                    console.log('Token refreshed');
                     break;
                 case 'tokenRefresh_failure':
-                    console.log('Token refresh failed');
                     setUser(null);
                     setProfile(null);
                     setLoading(false);
-                    authResolved.current = false;
                     break;
                 case 'signInWithRedirect_failure':
-                    console.error('Google OAuth redirect failed:', payload);
+                    console.error('Amplify OAuth redirect failed:', payload);
                     setLoading(false);
                     break;
             }
         });
 
         if (isOAuthCallback) {
-            // OAuth callback: Amplify processes ?code= asynchronously.
-            // We need to give it time, then call fetchCurrentUser which
-            // triggers getCurrentUser() → finds the newly stored tokens.
-            // Try at 1.5s (fast case) and 5s (safety net).
-            const timer1 = setTimeout(() => {
-                console.log('OAuth: trying fetchCurrentUser (1.5s)');
-                fetchCurrentUser();
-            }, 1500);
-            const timer2 = setTimeout(() => {
-                console.log('OAuth: trying fetchCurrentUser (5s fallback)');
-                authResolved.current = false;
-                fetchCurrentUser();
-            }, 5000);
-            return () => { hubListener(); clearTimeout(timer1); clearTimeout(timer2); };
+            // Manual OAuth callback: exchange code ourselves
+            handleOAuthCallback();
         } else {
-            // Normal page load: check for existing session immediately
+            // Normal page load: check for existing session
             fetchCurrentUser();
-            return () => hubListener();
         }
-    }, [fetchCurrentUser]);
+
+        return () => hubListener();
+    }, [fetchCurrentUser, handleOAuthCallback]);
 
     const login = async (email: string, password: string) => {
         const doLogin = async () => {
@@ -185,12 +251,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (result.isSignedIn) {
-                authResolved.current = false;
                 await fetchCurrentUser();
                 return { error: null };
             }
 
-            // Handle next steps (MFA, etc.)
             if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
                 setNeedsConfirmation({ email, password });
                 return { error: { message: 'Please confirm your email address' } };
@@ -202,7 +266,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             return await doLogin();
         } catch (err: any) {
-            // If already signed in, sign out first then retry
             if (err.name === 'UserAlreadyAuthenticatedException') {
                 try {
                     await amplifySignOut();
@@ -218,27 +281,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const register = async (email: string, password: string, fullName: string, phone?: string) => {
         try {
-            const userAttributes: Record<string, string> = {
-                email,
-                name: fullName,
-            };
+            const userAttributes: Record<string, string> = { email, name: fullName };
             if (phone) userAttributes.phone_number = phone.startsWith('+') ? phone : `+91${phone.replace(/\D/g, '')}`;
 
             const result = await amplifySignUp({
                 username: email,
                 password,
-                options: {
-                    userAttributes,
-                },
+                options: { userAttributes },
             });
 
             if (result.isSignUpComplete) {
-                // Auto-confirmed by pre-signup trigger — sign in immediately
                 await login(email, password);
                 return { error: null };
             }
 
-            // Fallback: if pre-signup trigger isn't active, need email confirmation
             setNeedsConfirmation({ email, password });
             return { error: null, needsConfirmation: true };
         } catch (err: any) {
@@ -248,17 +304,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const handleConfirmSignUp = async (code: string) => {
-        if (!needsConfirmation) {
-            return { error: { message: 'No pending confirmation' } };
-        }
+        if (!needsConfirmation) return { error: { message: 'No pending confirmation' } };
 
         try {
-            await confirmSignUp({
-                username: needsConfirmation.email,
-                confirmationCode: code,
-            });
-
-            // Auto sign-in after confirmation
+            await confirmSignUp({ username: needsConfirmation.email, confirmationCode: code });
             await login(needsConfirmation.email, needsConfirmation.password);
             setNeedsConfirmation(null);
             return { error: null };
@@ -268,61 +317,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = async () => {
-        try {
-            await amplifySignOut();
-        } catch (err) {
-            console.error('Logout error:', err);
-        }
+        try { await amplifySignOut(); } catch {}
         setUser(null);
         setProfile(null);
-        authResolved.current = false;
     };
 
     const refreshProfile = async () => {
-        authResolved.current = false;
         await fetchCurrentUser();
     };
 
     const loginWithGoogle = async () => {
         isGoogleRedirecting.current = true;
 
-        // Clean any stale OAuth params from URL
-        if (window.location.search.includes('code=')) {
-            window.history.replaceState({}, '', window.location.pathname);
-        }
+        // Generate PKCE
+        const codeVerifier = generateCodeVerifier();
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-        try {
-            await signInWithRedirect({ provider: 'Google' });
-        } catch (err: any) {
-            // If already authenticated, sign out first then redirect
-            if (err.name === 'UserAlreadyAuthenticatedException') {
-                try {
-                    await amplifySignOut();
-                    await signInWithRedirect({ provider: 'Google' });
-                    return;
-                } catch (retryErr: any) {
-                    isGoogleRedirecting.current = false;
-                    throw new Error(retryErr.message || 'Google sign-in failed after retry');
-                }
-            }
-            isGoogleRedirecting.current = false;
-            // Re-throw so LoginPage can display the error
-            throw new Error(err.message || 'Google sign-in failed');
-        }
+        // Store verifier for callback
+        sessionStorage.setItem('oauth_pkce_verifier', codeVerifier);
+
+        // Redirect directly to Cognito with Google identity provider
+        const redirectUri = encodeURIComponent(window.location.origin);
+        const url = `https://${COGNITO_DOMAIN}/oauth2/authorize?` +
+            `client_id=${CLIENT_ID}&` +
+            `response_type=code&` +
+            `scope=openid+email+profile&` +
+            `redirect_uri=${redirectUri}&` +
+            `identity_provider=Google&` +
+            `code_challenge=${codeChallenge}&` +
+            `code_challenge_method=S256`;
+
+        window.location.href = url;
     };
 
     return (
         <AuthContext.Provider value={{
-            user,
-            profile,
-            loading,
-            needsConfirmation,
-            login,
-            loginWithGoogle,
-            register,
+            user, profile, loading, needsConfirmation,
+            login, loginWithGoogle, register,
             confirmSignUp: handleConfirmSignUp,
-            logout,
-            refreshProfile,
+            logout, refreshProfile,
         }}>
             {children}
         </AuthContext.Provider>
@@ -331,9 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
     const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 }
 

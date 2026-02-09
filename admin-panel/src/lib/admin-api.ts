@@ -14,8 +14,75 @@ import {
     getCurrentUser,
     fetchUserAttributes,
     fetchAuthSession,
-    signInWithRedirect,
 } from 'aws-amplify/auth';
+
+// Cognito OAuth constants
+const COGNITO_DOMAIN = 'shadowbeanco.auth.ap-south-1.amazoncognito.com';
+const CLIENT_ID = '42vpa5vousikig0c4ohq2vmkge';
+
+// ==============================================
+// PKCE helpers for manual Google OAuth
+// ==============================================
+
+function generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    return btoa(String.fromCharCode(...new Uint8Array(hash)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
+    const codeVerifier = sessionStorage.getItem('oauth_pkce_verifier');
+    if (!codeVerifier) throw new Error('Missing PKCE verifier');
+
+    const response = await fetch(`https://${COGNITO_DOMAIN}/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: CLIENT_ID,
+            redirect_uri: redirectUri,
+            code,
+            code_verifier: codeVerifier,
+        }),
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Token exchange failed: ${err}`);
+    }
+
+    return response.json();
+}
+
+function decodeJwtPayload(token: string): any {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+}
+
+function storeTokensForAmplify(tokens: { id_token: string; access_token: string; refresh_token?: string }) {
+    const idPayload = decodeJwtPayload(tokens.id_token);
+    const username = idPayload['cognito:username'] || idPayload.sub;
+
+    const prefix = `CognitoIdentityServiceProvider.${CLIENT_ID}`;
+    localStorage.setItem(`${prefix}.LastAuthUser`, username);
+    localStorage.setItem(`${prefix}.${username}.idToken`, tokens.id_token);
+    localStorage.setItem(`${prefix}.${username}.accessToken`, tokens.access_token);
+    if (tokens.refresh_token) {
+        localStorage.setItem(`${prefix}.${username}.refreshToken`, tokens.refresh_token);
+    }
+    localStorage.setItem(`${prefix}.${username}.clockDrift`, '0');
+}
 
 // ==============================================
 // API CLIENT
@@ -123,22 +190,53 @@ export const signIn = async (email: string, password: string) => {
 
 export const signInWithGoogle = async () => {
     isGoogleRedirecting = true;
+
+    // Generate PKCE
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    // Store verifier for callback
+    sessionStorage.setItem('oauth_pkce_verifier', codeVerifier);
+
+    // Redirect directly to Cognito with Google identity provider
+    const redirectUri = encodeURIComponent(window.location.origin);
+    const url = `https://${COGNITO_DOMAIN}/oauth2/authorize?` +
+        `client_id=${CLIENT_ID}&` +
+        `response_type=code&` +
+        `scope=openid+email+profile&` +
+        `redirect_uri=${redirectUri}&` +
+        `identity_provider=Google&` +
+        `code_challenge=${codeChallenge}&` +
+        `code_challenge_method=S256`;
+
+    window.location.href = url;
+};
+
+// Handle OAuth callback: exchange code for tokens, store them, then check session
+export const handleOAuthCallback = async (): Promise<any> => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (!code) return null;
+
     try {
-        await signInWithRedirect({ provider: 'Google' });
-    } catch (err: any) {
-        // If already authenticated, sign out first then redirect
-        if (err.name === 'UserAlreadyAuthenticatedException') {
-            try {
-                await cognitoSignOut();
-                await signInWithRedirect({ provider: 'Google' });
-                return;
-            } catch (retryErr: any) {
-                console.error('Google sign in retry error:', retryErr);
-            }
-        }
-        isGoogleRedirecting = false;
-        console.error('Google sign in error:', err);
-        throw err;
+        console.log('Admin OAuth callback: exchanging code for tokens');
+        const tokens = await exchangeCodeForTokens(code, window.location.origin);
+        console.log('Admin OAuth callback: tokens received, storing for Amplify');
+        storeTokensForAmplify(tokens);
+
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+        // Clean PKCE state
+        sessionStorage.removeItem('oauth_pkce_verifier');
+
+        // Now check session (Amplify should find the tokens in localStorage)
+        const { session } = await getSession();
+        return session?.user || null;
+    } catch (err) {
+        console.error('Admin OAuth callback error:', err);
+        window.history.replaceState({}, '', window.location.pathname);
+        sessionStorage.removeItem('oauth_pkce_verifier');
+        return null;
     }
 };
 

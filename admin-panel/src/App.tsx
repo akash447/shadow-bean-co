@@ -14,7 +14,7 @@ import { ReviewsPage } from './pages/ReviewsPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MediaPage } from './pages/MediaPage';
 import { AccessPage } from './pages/AccessPage';
-import { getSession, isGoogleRedirecting } from './lib/admin-api';
+import { getSession, isGoogleRedirecting, handleOAuthCallback } from './lib/admin-api';
 import './index.css';
 
 // Error Boundary to catch render crashes
@@ -73,19 +73,14 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Check if this is an OAuth callback (URL has authorization code from Cognito)
-    const isOAuthCallback = window.location.search.includes('code=');
+    const isOAuthCallback = window.location.search.includes('code=') && sessionStorage.getItem('oauth_pkce_verifier');
 
-    // Set up Hub listener FIRST so we don't miss events
+    // Hub listener for Amplify-initiated auth events
     const hubListener = Hub.listen('auth', ({ payload }) => {
+      console.log('Auth Hub event:', payload.event);
       switch (payload.event) {
         case 'signedIn':
         case 'signInWithRedirect':
-          console.log('Auth event:', payload.event);
-          // Clean OAuth params from URL
-          if (window.location.search.includes('code=')) {
-            window.history.replaceState({}, '', window.location.pathname);
-          }
           checkSession();
           break;
         case 'signedOut':
@@ -101,22 +96,22 @@ function App() {
     });
 
     if (isOAuthCallback) {
-      // OAuth callback: Amplify processes ?code= asynchronously.
-      // Try after 1.5s (fast case) and 5s (safety net).
-      const timer1 = setTimeout(() => {
-        console.log('OAuth: trying checkSession (1.5s)');
-        checkSession();
-      }, 1500);
-      const timer2 = setTimeout(() => {
-        console.log('OAuth: trying checkSession (5s fallback)');
-        checkSession();
-      }, 5000);
-      return () => { hubListener(); clearTimeout(timer1); clearTimeout(timer2); };
+      // Manual OAuth callback: exchange code ourselves
+      handleOAuthCallback().then((oauthUser) => {
+        if (oauthUser) {
+          setUser(oauthUser);
+          setInitError(null);
+        }
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
+      });
     } else {
       // Normal page load: check for existing session immediately
       checkSession();
-      return () => hubListener();
     }
+
+    return () => hubListener();
   }, [checkSession]);
 
   if (loading) {
