@@ -16,6 +16,10 @@ import { ensureProfile } from '../services/api';
 const COGNITO_DOMAIN = 'shadowbeanco.auth.ap-south-1.amazoncognito.com';
 const CLIENT_ID = '42vpa5vousikig0c4ohq2vmkge';
 
+// Local auth cache keys
+const AUTH_CACHE_KEY = 'shadow_bean_auth_cache';
+const OAUTH_REDIRECT_KEY = 'shadow_bean_oauth_redirect';
+
 interface Profile {
     id: string;
     full_name: string;
@@ -98,7 +102,6 @@ function decodeJwtPayload(token: string): any {
 }
 
 function storeTokensForAmplify(tokens: { id_token: string; access_token: string; refresh_token?: string }) {
-    // Store tokens in the format Amplify v6 expects (CognitoIdentityServiceProvider keys)
     const idPayload = decodeJwtPayload(tokens.id_token);
     const username = idPayload['cognito:username'] || idPayload.sub;
 
@@ -113,6 +116,49 @@ function storeTokensForAmplify(tokens: { id_token: string; access_token: string;
 }
 
 // ==============================================
+// Local auth cache (backup when Amplify loses track of manually stored OAuth tokens)
+// ==============================================
+
+interface CachedAuth {
+    userId: string;
+    email: string;
+    fullName: string;
+    idToken: string;
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt: number;
+}
+
+function cacheAuthData(data: CachedAuth) {
+    localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
+}
+
+function getCachedAuth(): CachedAuth | null {
+    try {
+        const s = localStorage.getItem(AUTH_CACHE_KEY);
+        return s ? JSON.parse(s) : null;
+    } catch { return null; }
+}
+
+function clearCachedAuth() {
+    localStorage.removeItem(AUTH_CACHE_KEY);
+}
+
+async function manualTokenRefresh(refreshToken: string): Promise<any> {
+    const res = await fetch(`https://${COGNITO_DOMAIN}/oauth2/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: CLIENT_ID,
+            refresh_token: refreshToken,
+        }),
+    });
+    if (!res.ok) throw new Error('Token refresh failed');
+    return res.json();
+}
+
+// ==============================================
 // Auth Provider
 // ==============================================
 
@@ -124,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isGoogleRedirecting = useRef(false);
 
     // Fetch the current authenticated user
+    // Strategy:
+    //   1. Try Amplify's getCurrentUser (works for email/password + fresh OAuth)
+    //   2. If Amplify fails, try our local auth cache (for OAuth sessions where Amplify lost track)
+    //   3. If cached token expired, attempt manual refresh via stored refresh_token
     const fetchCurrentUser = useCallback(async () => {
         try {
             const cognitoUser = await getCurrentUser();
@@ -142,7 +192,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(authUser);
 
-            // Persist profile to database (also creates profile for new Google users)
+            // Cache auth data as backup for when Amplify fails later
+            const idTokenStr = session.tokens?.idToken?.toString();
+            const accessTokenStr = session.tokens?.accessToken?.toString();
+            if (idTokenStr) {
+                const tokenPayload = decodeJwtPayload(idTokenStr);
+                const prefix = `CognitoIdentityServiceProvider.${CLIENT_ID}`;
+                const lastUser = localStorage.getItem(`${prefix}.LastAuthUser`);
+                const refreshToken = lastUser ? localStorage.getItem(`${prefix}.${lastUser}.refreshToken`) || undefined : undefined;
+                cacheAuthData({
+                    userId: cognitoUser.userId,
+                    email: attributes.email || '',
+                    fullName: attributes.name || '',
+                    idToken: idTokenStr,
+                    accessToken: accessTokenStr || '',
+                    refreshToken,
+                    expiresAt: tokenPayload.exp * 1000,
+                });
+            }
+
+            // Persist profile to database (creates if missing — ensures all users have a DB profile)
             try {
                 const dbProfile = await ensureProfile(cognitoUser.userId, attributes.email || '', attributes.name || '');
                 setProfile({
@@ -163,15 +232,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return authUser;
         } catch {
-            setUser(null);
-            setProfile(null);
-            return null;
+            // Amplify failed — try our local auth cache
+            console.warn('Amplify auth check failed, trying cached auth');
+            const cached = getCachedAuth();
+            if (!cached) {
+                setUser(null);
+                setProfile(null);
+                return null;
+            }
+
+            let activeToken = cached.idToken;
+
+            // If token expired, try manual refresh
+            if (cached.expiresAt <= Date.now()) {
+                if (!cached.refreshToken) {
+                    console.warn('Token expired and no refresh token — clearing session');
+                    clearCachedAuth();
+                    setUser(null);
+                    setProfile(null);
+                    return null;
+                }
+                try {
+                    console.log('Token expired, refreshing manually via Cognito');
+                    const newTokens = await manualTokenRefresh(cached.refreshToken);
+                    // Update both Amplify storage and our cache
+                    storeTokensForAmplify(newTokens);
+                    const decoded = decodeJwtPayload(newTokens.id_token);
+                    activeToken = newTokens.id_token;
+                    cacheAuthData({
+                        userId: decoded.sub,
+                        email: decoded.email || cached.email,
+                        fullName: decoded.name || cached.fullName,
+                        idToken: newTokens.id_token,
+                        accessToken: newTokens.access_token,
+                        refreshToken: newTokens.refresh_token || cached.refreshToken,
+                        expiresAt: decoded.exp * 1000,
+                    });
+                } catch {
+                    console.error('Manual token refresh failed — clearing session');
+                    clearCachedAuth();
+                    setUser(null);
+                    setProfile(null);
+                    return null;
+                }
+            }
+
+            // Set user from cached/refreshed token
+            const decoded = decodeJwtPayload(activeToken);
+            const authUser: AuthUser = {
+                id: decoded.sub,
+                email: decoded.email || cached.email,
+                fullName: decoded.name || cached.fullName,
+            };
+            setUser(authUser);
+
+            // Ensure profile exists in DB
+            try {
+                const dbProfile = await ensureProfile(authUser.id, authUser.email, authUser.fullName || '');
+                setProfile({
+                    id: dbProfile.id || authUser.id,
+                    email: dbProfile.email || authUser.email,
+                    full_name: dbProfile.full_name || authUser.fullName || '',
+                    phone: dbProfile.phone,
+                    avatar_url: dbProfile.avatar_url,
+                });
+            } catch {
+                setProfile({
+                    id: authUser.id,
+                    email: authUser.email,
+                    full_name: authUser.fullName || '',
+                });
+            }
+
+            return authUser;
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // Handle OAuth callback: exchange code for tokens, store them, then fetch user
+    // Handle OAuth callback: exchange code for tokens, cache them, then fetch user
     const handleOAuthCallback = useCallback(async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
@@ -180,21 +319,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             console.log('OAuth callback: exchanging code for tokens');
             const tokens = await exchangeCodeForTokens(code, window.location.origin);
-            console.log('OAuth callback: tokens received, storing for Amplify');
+            console.log('OAuth callback: tokens received, storing');
             storeTokensForAmplify(tokens);
 
-            // Clean URL
-            window.history.replaceState({}, '', window.location.pathname);
+            // Also cache in our resilient format (includes refresh_token)
+            const decoded = decodeJwtPayload(tokens.id_token);
+            cacheAuthData({
+                userId: decoded.sub,
+                email: decoded.email || '',
+                fullName: decoded.name || '',
+                idToken: tokens.id_token,
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                expiresAt: decoded.exp * 1000,
+            });
+
             // Clean PKCE state
             sessionStorage.removeItem('oauth_pkce_verifier');
 
-            // Now Amplify should find the tokens in localStorage
+            // Check for pending redirect (stored by LoginPage before Google OAuth)
+            const pendingRedirect = sessionStorage.getItem(OAUTH_REDIRECT_KEY);
+            sessionStorage.removeItem(OAUTH_REDIRECT_KEY);
+
+            if (pendingRedirect && pendingRedirect !== '/' && pendingRedirect !== window.location.pathname) {
+                // Redirect immediately — tokens are in storage, fetchCurrentUser will run on the new page
+                window.location.replace(pendingRedirect);
+                return;
+            }
+
+            // No redirect — clean URL and fetch user on current page
+            window.history.replaceState({}, '', window.location.pathname);
             await fetchCurrentUser();
         } catch (err) {
             console.error('OAuth callback error:', err);
-            // Clean URL even on error
             window.history.replaceState({}, '', window.location.pathname);
             sessionStorage.removeItem('oauth_pkce_verifier');
+            sessionStorage.removeItem(OAUTH_REDIRECT_KEY);
             setLoading(false);
         }
     }, [fetchCurrentUser]);
@@ -203,7 +363,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const isOAuthCallback = window.location.search.includes('code=') && sessionStorage.getItem('oauth_pkce_verifier');
 
-        // Hub listener for Amplify-initiated auth events
         const hubListener = Hub.listen('auth', ({ payload }) => {
             console.log('Auth Hub event:', payload.event);
             switch (payload.event) {
@@ -213,6 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     break;
                 case 'signedOut':
                     if (isGoogleRedirecting.current) break;
+                    clearCachedAuth();
                     setUser(null);
                     setProfile(null);
                     setLoading(false);
@@ -220,9 +380,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 case 'tokenRefresh':
                     break;
                 case 'tokenRefresh_failure':
-                    setUser(null);
-                    setProfile(null);
-                    setLoading(false);
+                    // Don't immediately clear — try manual refresh from our cache
+                    console.warn('Amplify token refresh failed, attempting manual refresh');
+                    {
+                        const cached = getCachedAuth();
+                        if (cached?.refreshToken) {
+                            manualTokenRefresh(cached.refreshToken).then(newTokens => {
+                                storeTokensForAmplify(newTokens);
+                                const dec = decodeJwtPayload(newTokens.id_token);
+                                cacheAuthData({
+                                    userId: dec.sub,
+                                    email: dec.email || cached.email,
+                                    fullName: dec.name || cached.fullName,
+                                    idToken: newTokens.id_token,
+                                    accessToken: newTokens.access_token,
+                                    refreshToken: newTokens.refresh_token || cached.refreshToken,
+                                    expiresAt: dec.exp * 1000,
+                                });
+                                console.log('Manual token refresh succeeded');
+                            }).catch(() => {
+                                console.error('Manual token refresh also failed — clearing session');
+                                clearCachedAuth();
+                                setUser(null);
+                                setProfile(null);
+                                setLoading(false);
+                            });
+                        } else {
+                            clearCachedAuth();
+                            setUser(null);
+                            setProfile(null);
+                            setLoading(false);
+                        }
+                    }
                     break;
                 case 'signInWithRedirect_failure':
                     console.error('Amplify OAuth redirect failed:', payload);
@@ -232,10 +421,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (isOAuthCallback) {
-            // Manual OAuth callback: exchange code ourselves
             handleOAuthCallback();
         } else {
-            // Normal page load: check for existing session
             fetchCurrentUser();
         }
 
@@ -318,6 +505,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = async () => {
         try { await amplifySignOut(); } catch {}
+        clearCachedAuth();
         setUser(null);
         setProfile(null);
     };
@@ -329,14 +517,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loginWithGoogle = async () => {
         isGoogleRedirecting.current = true;
 
-        // Generate PKCE
         const codeVerifier = generateCodeVerifier();
         const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-        // Store verifier for callback
         sessionStorage.setItem('oauth_pkce_verifier', codeVerifier);
 
-        // Redirect directly to Cognito with Google identity provider
         const redirectUri = encodeURIComponent(window.location.origin);
         const url = `https://${COGNITO_DOMAIN}/oauth2/authorize?` +
             `client_id=${CLIENT_ID}&` +

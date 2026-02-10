@@ -99,6 +99,8 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError('');
     try {
+      // Store redirect URL so AuthContext can navigate after OAuth callback
+      sessionStorage.setItem('shadow_bean_oauth_redirect', redirectTo);
       await loginWithGoogle();
     } catch {
       setError('Google login failed. Please try again.');

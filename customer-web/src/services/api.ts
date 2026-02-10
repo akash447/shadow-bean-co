@@ -24,16 +24,30 @@ const api = axios.create({
 });
 
 // Attach Cognito JWT token to every request
+// Strategy: try Amplify first, fall back to our local auth cache
 api.interceptors.request.use(async (config) => {
+    // 1. Try Amplify's session (works for email/password + fresh OAuth)
     try {
         const session = await fetchAuthSession();
         const token = session.tokens?.idToken?.toString();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            return config;
         }
     } catch {
-        // Not authenticated - let the request proceed without token
+        // Amplify session failed — try fallback
     }
+
+    // 2. Fallback: read from our local auth cache (for OAuth sessions where Amplify lost track)
+    try {
+        const cached = JSON.parse(localStorage.getItem('shadow_bean_auth_cache') || '');
+        if (cached?.idToken) {
+            config.headers.Authorization = `Bearer ${cached.idToken}`;
+        }
+    } catch {
+        // No cached token available
+    }
+
     return config;
 });
 
