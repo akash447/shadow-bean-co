@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,19 @@ import Yeti from '../components/Yeti';
 
 type Tab = 'signin' | 'register';
 
+// Deterministic snow particle positions (no layout shift)
+function useSnowParticles() {
+  return useMemo(() =>
+    Array.from({ length: 14 }, (_, i) => ({
+      left: `${((i * 29 + 7) % 82) + 9}%`,
+      top: `${((i * 23 + 11) % 88) + 6}%`,
+      size: 1.5 + (i % 4) * 0.8,
+      duration: 4 + (i % 5) * 1.2,
+      delay: (i * 0.6) % 4,
+      drift: (i % 2 === 0 ? 1 : -1) * ((i * 7) % 12),
+    })), []);
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -14,7 +27,7 @@ export default function LoginPage() {
   const message = searchParams.get('message');
   const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'signin';
 
-  const { login, loginWithGoogle, register, needsConfirmation, confirmSignUp } = useAuth();
+  const { user, loading: authLoading, login, loginWithGoogle, register, needsConfirmation, confirmSignUp } = useAuth();
   const { state: yetiState, lookAt, setYetiState, trackInputCursor } = useYeti();
 
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -28,6 +41,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const emailRef = useRef<HTMLInputElement>(null);
+  const snow = useSnowParticles();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, authLoading, navigate, redirectTo]);
 
   useEffect(() => {
     return () => setYetiState('idle');
@@ -99,7 +120,6 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError('');
     try {
-      // Store redirect URL so AuthContext can navigate after OAuth callback
       sessionStorage.setItem('shadow_bean_oauth_redirect', redirectTo);
       await loginWithGoogle();
     } catch {
@@ -117,12 +137,12 @@ export default function LoginPage() {
   const onPasswordFocus = () => setYetiState('shy');
   const onFieldBlur = () => setYetiState('idle');
 
-  const inputClass = "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow";
+  const inputClass = "w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4E8AAF]/30 focus:border-[#6BA4CC] transition-all bg-white placeholder:text-gray-400";
 
-  // Confirmation code form
+  // ===== CONFIRMATION CODE SCREEN =====
   if (needsConfirmation) {
     return (
-      <div className="min-h-[100dvh] bg-[#FAF8F5] flex items-center justify-center p-4">
+      <div className="min-h-[100dvh] bg-[#FAF8F5] flex items-center justify-center p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -134,7 +154,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-[#1c0d02] text-center" style={{ fontFamily: "'Agdasima', sans-serif" }}>
             Verify Your Email
           </h1>
-          <p className="text-sm text-gray-500 text-center mt-1 mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+          <p className="text-sm text-gray-500 text-center mt-1 mb-4">
             Enter the code sent to <strong>{needsConfirmation.email}</strong>
           </p>
 
@@ -152,13 +172,12 @@ export default function LoginPage() {
               placeholder="Enter 6-digit code"
               required
               autoFocus
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-center text-lg tracking-[4px] focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130]"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-center text-lg tracking-[4px] focus:outline-none focus:ring-2 focus:ring-[#4E8AAF]/30 focus:border-[#6BA4CC]"
             />
             <button
               type="submit"
               disabled={loading}
               className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               {loading ? 'Verifying...' : 'Verify & Sign In'}
             </button>
@@ -171,69 +190,112 @@ export default function LoginPage() {
     );
   }
 
+  // ===== MAIN LOGIN LAYOUT =====
   return (
-    <div className="min-h-[100dvh] bg-[#FAF8F5] flex flex-col md:flex-row">
-      {/* Desktop Left Panel — hidden on mobile, 50% on md+ */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#4f5130] to-[#3a3c22] items-center justify-center flex-col min-h-screen">
+    <div className="min-h-[100dvh] bg-[#FAF8F5] flex flex-col md:flex-row" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+
+      {/* ===== DESKTOP LEFT PANEL — dark navy gradient with snow + Yeti ===== */}
+      <div className="hidden md:flex md:w-1/2 relative overflow-hidden items-center justify-center flex-col"
+        style={{ background: 'linear-gradient(135deg, #162536 0%, #1e3a50 40%, #1a3040 70%, #14222f 100%)' }}
+      >
+        {/* Radial glow behind Yeti */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-72 h-72 bg-[#4E8AAF]/8 rounded-full blur-[80px]" />
+        </div>
+
+        {/* Snow particles */}
+        {snow.map((p, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-white/25"
+            style={{ left: p.left, top: p.top, width: p.size, height: p.size }}
+            animate={{
+              y: [0, -18, 0],
+              x: [0, p.drift, 0],
+              opacity: [0.15, 0.5, 0.15],
+            }}
+            transition={{
+              duration: p.duration,
+              repeat: Infinity,
+              delay: p.delay,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+
+        {/* Yeti hero */}
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 150, damping: 18, delay: 0.1 }}
+          className="relative z-10"
         >
           <Yeti state={yetiState} lookAt={lookAt} size="large" />
         </motion.div>
+
+        {/* Branding */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-center mt-8"
+          transition={{ delay: 0.4, duration: 0.6 }}
+          className="text-center mt-6 relative z-10"
         >
-          <h2 className="text-4xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+          <h2 className="text-4xl lg:text-5xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
             Shadow Bean Co.
           </h2>
-          <p className="text-white/70 text-base mt-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+          <p className="text-white/50 text-sm mt-2 tracking-wide">
             Your coffee, your way
           </p>
         </motion.div>
+
+        {/* Bottom gradient fade */}
+        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#14222f] to-transparent pointer-events-none" />
       </div>
 
-      {/* Right Panel / Main Content — full width mobile, 50% desktop */}
-      <div className="flex-1 md:w-1/2 flex flex-col items-center justify-center px-4 py-4 md:p-12">
+      {/* ===== RIGHT PANEL / MOBILE FULL ===== */}
+      <div className="flex-1 md:w-1/2 flex flex-col items-center justify-start md:justify-center px-4 py-6 md:py-8 lg:px-16 overflow-y-auto">
 
-        {/* Mobile Yeti — small, above the form card, light bg only */}
-        <div className="md:hidden flex flex-col items-center mb-3">
+        {/* Mobile Yeti header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="md:hidden flex flex-col items-center mb-4"
+        >
           <Yeti state={yetiState} lookAt={lookAt} size="small" />
-          <h2 className="text-lg font-bold text-[#1c0d02] mt-1" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+          <h2 className="text-xl font-bold text-[#1c0d02] mt-1" style={{ fontFamily: "'Agdasima', sans-serif" }}>
             Shadow Bean Co.
           </h2>
-        </div>
+        </motion.div>
 
+        {/* Form container */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="w-full max-w-md bg-white/50 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none p-4 md:p-0 rounded-2xl md:rounded-none shadow-sm md:shadow-none border border-white/50 md:border-none"
+          transition={{ delay: 0.15 }}
+          className="w-full max-w-[400px] bg-white/50 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none rounded-2xl md:rounded-none p-5 md:p-0 shadow-sm md:shadow-none border border-white/60 md:border-none"
         >
           {/* Back to Home */}
           <button
             onClick={() => navigate('/')}
-            className="text-xs text-[#4f5130] hover:text-[#1c0d02] mb-3 flex items-center gap-1 transition-colors self-start"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+            className="text-xs text-gray-400 hover:text-[#1c0d02] mb-4 flex items-center gap-1.5 transition-colors"
           >
-            <span>←</span> Back to Home
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back to Home
           </button>
 
           {/* Tab Toggle */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-5">
             {(['signin', 'register'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => { setTab(t); setError(''); }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === t
-                  ? 'bg-white text-[#1c0d02] shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                  tab === t
+                    ? 'bg-white text-[#1c0d02] shadow-sm'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
               >
                 {t === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
@@ -242,19 +304,19 @@ export default function LoginPage() {
 
           {/* Info message */}
           {message === 'login_required' && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-lg px-3 py-2 mb-3" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Please login or create an account to complete your order.
+            <div className="bg-blue-50 border border-blue-100 text-blue-700 text-xs rounded-lg px-3 py-2 mb-4">
+              Please sign in or create an account to continue.
             </div>
           )}
 
-          {/* Error message */}
+          {/* Error */}
           <AnimatePresence>
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3"
+                className="bg-red-50 border border-red-100 text-red-600 text-xs rounded-lg px-3 py-2 mb-4"
               >
                 {error}
               </motion.div>
@@ -262,11 +324,12 @@ export default function LoginPage() {
           </AnimatePresence>
 
           {/* Google Sign-in */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors shadow-sm"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50/80 transition-all shadow-sm"
           >
             <svg viewBox="0 0 24 24" width="18" height="18">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -274,17 +337,17 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            <span className="font-medium text-gray-700 text-sm">Continue with Google</span>
-          </button>
+            <span className="font-medium text-gray-600 text-sm">Continue with Google</span>
+          </motion.button>
 
           {/* Divider */}
-          <div className="flex items-center my-4 md:my-5">
+          <div className="flex items-center my-5">
             <div className="flex-1 h-px bg-gray-200" />
-            <span className="px-4 text-xs text-gray-400 uppercase" style={{ fontFamily: "'Montserrat', sans-serif" }}>or</span>
+            <span className="px-4 text-[10px] text-gray-400 uppercase tracking-widest font-medium">or</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Forms */}
+          {/* ===== FORMS ===== */}
           <AnimatePresence mode="wait">
             {tab === 'signin' ? (
               <motion.form
@@ -294,10 +357,10 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleSignIn}
-                className="space-y-3"
+                className="space-y-3.5"
               >
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Email
                   </label>
                   <input
@@ -314,7 +377,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Password
                   </label>
                   <input
@@ -329,16 +392,15 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
-                  >
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </button>
-                </div>
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 mt-1 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
+                >
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </motion.button>
               </motion.form>
             ) : (
               <motion.form
@@ -351,7 +413,7 @@ export default function LoginPage() {
                 className="space-y-3"
               >
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Full Name
                   </label>
                   <input
@@ -366,7 +428,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Email
                   </label>
                   <input
@@ -383,8 +445,8 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                    Phone <span className="text-gray-400 font-normal normal-case">(optional, +91)</span>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Phone <span className="text-gray-300 font-normal normal-case tracking-normal">(optional, +91)</span>
                   </label>
                   <input
                     type="tel"
@@ -397,7 +459,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Password
                   </label>
                   <input
@@ -413,7 +475,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Confirm Password
                   </label>
                   <input
@@ -428,16 +490,15 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
-                  >
-                    {loading ? 'Creating account...' : 'Create Account'}
-                  </button>
-                </div>
+                <motion.button
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 mt-1 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
+                >
+                  {loading ? 'Creating account...' : 'Create Account'}
+                </motion.button>
               </motion.form>
             )}
           </AnimatePresence>
