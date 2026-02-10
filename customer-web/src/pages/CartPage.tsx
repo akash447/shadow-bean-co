@@ -26,8 +26,8 @@ export default function CartPage() {
     <div className="min-h-[100dvh] bg-[#FAF8F5]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 md:gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/shop')}
               className="text-sm text-[#4f5130] hover:text-[#1c0d02] flex items-center gap-1 transition-colors"
@@ -35,7 +35,7 @@ export default function CartPage() {
               <span>←</span> Shop
             </button>
             <h1
-              className="text-xl md:text-3xl font-bold text-[#1c0d02]"
+              className="text-xl md:text-2xl font-bold text-[#1c0d02]"
               style={{ fontFamily: "'Agdasima', sans-serif" }}
             >
               Your Cart
@@ -49,7 +49,7 @@ export default function CartPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-3 md:py-10">
+      <div className="max-w-6xl mx-auto px-4 py-4 md:py-6">
         {/* Empty cart */}
         {!hasItems && (
           <motion.div
@@ -77,7 +77,7 @@ export default function CartPage() {
 
         {/* Cart with items */}
         {hasItems && (
-          <div className="flex flex-col lg:flex-row gap-3 lg:gap-8">
+          <div className="flex flex-col lg:flex-row gap-3 lg:gap-6">
             {/* Items list */}
             <div className="flex-1 space-y-2 md:space-y-3">
               <AnimatePresence>
@@ -88,9 +88,9 @@ export default function CartPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -50 }}
                     transition={{ delay: i * 0.05 }}
-                    className="bg-white rounded-xl p-3 md:p-5 shadow-sm border border-gray-100"
+                    className="bg-white rounded-xl p-3 md:p-4 shadow-sm border border-gray-100"
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2 md:gap-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-[#1c0d02] text-sm md:text-base truncate">
                           {item.profile.name}
@@ -117,20 +117,20 @@ export default function CartPage() {
                         </span>
 
                         {/* Quantity controls */}
-                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-8">
                           <button
                             onClick={() => updateQuantity(item.profile.id, Math.max(1, item.quantity - 1))}
                             disabled={item.quantity <= 1}
-                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors text-sm"
+                            className="w-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors text-sm h-full"
                           >
                             −
                           </button>
-                          <span className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-xs md:text-sm font-semibold border-x border-gray-200">
+                          <span className="px-2 flex items-center justify-center text-xs md:text-sm font-semibold border-x border-gray-200 h-full min-w-[2rem]">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.profile.id, item.quantity + 1)}
-                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm"
+                            className="w-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm h-full"
                           >
                             +
                           </button>
@@ -144,7 +144,7 @@ export default function CartPage() {
                         </button>
                         <button
                           onClick={() => removeItem(item.profile.id)}
-                          className="text-red-400 hover:text-red-600 transition-colors sm:hidden text-lg leading-none"
+                          className="text-red-400 hover:text-red-600 transition-colors sm:hidden text-lg leading-none px-2"
                           aria-label="Remove"
                         >
                           ×
@@ -158,15 +158,15 @@ export default function CartPage() {
 
             {/* Order Summary */}
             <div className="lg:w-80">
-              <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 lg:sticky lg:top-6">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 lg:sticky lg:top-6">
                 <h2
-                  className="text-base md:text-lg font-bold text-[#1c0d02] mb-3"
+                  className="text-base font-bold text-[#1c0d02] mb-3"
                   style={{ fontFamily: "'Agdasima', sans-serif" }}
                 >
                   Order Summary
                 </h2>
 
-                <div className="space-y-1.5 text-sm">
+                <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Subtotal</span>
                     <span className="font-semibold text-[#1c0d02]">₹{getTotal()}</span>
@@ -187,14 +187,14 @@ export default function CartPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCheckout}
-                  className="w-full mt-4 py-2.5 md:py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors uppercase tracking-wider text-sm"
+                  className="w-full mt-4 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors uppercase tracking-wider text-sm shadow-md"
                 >
                   Proceed to Checkout
                 </motion.button>
 
                 <button
                   onClick={clearCart}
-                  className="w-full mt-1.5 py-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  className="w-full mt-2 py-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
                 >
                   Clear Cart
                 </button>

@@ -171,81 +171,66 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[100dvh] bg-[#FAF8F5] flex flex-col md:flex-row">
-      {/* Left Panel - Yeti + Branding */}
-      {/* Mobile: compact horizontal bar. Desktop: full half-screen panel */}
-      <div className="md:w-1/2 bg-gradient-to-br from-[#4f5130] to-[#3a3c22] flex items-center justify-center px-4 py-3 md:py-0 md:min-h-screen md:flex-col">
-        {/* Mobile: horizontal row with small Yeti + text */}
-        <div className="flex items-center gap-3 md:hidden">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <Yeti state={yetiState} lookAt={lookAt} size="small" />
-          </motion.div>
-          <div>
-            <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
-              Shadow Bean Co.
-            </h2>
-            <p className="text-white/70 text-xs" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Your coffee, your way
-            </p>
-          </div>
-        </div>
-
-        {/* Desktop: centered large Yeti + text */}
-        <div className="hidden md:flex md:flex-col md:items-center">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <Yeti state={yetiState} lookAt={lookAt} size="large" />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-center mt-8"
-          >
-            <h2 className="text-4xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
-              Shadow Bean Co.
-            </h2>
-            <p className="text-white/70 text-base mt-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Your coffee, your way
-            </p>
-          </motion.div>
-        </div>
+      {/* Desktop Left Panel — hidden on mobile, 50% on md+ */}
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#4f5130] to-[#3a3c22] items-center justify-center flex-col min-h-screen">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        >
+          <Yeti state={yetiState} lookAt={lookAt} size="large" />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-center mt-8"
+        >
+          <h2 className="text-4xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+            Shadow Bean Co.
+          </h2>
+          <p className="text-white/70 text-base mt-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+            Your coffee, your way
+          </p>
+        </motion.div>
       </div>
 
-      {/* Right Panel - Auth Card */}
-      <div className="flex-1 md:w-1/2 flex items-start md:items-center justify-center px-4 py-4 md:p-12">
+      {/* Right Panel / Main Content — full width mobile, 50% desktop */}
+      <div className="flex-1 md:w-1/2 flex flex-col items-center justify-center px-4 py-4 md:p-12">
+
+        {/* Mobile Yeti — small, above the form card, light bg only */}
+        <div className="md:hidden flex flex-col items-center mb-3">
+          <Yeti state={yetiState} lookAt={lookAt} size="small" />
+          <h2 className="text-lg font-bold text-[#1c0d02] mt-1" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+            Shadow Bean Co.
+          </h2>
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="w-full max-w-md"
+          className="w-full max-w-md bg-white/50 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none p-4 md:p-0 rounded-2xl md:rounded-none shadow-sm md:shadow-none border border-white/50 md:border-none"
         >
           {/* Back to Home */}
           <button
             onClick={() => navigate('/')}
-            className="text-sm text-[#4f5130] hover:text-[#1c0d02] mb-3 md:mb-6 flex items-center gap-1 transition-colors"
+            className="text-xs text-[#4f5130] hover:text-[#1c0d02] mb-3 flex items-center gap-1 transition-colors self-start"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
             <span>←</span> Back to Home
           </button>
 
           {/* Tab Toggle */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-4 md:mb-6">
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-4">
             {(['signin', 'register'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => { setTab(t); setError(''); }}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                  tab === t
-                    ? 'bg-white text-[#1c0d02] shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === t
+                  ? 'bg-white text-[#1c0d02] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 {t === 'signin' ? 'Sign In' : 'Create Account'}
@@ -255,7 +240,7 @@ export default function LoginPage() {
 
           {/* Info message */}
           {message === 'login_required' && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-3 py-2 mb-3" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-lg px-3 py-2 mb-3" style={{ fontFamily: "'Montserrat', sans-serif" }}>
               Please login or create an account to complete your order.
             </div>
           )}
@@ -267,7 +252,7 @@ export default function LoginPage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-3"
+                className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3"
               >
                 {error}
               </motion.div>
@@ -291,7 +276,7 @@ export default function LoginPage() {
           </button>
 
           {/* Divider */}
-          <div className="flex items-center my-3 md:my-5">
+          <div className="flex items-center my-4 md:my-5">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="px-4 text-xs text-gray-400 uppercase" style={{ fontFamily: "'Montserrat', sans-serif" }}>or</span>
             <div className="flex-1 h-px bg-gray-200" />
@@ -342,14 +327,16 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </button>
+                </div>
               </motion.form>
             ) : (
               <motion.form
@@ -359,7 +346,7 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleRegister}
-                className="space-y-2.5"
+                className="space-y-3"
               >
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>
@@ -439,14 +426,16 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
-                  style={{ fontFamily: "'Montserrat', sans-serif" }}
-                >
-                  {loading ? 'Creating account...' : 'Create Account'}
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {loading ? 'Creating account...' : 'Create Account'}
+                  </button>
+                </div>
               </motion.form>
             )}
           </AnimatePresence>
