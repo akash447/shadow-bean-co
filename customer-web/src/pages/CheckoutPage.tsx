@@ -1,255 +1,333 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useCartStore } from '../stores/cartStore';
 import { createOrder, ensureProfile } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import './CheckoutPage.css';
+import { useYeti } from '../components/YetiMascot';
+import Yeti from '../components/Yeti';
 
 interface ShippingAddress {
-    fullName: string;
-    phone: string;
-    addressLine1: string;
-    addressLine2: string;
-    city: string;
-    state: string;
-    pincode: string;
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
 }
 
 const SHIPPING_STORAGE_KEY = 'shadow_bean_shipping_address';
 
 export default function CheckoutPage() {
-    const navigate = useNavigate();
-    const { user, loading } = useAuth();
-    const { items, getTotal, clearCart } = useCartStore();
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [orderSuccess, setOrderSuccess] = useState(false);
-    const [orderId, setOrderId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+  const { items, getTotal, clearCart } = useCartStore();
+  const { setYetiState } = useYeti();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
-    // Load saved shipping address from localStorage
-    const getSavedAddress = (): ShippingAddress => {
-        const saved = localStorage.getItem(SHIPPING_STORAGE_KEY);
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch {
-                // Ignore parse errors
-            }
-        }
-        return {
-            fullName: '',
-            phone: '',
-            addressLine1: '',
-            addressLine2: '',
-            city: '',
-            state: '',
-            pincode: '',
-        };
-    };
-
-    const [address, setAddress] = useState<ShippingAddress>(getSavedAddress());
-
-    // Save shipping address to localStorage whenever it changes
-    useEffect(() => {
-        localStorage.setItem(SHIPPING_STORAGE_KEY, JSON.stringify(address));
-    }, [address]);
-
-    if (items.length === 0 && !orderSuccess) {
-        return (
-            <div className="checkout-container">
-                <div className="empty-checkout">
-                    <h2>Your cart is empty</h2>
-                    <button onClick={() => navigate('/shop')}>Go to Shop</button>
-                </div>
-            </div>
-        );
+  const getSavedAddress = (): ShippingAddress => {
+    const saved = localStorage.getItem(SHIPPING_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch { /* ignore */ }
     }
+    return { fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' };
+  };
 
-    if (orderSuccess) {
-        // Clear saved shipping address after successful order
-        localStorage.removeItem(SHIPPING_STORAGE_KEY);
-        return (
-            <div className="checkout-container">
-                <div className="order-success">
-                    <span className="success-icon">✅</span>
-                    <h2>Order Placed Successfully!</h2>
-                    <p>Your order ID: <strong>{orderId}</strong></p>
-                    <p>We'll contact you at <strong>{address.phone}</strong> for delivery updates.</p>
-                    <button onClick={() => navigate('/')}>Back to Home</button>
-                </div>
-            </div>
-        );
-    }
+  const [address, setAddress] = useState<ShippingAddress>(getSavedAddress());
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setAddress(prev => ({ ...prev, [name]: value }));
-    };
+  useEffect(() => {
+    localStorage.setItem(SHIPPING_STORAGE_KEY, JSON.stringify(address));
+  }, [address]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        console.log('Form submitted!');
-        e.preventDefault();
+  useEffect(() => {
+    setYetiState('idle');
+    return () => setYetiState('idle');
+  }, [setYetiState]);
 
-        // Wait for auth to finish loading before checking user
-        if (loading) {
-            return;
-        }
-
-        // Check if user is logged in AND has a valid user ID
-        if (!user || !user.id || user.id.trim() === '') {
-            console.log('User not logged in or invalid user ID, redirecting...');
-            // Save current shipping address (already saved via useEffect)
-            // Redirect to login with return URL
-            navigate('/login?redirect=/checkout&message=login_required');
-            return;
-        }
-
-        console.log('User is logged in:', user.id);
-        setIsSubmitting(true);
-
-        try {
-            // Ensure profile exists in DB before order placement
-            // This fixes the "Failed to place order" error if ensureProfile failed during login
-            if (user.email) {
-                await ensureProfile(user.id, user.email, user.fullName || '');
-            }
-
-            const orderData = {
-                user_id: user.id,
-                total_amount: getTotal(),
-                razorpay_payment_id: 'COD-' + Date.now(), // Cash on Delivery placeholder
-                shipping_address: address,
-                items: items.map(item => ({
-                    // Only send valid UUIDs as taste_profile_id, otherwise send null/undefined
-                    // This prevents FK violations if the ID is 'custom-123' or 'saved-123'
-                    taste_profile_id: item.profile.id && /^[0-9a-f-]{36}$/i.test(item.profile.id) ? item.profile.id : undefined,
-                    taste_profile_name: item.profile.name,
-                    quantity: item.quantity,
-                    unit_price: 799,
-                })),
-            };
-
-            console.log('Order data:', orderData);
-            const order = await createOrder(orderData);
-            console.log('Create order result:', order);
-
-            setOrderId(order?.id || 'N/A');
-            setOrderSuccess(true);
-            clearCart();
-        } catch (error) {
-            console.error('Order failed:', error);
-            const errMessage = (error as any)?.response?.data?.error || (error as any)?.message || 'Unknown error';
-            alert(`Failed to place order. Error: ${errMessage}`);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
+  // Empty cart guard
+  if (items.length === 0 && !orderSuccess) {
     return (
-        <div className="checkout-container">
-            <header className="checkout-header">
-                <button className="back-button" onClick={() => navigate('/cart')}>
-                    ← Back to Cart
-                </button>
-                <h1>Checkout</h1>
-            </header>
-
-            <form onSubmit={handleSubmit} className="checkout-form">
-                <div className="form-section">
-                    <h2>Shipping Address</h2>
-                    <div className="form-grid">
-                        <input
-                            type="text"
-                            name="fullName"
-                            placeholder="Full Name *"
-                            value={address.fullName}
-                            onChange={handleInputChange}
-                            required
-                        />
-                        <input
-                            type="tel"
-                            name="phone"
-                            placeholder="Phone Number *"
-                            value={address.phone}
-                            onChange={handleInputChange}
-                            required
-                            pattern="[0-9]{10}"
-                        />
-                        <input
-                            type="text"
-                            name="addressLine1"
-                            placeholder="Address Line 1 *"
-                            value={address.addressLine1}
-                            onChange={handleInputChange}
-                            required
-                            className="full-width"
-                        />
-                        <input
-                            type="text"
-                            name="addressLine2"
-                            placeholder="Address Line 2 (Optional)"
-                            value={address.addressLine2}
-                            onChange={handleInputChange}
-                            className="full-width"
-                        />
-                        <input
-                            type="text"
-                            name="city"
-                            placeholder="City *"
-                            value={address.city}
-                            onChange={handleInputChange}
-                            required
-                        />
-                        <input
-                            type="text"
-                            name="state"
-                            placeholder="State *"
-                            value={address.state}
-                            onChange={handleInputChange}
-                            required
-                        />
-                        <input
-                            type="text"
-                            name="pincode"
-                            placeholder="Pincode *"
-                            value={address.pincode}
-                            onChange={handleInputChange}
-                            required
-                            pattern="[0-9]{6}"
-                        />
-                    </div>
-                </div>
-
-                <div className="order-summary-section">
-                    <h2>Order Summary</h2>
-                    <div className="summary-items">
-                        {items.map(item => (
-                            <div key={item.profile.id} className="summary-item">
-                                <span>{item.profile.name} x {item.quantity}</span>
-                                <span>₹{799 * item.quantity}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="summary-total">
-                        <span>Total</span>
-                        <span>₹{getTotal()}</span>
-                    </div>
-                </div>
-
-                <div className="payment-section">
-                    <h2>Payment Method</h2>
-                    <div className="payment-option selected">
-                        <span>💵 Cash on Delivery (COD)</span>
-                    </div>
-                </div>
-
-                <button
-                    type="submit"
-                    className="place-order-button"
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting ? 'Placing Order...' : 'PLACE ORDER'}
-                </button>
-            </form>
-        </div>
+      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+        <Yeti state="sad" size="large" />
+        <h2 className="text-xl font-bold text-[#1c0d02] mt-4 mb-2" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+          Your cart is empty
+        </h2>
+        <p className="text-gray-500 text-sm mb-6">Nothing to check out yet.</p>
+        <button
+          onClick={() => navigate('/shop')}
+          className="px-8 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors"
+        >
+          Go to Shop
+        </button>
+      </div>
     );
+  }
+
+  // Success state
+  if (orderSuccess) {
+    localStorage.removeItem(SHIPPING_STORAGE_KEY);
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          className="text-center"
+        >
+          <Yeti state="happy" size="large" />
+
+          {/* Confetti-like particles */}
+          <div className="relative">
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: ['#4f5130', '#d4a574', '#1c0d02', '#f5e6d3'][i % 4],
+                  left: '50%',
+                  top: 0,
+                }}
+                initial={{ x: 0, y: 0, opacity: 1 }}
+                animate={{
+                  x: (Math.random() - 0.5) * 200,
+                  y: Math.random() * -100 - 20,
+                  opacity: 0,
+                  scale: [1, 1.5, 0],
+                }}
+                transition={{ duration: 1.5, delay: 0.2 + i * 0.1, ease: 'easeOut' }}
+              />
+            ))}
+          </div>
+
+          <h2
+            className="text-3xl font-bold text-[#1c0d02] mt-6 mb-2"
+            style={{ fontFamily: "'Agdasima', sans-serif" }}
+          >
+            Order Placed Successfully!
+          </h2>
+          <p className="text-gray-600 text-sm">
+            Your order ID: <strong className="text-[#4f5130]">{orderId}</strong>
+          </p>
+          <p className="text-gray-500 text-xs mt-1">
+            We'll contact you at <strong>{address.phone}</strong> for delivery updates.
+          </p>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/')}
+            className="mt-8 px-8 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors"
+          >
+            Back to Home
+          </motion.button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAddress(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (loading) return;
+
+    if (!user || !user.id || user.id.trim() === '') {
+      navigate('/login?redirect=/checkout&message=login_required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setYetiState('watching');
+
+    try {
+      if (user.email) {
+        await ensureProfile(user.id, user.email, user.fullName || '');
+      }
+
+      const orderData = {
+        user_id: user.id,
+        total_amount: getTotal(),
+        razorpay_payment_id: 'COD-' + Date.now(),
+        shipping_address: address,
+        items: items.map(item => ({
+          taste_profile_id: item.profile.id && /^[0-9a-f-]{36}$/i.test(item.profile.id) ? item.profile.id : undefined,
+          taste_profile_name: item.profile.name,
+          quantity: item.quantity,
+          unit_price: 799,
+        })),
+      };
+
+      const order = await createOrder(orderData);
+
+      setOrderId(order?.id || 'N/A');
+      setOrderSuccess(true);
+      setYetiState('happy');
+      clearCart();
+    } catch (error) {
+      console.error('Order failed:', error);
+      setYetiState('sad');
+      const errMessage = (error as any)?.response?.data?.error || (error as any)?.message || 'Unknown error';
+      alert(`Failed to place order. Error: ${errMessage}`);
+      setTimeout(() => setYetiState('idle'), 2000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const inputClass = "w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow bg-white";
+  const labelClass = "block text-xs font-semibold text-gray-500 uppercase mb-1.5";
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F5]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/cart')}
+              className="text-sm text-[#4f5130] hover:text-[#1c0d02] flex items-center gap-1 transition-colors"
+            >
+              <span>←</span> Back to Cart
+            </button>
+            <h1
+              className="text-2xl md:text-3xl font-bold text-[#1c0d02]"
+              style={{ fontFamily: "'Agdasima', sans-serif" }}
+            >
+              Checkout
+            </h1>
+          </div>
+          <div className="hidden md:block">
+            <Yeti state={isSubmitting ? 'watching' : 'idle'} size="small" />
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Shipping Address Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl p-5 md:p-6 shadow-sm border border-gray-100"
+          >
+            <h2
+              className="text-lg font-bold text-[#1c0d02] mb-4"
+              style={{ fontFamily: "'Agdasima', sans-serif" }}
+            >
+              Shipping Address
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Full Name *</label>
+                <input type="text" name="fullName" value={address.fullName} onChange={handleInputChange} required placeholder="Full Name" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Phone Number *</label>
+                <input type="tel" name="phone" value={address.phone} onChange={handleInputChange} required pattern="[0-9]{10}" placeholder="10-digit number" className={inputClass} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Address Line 1 *</label>
+                <input type="text" name="addressLine1" value={address.addressLine1} onChange={handleInputChange} required placeholder="House/Flat No., Street" className={inputClass} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Address Line 2</label>
+                <input type="text" name="addressLine2" value={address.addressLine2} onChange={handleInputChange} placeholder="Landmark, Area (optional)" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>City *</label>
+                <input type="text" name="city" value={address.city} onChange={handleInputChange} required placeholder="City" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>State *</label>
+                <input type="text" name="state" value={address.state} onChange={handleInputChange} required placeholder="State" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Pincode *</label>
+                <input type="text" name="pincode" value={address.pincode} onChange={handleInputChange} required pattern="[0-9]{6}" placeholder="6-digit pincode" className={inputClass} />
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Order Summary Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-xl p-5 md:p-6 shadow-sm border border-gray-100"
+          >
+            <h2
+              className="text-lg font-bold text-[#1c0d02] mb-4"
+              style={{ fontFamily: "'Agdasima', sans-serif" }}
+            >
+              Order Summary
+            </h2>
+
+            <div className="space-y-3">
+              {items.map(item => (
+                <div key={item.profile.id} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-700">
+                    {item.profile.name} <span className="text-gray-400">x{item.quantity}</span>
+                  </span>
+                  <span className="font-semibold text-[#1c0d02]">₹{799 * item.quantity}</span>
+                </div>
+              ))}
+              <div className="border-t border-gray-100 pt-3 mt-3">
+                <div className="flex justify-between text-base">
+                  <span className="font-bold text-[#1c0d02]">Total</span>
+                  <span className="font-bold text-[#1c0d02]">₹{getTotal()}</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Payment Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl p-5 md:p-6 shadow-sm border border-gray-100"
+          >
+            <h2
+              className="text-lg font-bold text-[#1c0d02] mb-4"
+              style={{ fontFamily: "'Agdasima', sans-serif" }}
+            >
+              Payment Method
+            </h2>
+            <div className="flex items-center gap-3 bg-[#f7f3ed] rounded-xl px-4 py-3 border-2 border-[#4f5130]">
+              <div className="w-8 h-8 bg-[#4f5130] rounded-full flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-[#1c0d02] text-sm">Cash on Delivery (COD)</p>
+                <p className="text-xs text-gray-500">Pay when your order arrives</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Place Order Button */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-4 bg-[#1c0d02] text-white rounded-xl font-bold text-base hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 uppercase tracking-wider"
+          >
+            {isSubmitting ? 'Placing Order...' : 'Place Order'}
+          </motion.button>
+        </form>
+      </div>
+    </div>
+  );
 }

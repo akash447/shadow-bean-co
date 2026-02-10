@@ -1,171 +1,451 @@
-import { useState } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import Header from '../components/Header';
-import './LoginPage.css';
+import { useYeti } from '../components/YetiMascot';
+import Yeti from '../components/Yeti';
+
+type Tab = 'signin' | 'register';
 
 export default function LoginPage() {
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const redirectTo = searchParams.get('redirect') || '/profile';
-    const message = searchParams.get('message');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/profile';
+  const message = searchParams.get('message');
+  const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'signin';
 
-    const { login, loginWithGoogle, needsConfirmation, confirmSignUp } = useAuth();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmationCode, setConfirmationCode] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+  const { login, loginWithGoogle, register, needsConfirmation, confirmSignUp } = useAuth();
+  const { state: yetiState, lookAt, setYetiState, trackInputCursor } = useYeti();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-        const { error: loginError } = await login(email, password);
+  const emailRef = useRef<HTMLInputElement>(null);
 
-        if (loginError) {
-            setError(loginError.message);
-            setLoading(false);
-        } else {
-            navigate(redirectTo);
-        }
-    };
+  // Reset yeti to idle on unmount
+  useEffect(() => {
+    return () => setYetiState('idle');
+  }, [setYetiState]);
 
-    const handleConfirmation = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-        const { error: confirmError } = await confirmSignUp(confirmationCode);
+    const { error: loginError } = await login(email, password);
 
-        if (confirmError) {
-            setError(confirmError.message);
-            setLoading(false);
-        } else {
-            navigate(redirectTo);
-        }
-    };
+    if (loginError) {
+      setError(loginError.message);
+      setYetiState('sad');
+      setLoading(false);
+      setTimeout(() => setYetiState('idle'), 2000);
+    } else {
+      setYetiState('happy');
+      setTimeout(() => navigate(redirectTo), 600);
+    }
+  };
 
-    const handleGoogleLogin = async () => {
-        setError('');
-        try {
-            await loginWithGoogle();
-        } catch (err: any) {
-            setError('Google login failed. Please try again.');
-        }
-    };
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
 
-    // Show confirmation code form if user needs to verify email
-    if (needsConfirmation) {
-        return (
-            <div className="auth-container">
-                <Header variant="light" minimal={true} />
-                <main className="auth-main">
-                    <div className="auth-card">
-                        <h1>Verify Your Email</h1>
-                        <p className="auth-subtitle">
-                            Enter the verification code sent to <strong>{needsConfirmation.email}</strong>
-                        </p>
-
-                        {error && <div className="error-message">{error}</div>}
-
-                        <form onSubmit={handleConfirmation}>
-                            <div className="form-group">
-                                <label>Verification Code</label>
-                                <input
-                                    type="text"
-                                    value={confirmationCode}
-                                    onChange={(e) => setConfirmationCode(e.target.value)}
-                                    placeholder="Enter 6-digit code"
-                                    required
-                                    autoFocus
-                                    style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '4px' }}
-                                />
-                            </div>
-
-                            <button type="submit" className="auth-button" disabled={loading}>
-                                {loading ? 'Verifying...' : 'Verify & Sign In'}
-                            </button>
-                        </form>
-
-                        <div className="auth-links">
-                            <span>Didn't receive the code? Check your spam folder.</span>
-                        </div>
-                    </div>
-                </main>
-            </div>
-        );
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
     }
 
+    setLoading(true);
+    const { error: regError, needsConfirmation: needsCode } = await register(email, password, name, phone || undefined);
+
+    if (regError) {
+      setError(regError.message);
+      setYetiState('sad');
+      setLoading(false);
+      setTimeout(() => setYetiState('idle'), 2000);
+    } else if (needsCode) {
+      setLoading(false);
+    } else {
+      setYetiState('happy');
+      setTimeout(() => navigate(redirectTo), 600);
+    }
+  };
+
+  const handleConfirmation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: confirmError } = await confirmSignUp(confirmationCode);
+
+    if (confirmError) {
+      setError(confirmError.message);
+      setLoading(false);
+    } else {
+      setYetiState('happy');
+      setTimeout(() => navigate(redirectTo), 600);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      await loginWithGoogle();
+    } catch {
+      setError('Google login failed. Please try again.');
+      setYetiState('sad');
+      setTimeout(() => setYetiState('idle'), 2000);
+    }
+  };
+
+  const onEmailFocus = () => setYetiState('watching');
+  const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    trackInputCursor(e, emailRef.current);
+  };
+  const onPasswordFocus = () => setYetiState('shy');
+  const onFieldBlur = () => setYetiState('idle');
+
+  // Confirmation code form
+  if (needsConfirmation) {
     return (
-        <div className="auth-container">
-            {/* Minimal header - only logo */}
-            <Header variant="light" minimal={true} />
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8"
+        >
+          <div className="flex justify-center mb-4">
+            <Yeti state="watching" size="small" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#1c0d02] text-center" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+            Verify Your Email
+          </h1>
+          <p className="text-sm text-gray-500 text-center mt-1 mb-6" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+            Enter the code sent to <strong>{needsConfirmation.email}</strong>
+          </p>
 
-            <main className="auth-main">
-                <div className="auth-card">
-                    <h1>Welcome Back</h1>
-                    <p className="auth-subtitle">Sign in to your account</p>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2 mb-4">
+              {error}
+            </div>
+          )}
 
-                    {message === 'login_required' && (
-                        <div className="info-message">
-                            Please login or create an account to complete your order. Your shipping details have been saved.
-                        </div>
-                    )}
-
-                    {error && <div className="error-message">{error}</div>}
-
-                    {/* Google Login Button */}
-                    <button type="button" className="google-login-btn" onClick={handleGoogleLogin}>
-                        <svg viewBox="0 0 24 24" width="20" height="20" className="google-icon">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                        </svg>
-                        Continue with Google
-                    </button>
-
-                    <div className="auth-divider">
-                        <span>or</span>
-                    </div>
-
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label>Email</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="you@example.com"
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Min. 8 characters"
-                                required
-                            />
-                        </div>
-
-                        <button type="submit" className="auth-button" disabled={loading}>
-                            {loading ? 'Signing in...' : 'Sign In'}
-                        </button>
-                    </form>
-
-                    <div className="auth-links">
-                        <Link to="/forgot-password">Forgot password?</Link>
-                        <span>•</span>
-                        <Link to={`/register${redirectTo !== '/profile' ? `?redirect=${redirectTo}` : ''}`}>Create account</Link>
-                    </div>
-                </div>
-            </main>
-        </div>
+          <form onSubmit={handleConfirmation} className="space-y-4">
+            <input
+              type="text"
+              value={confirmationCode}
+              onChange={(e) => setConfirmationCode(e.target.value)}
+              placeholder="Enter 6-digit code"
+              required
+              autoFocus
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-lg tracking-[4px] focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130]"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {loading ? 'Verifying...' : 'Verify & Sign In'}
+            </button>
+          </form>
+          <p className="text-xs text-gray-400 text-center mt-4">
+            Didn't receive the code? Check your spam folder.
+          </p>
+        </motion.div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F5]">
+      <div className="min-h-screen flex flex-col md:flex-row">
+        {/* Left Panel - Yeti + Branding (desktop: half, mobile: compact banner) */}
+        <div className="md:w-1/2 bg-gradient-to-br from-[#4f5130] to-[#3a3c22] flex flex-col items-center justify-center p-6 md:p-12 md:min-h-screen">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="hidden md:block"
+          >
+            <Yeti state={yetiState} lookAt={lookAt} size="large" />
+          </motion.div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="md:hidden"
+          >
+            <Yeti state={yetiState} lookAt={lookAt} size="small" />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mt-4 md:mt-8"
+          >
+            <h2
+              className="text-2xl md:text-4xl font-bold text-white"
+              style={{ fontFamily: "'Agdasima', sans-serif" }}
+            >
+              Shadow Bean Co.
+            </h2>
+            <p
+              className="text-white/70 text-sm md:text-base mt-1 md:mt-2"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              Your coffee, your way
+            </p>
+          </motion.div>
+        </div>
+
+        {/* Right Panel - Auth Card */}
+        <div className="md:w-1/2 flex items-center justify-center p-4 md:p-12">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-md"
+          >
+            {/* Back to Home */}
+            <button
+              onClick={() => navigate('/')}
+              className="text-sm text-[#4f5130] hover:text-[#1c0d02] mb-6 flex items-center gap-1 transition-colors"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              <span>←</span> Back to Home
+            </button>
+
+            {/* Tab Toggle */}
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+              {(['signin', 'register'] as Tab[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); setError(''); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                    tab === t
+                      ? 'bg-white text-[#1c0d02] shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  style={{ fontFamily: "'Montserrat', sans-serif" }}
+                >
+                  {t === 'signin' ? 'Sign In' : 'Create Account'}
+                </button>
+              ))}
+            </div>
+
+            {/* Info message */}
+            {message === 'login_required' && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3 mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Please login or create an account to complete your order. Your shipping details have been saved.
+              </div>
+            )}
+
+            {/* Error message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2 mb-4"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Google Sign-in */}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors shadow-sm"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              <span className="font-medium text-gray-700">Continue with Google</span>
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center my-5">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="px-4 text-xs text-gray-400 uppercase" style={{ fontFamily: "'Montserrat', sans-serif" }}>or</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+
+            {/* Sign In Form */}
+            <AnimatePresence mode="wait">
+              {tab === 'signin' ? (
+                <motion.form
+                  key="signin"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleSignIn}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Email
+                    </label>
+                    <input
+                      ref={emailRef}
+                      type="email"
+                      value={email}
+                      onChange={onEmailChange}
+                      onFocus={onEmailFocus}
+                      onBlur={onFieldBlur}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={onPasswordFocus}
+                      onBlur={onFieldBlur}
+                      placeholder="Min. 8 characters"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </button>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="register"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleRegister}
+                  className="space-y-3"
+                >
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onFocus={onFieldBlur}
+                      placeholder="John Doe"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Email
+                    </label>
+                    <input
+                      ref={emailRef}
+                      type="email"
+                      value={email}
+                      onChange={onEmailChange}
+                      onFocus={onEmailFocus}
+                      onBlur={onFieldBlur}
+                      placeholder="you@example.com"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Phone <span className="text-gray-400 font-normal normal-case">(optional, +91)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      onFocus={onFieldBlur}
+                      placeholder="+91 9876543210"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={onPasswordFocus}
+                      onBlur={onFieldBlur}
+                      placeholder="Min. 8 characters"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Confirm Password
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onFocus={onPasswordFocus}
+                      onBlur={onFieldBlur}
+                      placeholder="Re-enter password"
+                      required
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4f5130]/40 focus:border-[#4f5130] transition-shadow"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50"
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                  >
+                    {loading ? 'Creating account...' : 'Create Account'}
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
 }
