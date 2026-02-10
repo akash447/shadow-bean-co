@@ -23,52 +23,52 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="min-h-[100dvh] bg-[#FAF8F5]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 md:gap-4">
             <button
               onClick={() => navigate('/shop')}
               className="text-sm text-[#4f5130] hover:text-[#1c0d02] flex items-center gap-1 transition-colors"
             >
-              <span>←</span> Back to Shop
+              <span>←</span> Shop
             </button>
             <h1
-              className="text-2xl md:text-3xl font-bold text-[#1c0d02]"
+              className="text-xl md:text-3xl font-bold text-[#1c0d02]"
               style={{ fontFamily: "'Agdasima', sans-serif" }}
             >
               Your Cart
             </h1>
           </div>
 
-          {/* Corner Yeti */}
+          {/* Corner Yeti - desktop only */}
           <div className="hidden md:block">
             <Yeti state={hasItems ? 'happy' : 'sad'} size="small" />
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-10">
+      <div className="max-w-6xl mx-auto px-4 py-3 md:py-10">
         {/* Empty cart */}
         {!hasItems && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
+            className="text-center py-10 md:py-16"
           >
-            <div className="flex justify-center mb-6 md:hidden">
+            <div className="flex justify-center mb-4">
               <Yeti state="sad" size="small" />
             </div>
             <h2 className="text-xl font-bold text-[#1c0d02] mb-2" style={{ fontFamily: "'Agdasima', sans-serif" }}>
               Your cart is empty
             </h2>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-gray-500 text-sm mb-4">
               Add some custom coffee blends to get started!
             </p>
             <button
               onClick={() => navigate('/shop')}
-              className="px-8 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors"
+              className="px-8 py-2.5 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors"
             >
               Start Shopping
             </button>
@@ -77,9 +77,9 @@ export default function CartPage() {
 
         {/* Cart with items */}
         {hasItems && (
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="flex flex-col lg:flex-row gap-3 lg:gap-8">
             {/* Items list */}
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-2 md:space-y-3">
               <AnimatePresence>
                 {items.map((item, i) => (
                   <motion.div
@@ -88,31 +88,31 @@ export default function CartPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -50 }}
                     transition={{ delay: i * 0.05 }}
-                    className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100"
+                    className="bg-white rounded-xl p-3 md:p-5 shadow-sm border border-gray-100"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-[#1c0d02] text-base">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-[#1c0d02] text-sm md:text-base truncate">
                           {item.profile.name}
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {item.profile.roastLevel} &bull; {item.profile.grindType} &bull; 250g
                         </p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
+                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-1.5 py-0.5 rounded-full">
                             Bitter: {item.profile.bitterness}/5
                           </span>
-                          <span className="text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-1.5 py-0.5 rounded-full">
                             Acid: {item.profile.acidity}/5
                           </span>
-                          <span className="text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-1.5 py-0.5 rounded-full">
                             Flavor: {item.profile.flavour}/5
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <span className="font-bold text-[#1c0d02] text-lg whitespace-nowrap">
+                      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                        <span className="font-bold text-[#1c0d02] text-sm md:text-lg whitespace-nowrap">
                           ₹{799 * item.quantity}
                         </span>
 
@@ -121,16 +121,16 @@ export default function CartPage() {
                           <button
                             onClick={() => updateQuantity(item.profile.id, Math.max(1, item.quantity - 1))}
                             disabled={item.quantity <= 1}
-                            className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors text-sm"
                           >
                             −
                           </button>
-                          <span className="w-8 h-8 flex items-center justify-center text-sm font-semibold border-x border-gray-200">
+                          <span className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-xs md:text-sm font-semibold border-x border-gray-200">
                             {item.quantity}
                           </span>
                           <button
                             onClick={() => updateQuantity(item.profile.id, item.quantity + 1)}
-                            className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                            className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm"
                           >
                             +
                           </button>
@@ -138,9 +138,16 @@ export default function CartPage() {
 
                         <button
                           onClick={() => removeItem(item.profile.id)}
-                          className="text-red-400 hover:text-red-600 text-xs font-medium transition-colors"
+                          className="text-red-400 hover:text-red-600 text-xs font-medium transition-colors hidden sm:block"
                         >
                           Remove
+                        </button>
+                        <button
+                          onClick={() => removeItem(item.profile.id)}
+                          className="text-red-400 hover:text-red-600 transition-colors sm:hidden text-lg leading-none"
+                          aria-label="Remove"
+                        >
+                          ×
                         </button>
                       </div>
                     </div>
@@ -149,17 +156,17 @@ export default function CartPage() {
               </AnimatePresence>
             </div>
 
-            {/* Order Summary - sticky on desktop */}
+            {/* Order Summary */}
             <div className="lg:w-80">
-              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 lg:sticky lg:top-6">
+              <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 lg:sticky lg:top-6">
                 <h2
-                  className="text-lg font-bold text-[#1c0d02] mb-4"
+                  className="text-base md:text-lg font-bold text-[#1c0d02] mb-3"
                   style={{ fontFamily: "'Agdasima', sans-serif" }}
                 >
                   Order Summary
                 </h2>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Subtotal</span>
                     <span className="font-semibold text-[#1c0d02]">₹{getTotal()}</span>
@@ -180,14 +187,14 @@ export default function CartPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCheckout}
-                  className="w-full mt-5 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors uppercase tracking-wider text-sm"
+                  className="w-full mt-4 py-2.5 md:py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors uppercase tracking-wider text-sm"
                 >
                   Proceed to Checkout
                 </motion.button>
 
                 <button
                   onClick={clearCart}
-                  className="w-full mt-2 py-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  className="w-full mt-1.5 py-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
                 >
                   Clear Cart
                 </button>
