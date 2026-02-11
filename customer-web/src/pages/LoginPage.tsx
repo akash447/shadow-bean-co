@@ -179,36 +179,37 @@ export default function LoginPage() {
 
   // ===== MAIN LOGIN LAYOUT =====
   return (
-    <div className="h-[100dvh] bg-[#FAF8F5] flex items-center justify-center p-4 overflow-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="h-[100dvh] flex overflow-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
 
-      {/* Single centered card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-[720px] max-h-[calc(100dvh-2rem)] bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col md:flex-row overflow-hidden"
-      >
-        {/* ===== LEFT: Yeti + Branding (desktop) ===== */}
-        <div className="hidden md:flex flex-col items-center justify-center px-8 py-6 bg-gradient-to-b from-[#f0f7fc] to-[#e8f1f8]" style={{ minWidth: '220px' }}>
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <Yeti state={yetiState} lookAt={lookAt} size="small" />
-          </motion.div>
-          <h2 className="text-2xl font-bold text-[#1c0d02] mt-2" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+      {/* ===== LEFT HALF: Yeti + Branding ===== */}
+      <div className="hidden md:flex w-1/2 bg-gradient-to-b from-[#e8f1f8] to-[#d4e6f3] flex-col items-center justify-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        >
+          <Yeti state={yetiState} lookAt={lookAt} size="large" />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-center mt-2"
+        >
+          <h2 className="text-3xl font-bold text-[#1c0d02]" style={{ fontFamily: "'Agdasima', sans-serif" }}>
             Shadow Bean Co.
           </h2>
           <p className="text-[#1c0d02]/50 text-xs mt-1 tracking-wide">
             Your coffee, your way
           </p>
-        </div>
+        </motion.div>
+      </div>
 
-        {/* ===== RIGHT: Form ===== */}
-        <div className="flex-1 p-4 md:p-5 overflow-y-auto">
+      {/* ===== RIGHT HALF: Login Form ===== */}
+      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex items-center justify-center p-6">
+        <div className="w-full max-w-[360px]">
 
-          {/* Mobile: small Yeti + branding on top */}
+          {/* Mobile: small Yeti + branding */}
           <div className="md:hidden flex items-center gap-3 mb-4">
             <Yeti state={yetiState} lookAt={lookAt} size="small" />
             <div>
@@ -222,7 +223,7 @@ export default function LoginPage() {
           {/* Back to Home */}
           <button
             onClick={() => navigate('/')}
-            className="text-xs text-gray-400 hover:text-[#1c0d02] mb-3 flex items-center gap-1.5 transition-colors"
+            className="text-xs text-gray-400 hover:text-[#1c0d02] mb-3 flex items-center gap-1 transition-colors"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -273,7 +274,7 @@ export default function LoginPage() {
             whileTap={{ scale: 0.99 }}
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50/80 transition-all shadow-sm text-sm"
+            className="w-full flex items-center justify-center gap-2.5 py-2 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50/80 transition-all shadow-sm text-sm"
           >
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -301,48 +302,17 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleSignIn}
-                className="space-y-2"
+                className="space-y-2.5"
               >
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                    Email
-                  </label>
-                  <input
-                    ref={emailRef}
-                    type="email"
-                    value={email}
-                    onChange={onEmailChange}
-                    onFocus={onEmailFocus}
-                    onBlur={onFieldBlur}
-                    placeholder="you@example.com"
-                    required
-                    className={inputClass}
-                  />
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Email</label>
+                  <input ref={emailRef} type="email" value={email} onChange={onEmailChange} onFocus={onEmailFocus} onBlur={onFieldBlur} placeholder="you@example.com" required className={inputClass} />
                 </div>
-
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={onPasswordFocus}
-                    onBlur={onFieldBlur}
-                    placeholder="Min. 8 characters"
-                    required
-                    className={inputClass}
-                  />
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Password</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Min. 8 characters" required className={inputClass} />
                 </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 mt-1 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
-                >
+                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md">
                   {loading ? 'Signing in...' : 'Sign In'}
                 </motion.button>
               </motion.form>
@@ -358,98 +328,36 @@ export default function LoginPage() {
               >
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      onFocus={onFieldBlur}
-                      placeholder="John Doe"
-                      required
-                      className={inputClass}
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} onFocus={onFieldBlur} placeholder="John Doe" required className={inputClass} />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                      Phone <span className="text-gray-300 font-normal normal-case tracking-normal">(opt)</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      onFocus={onFieldBlur}
-                      placeholder="+91 98765..."
-                      className={inputClass}
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Phone <span className="text-gray-300 font-normal normal-case tracking-normal">(opt)</span></label>
+                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onFocus={onFieldBlur} placeholder="+91 98765..." className={inputClass} />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                    Email
-                  </label>
-                  <input
-                    ref={emailRef}
-                    type="email"
-                    value={email}
-                    onChange={onEmailChange}
-                    onFocus={onEmailFocus}
-                    onBlur={onFieldBlur}
-                    placeholder="you@example.com"
-                    required
-                    className={inputClass}
-                  />
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Email</label>
+                  <input ref={emailRef} type="email" value={email} onChange={onEmailChange} onFocus={onEmailFocus} onBlur={onFieldBlur} placeholder="you@example.com" required className={inputClass} />
                 </div>
-
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onFocus={onPasswordFocus}
-                      onBlur={onFieldBlur}
-                      placeholder="Min. 8 chars"
-                      required
-                      className={inputClass}
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Password</label>
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Min. 8 chars" required className={inputClass} />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                      Confirm
-                    </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      onFocus={onPasswordFocus}
-                      onBlur={onFieldBlur}
-                      placeholder="Re-enter"
-                      required
-                      className={inputClass}
-                    />
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Confirm</label>
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Re-enter" required className={inputClass} />
                   </div>
                 </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 mt-1 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md"
-                >
+                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md">
                   {loading ? 'Creating account...' : 'Create Account'}
                 </motion.button>
               </motion.form>
             )}
           </AnimatePresence>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
