@@ -1,73 +1,87 @@
-# React + TypeScript + Vite
+# Shadow Bean Co - Admin Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Back-office dashboard for managing orders, products, media, pricing, and users.
 
-Currently, two official plugins are available:
+**Live**: [admin-shadowbeanco.com](https://admin-shadowbeanco.com)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
 
-## React Compiler
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 19 + TypeScript 5.9 |
+| Build | Vite 7 |
+| Icons | Lucide React |
+| Auth | AWS Amplify 6 + Cognito (manual PKCE OAuth for Google) |
+| API | Axios → api.shadowbeanco.net (Lambda + API Gateway) |
+| Hosting | AWS Amplify (auto-deploy from `main` branch) |
+| Routing | React Router DOM 7 (`BrowserRouter`) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Pages & Routes
 
-## Expanding the ESLint configuration
+| Route | Page | Description |
+|-------|------|-------------|
+| `/dashboard` | Dashboard | Stats overview (users, orders, revenue, recent orders) |
+| `/orders` | OrdersPage | All orders with customer info (name/email/phone via profiles JOIN), 10s polling |
+| `/products` | ProductsPage | Product CRUD, image management |
+| `/users` | UsersPage | Registered users list |
+| `/reviews` | ReviewsPage | Customer reviews moderation |
+| `/pricing` | PricingPage | Size-based pricing tiers, discount management |
+| `/terms` | TermsPage | Terms & conditions versioning |
+| `/media` | MediaPage | S3 media upload/replace/delete, pre-signed URL uploads |
+| `/access` | AccessPage | Admin user access management |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Auth
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Google OAuth via manual PKCE (same as customer-web)
+- Admin check: API `/admin/auth/check` validates against `admin_users` table
+- Master admin fallback for bootstrapping
+- `isGoogleRedirecting` flag prevents Hub event interference during OAuth
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## API Client
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+`src/lib/admin-api.ts` — Axios instance with:
+- Cognito JWT interceptor (Amplify session → cached token fallback)
+- 401 response handler (logs only, no redirects)
+- 10s polling on OrdersPage for real-time order updates
+
+## Layout
+
+- **Desktop**: Sidebar navigation + main content area
+- **Mobile**: Bottom navigation bar + hamburger menu for sidebar
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── Login.tsx              # Admin login (Google OAuth)
+│   ├── Sidebar.tsx            # Desktop nav sidebar
+│   └── BottomNav.tsx          # Mobile bottom navigation
+├── lib/
+│   └── admin-api.ts           # Axios + Cognito JWT + admin endpoints
+├── pages/
+│   ├── Dashboard.tsx
+│   ├── OrdersPage.tsx         # Orders + customer info (profiles JOIN)
+│   ├── ProductsPage.tsx
+│   ├── UsersPage.tsx
+│   ├── ReviewsPage.tsx
+│   ├── PricingPage.tsx
+│   ├── TermsPage.tsx
+│   ├── MediaPage.tsx          # S3 media management
+│   └── AccessPage.tsx         # Admin access control
+├── App.tsx                    # Routes + auth gate
+└── index.css
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev          # http://localhost:5173
+npm run build        # TypeScript check + Vite build
 ```
+
+## Deployment
+
+Pushes to `main` auto-deploy via AWS Amplify → `admin-shadowbeanco.com`.
+Amplify build spec: `npx tsc -b && npx vite build`, base directory: `admin-panel`.

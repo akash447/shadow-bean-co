@@ -1,0 +1,23 @@
+# ==============================================
+# SHADOW BEAN CO - Terraform Variables
+# ==============================================
+# Copy this file to terraform.tfvars and fill in values.
+# NEVER commit terraform.tfvars to git.
+# ==============================================
+
+aws_region   = "ap-south-1"
+project_name = "shadowbeanco"
+environment  = "production"
+domain_name  = "shadowbeanco.net"
+
+# RDS - Set db_password via environment variable:
+#   export TF_VAR_db_password="your-secure-password-here"
+db_instance_class = "db.t4g.micro"
+db_name           = "shadowbeanco"
+db_username       = "sbcadmin"
+# db_password     = "" # DO NOT hardcode - use TF_VAR_db_password
+
+# Cognito (existing resources)
+cognito_user_pool_id     = "ap-south-1_jZV6770zJ"
+cognito_identity_pool_id = "ap-south-1:5dd67b93-9e3c-4de3-a74f-2df439437bbd"
+cognito_web_client_id    = "42vpa5vousikig0c4ohq2vmkge"

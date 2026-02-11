@@ -1,24 +1,12 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useYeti } from '../components/YetiMascot';
 import Yeti from '../components/Yeti';
+import Yeti3D from '../components/Yeti3D';
 
 type Tab = 'signin' | 'register';
-
-// Deterministic snow particle positions (no layout shift)
-function useSnowParticles() {
-  return useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => ({
-      left: `${((i * 29 + 7) % 82) + 9}%`,
-      top: `${((i * 23 + 11) % 88) + 6}%`,
-      size: 1.5 + (i % 4) * 0.8,
-      duration: 4 + (i % 5) * 1.2,
-      delay: (i * 0.6) % 4,
-      drift: (i % 2 === 0 ? 1 : -1) * ((i * 7) % 12),
-    })), []);
-}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,7 +29,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const emailRef = useRef<HTMLInputElement>(null);
-  const snow = useSnowParticles();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -192,70 +179,37 @@ export default function LoginPage() {
 
   // ===== MAIN LOGIN LAYOUT =====
   return (
-    <div className="min-h-[100dvh] bg-[#FAF8F5] flex flex-col md:flex-row" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="min-h-[100dvh] bg-[#FAF8F5] flex flex-col md:flex-row items-center justify-center overflow-hidden relative gap-4 md:gap-8 lg:gap-12 p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
 
-      {/* ===== DESKTOP LEFT PANEL — dark navy gradient with snow + Yeti ===== */}
-      <div className="hidden md:flex md:w-1/2 relative overflow-hidden items-center justify-center flex-col"
-        style={{ background: 'linear-gradient(135deg, #162536 0%, #1e3a50 40%, #1a3040 70%, #14222f 100%)' }}
-      >
-        {/* Radial glow behind Yeti */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-72 h-72 bg-[#4E8AAF]/8 rounded-full blur-[80px]" />
-        </div>
-
-        {/* Snow particles */}
-        {snow.map((p, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-white/25"
-            style={{ left: p.left, top: p.top, width: p.size, height: p.size }}
-            animate={{
-              y: [0, -18, 0],
-              x: [0, p.drift, 0],
-              opacity: [0.15, 0.5, 0.15],
-            }}
-            transition={{
-              duration: p.duration,
-              repeat: Infinity,
-              delay: p.delay,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
-
-        {/* Yeti hero */}
+      {/* ===== DESKTOP LEFT: Large 3D Yeti + Branding ===== */}
+      <div className="hidden md:flex flex-col items-center justify-center z-10">
         <motion.div
-          initial={{ scale: 0.7, opacity: 0 }}
+          initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 150, damping: 18, delay: 0.1 }}
-          className="relative z-10"
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         >
-          <Yeti state={yetiState} lookAt={lookAt} size="large" />
+          <Yeti3D state={yetiState} lookAt={lookAt} />
         </motion.div>
 
-        {/* Branding */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-          className="text-center mt-6 relative z-10"
+          transition={{ delay: 0.3 }}
+          className="text-center mt-4"
         >
-          <h2 className="text-4xl lg:text-5xl font-bold text-white" style={{ fontFamily: "'Agdasima', sans-serif" }}>
+          <h2 className="text-4xl lg:text-5xl font-bold text-[#1c0d02]" style={{ fontFamily: "'Agdasima', sans-serif" }}>
             Shadow Bean Co.
           </h2>
-          <p className="text-white/50 text-sm mt-2 tracking-wide">
+          <p className="text-[#1c0d02]/60 text-sm mt-2 tracking-wide">
             Your coffee, your way
           </p>
         </motion.div>
-
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#14222f] to-transparent pointer-events-none" />
       </div>
 
-      {/* ===== RIGHT PANEL / MOBILE FULL ===== */}
-      <div className="flex-1 md:w-1/2 flex flex-col items-center justify-start md:justify-center px-4 py-6 md:py-8 lg:px-16 overflow-y-auto">
+      {/* ===== RIGHT/MOBILE: Form Container ===== */}
+      <div className="w-full max-w-[400px] z-10 px-4 md:px-0">
 
-        {/* Mobile Yeti header */}
+        {/* Mobile Yeti header (Small) - Only visible on small screens */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -267,12 +221,12 @@ export default function LoginPage() {
           </h2>
         </motion.div>
 
-        {/* Form container */}
+        {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="w-full max-w-[400px] bg-white/50 backdrop-blur-sm md:bg-transparent md:backdrop-blur-none rounded-2xl md:rounded-none p-5 md:p-0 shadow-sm md:shadow-none border border-white/60 md:border-none"
+          className="w-full bg-white/50 backdrop-blur-sm md:bg-white md:backdrop-blur-none rounded-2xl md:rounded-2xl p-5 md:p-6 shadow-sm md:shadow-xl border border-white/60 md:border-gray-100"
         >
           {/* Back to Home */}
           <button
@@ -291,11 +245,10 @@ export default function LoginPage() {
               <button
                 key={t}
                 onClick={() => { setTab(t); setError(''); }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                  tab === t
-                    ? 'bg-white text-[#1c0d02] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${tab === t
+                  ? 'bg-white text-[#1c0d02] shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
+                  }`}
               >
                 {t === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
@@ -357,7 +310,7 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleSignIn}
-                className="space-y-3.5"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
@@ -410,7 +363,7 @@ export default function LoginPage() {
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleRegister}
-                className="space-y-3"
+                className="space-y-2.5"
               >
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
