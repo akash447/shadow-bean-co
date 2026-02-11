@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useYeti } from '../components/YetiMascot';
 import Yeti from '../components/Yeti';
-import Yeti3D from '../components/Yeti3D';
+
 
 type Tab = 'signin' | 'register';
 
@@ -188,7 +188,7 @@ export default function LoginPage() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         >
-          <Yeti3D state={yetiState} lookAt={lookAt} />
+          <Yeti state={yetiState} lookAt={lookAt} size="large" />
         </motion.div>
 
         <motion.div
