@@ -186,7 +186,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[720px] bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col md:flex-row overflow-hidden"
+        className="w-full max-w-[720px] max-h-[calc(100dvh-2rem)] bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col md:flex-row overflow-hidden"
       >
         {/* ===== LEFT: Yeti + Branding (desktop) ===== */}
         <div className="hidden md:flex flex-col items-center justify-center px-8 py-6 bg-gradient-to-b from-[#f0f7fc] to-[#e8f1f8]" style={{ minWidth: '220px' }}>
@@ -206,7 +206,7 @@ export default function LoginPage() {
         </div>
 
         {/* ===== RIGHT: Form ===== */}
-        <div className="flex-1 p-5 md:p-6">
+        <div className="flex-1 p-4 md:p-5 overflow-y-auto">
 
           {/* Mobile: small Yeti + branding on top */}
           <div className="md:hidden flex items-center gap-3 mb-4">
