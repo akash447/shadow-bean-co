@@ -47,7 +47,7 @@ applications:
             - key: 'Content-Type'
               value: 'text/plain'
     appRoot: customer-web
-  - customRules:
+    customRules:
       # SPA rewrite - serve index.html for all routes
       - source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|xml|glb|gltf|bin)$)([^.]+$)/>'
         target: /index.html
