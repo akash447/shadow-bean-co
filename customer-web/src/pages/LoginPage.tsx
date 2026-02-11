@@ -179,7 +179,7 @@ export default function LoginPage() {
 
   // ===== MAIN LOGIN LAYOUT =====
   return (
-    <div className="h-[100dvh] flex overflow-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="h-[100dvh] flex" style={{ fontFamily: "'Montserrat', sans-serif" }}>
 
       {/* ===== LEFT HALF: Yeti + Branding ===== */}
       <div className="hidden md:flex w-1/2 bg-gradient-to-b from-[#e8f1f8] to-[#d4e6f3] flex-col items-center justify-center">
@@ -206,7 +206,7 @@ export default function LoginPage() {
       </div>
 
       {/* ===== RIGHT HALF: Login Form ===== */}
-      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex items-center justify-center p-6">
+      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex flex-col justify-center items-center overflow-y-auto p-6">
         <div className="w-full max-w-[360px]">
 
           {/* Mobile: small Yeti + branding */}
