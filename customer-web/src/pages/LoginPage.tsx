@@ -180,7 +180,7 @@ export default function LoginPage() {
       </div>
 
       {/* ===== RIGHT HALF: Login Tile ===== */}
-      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex items-center justify-center p-4 md:p-8 relative">
+      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex flex-col items-center justify-center overflow-y-auto p-4 md:p-8 relative">
 
         {/* Mobile only: Yeti + branding in top-left */}
         <div className="md:hidden absolute top-4 left-4 flex items-center gap-2 z-10">
