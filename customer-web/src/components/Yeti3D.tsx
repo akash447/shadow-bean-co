@@ -1,12 +1,31 @@
-import { Suspense, useRef, useEffect } from 'react';
+import { Suspense, useRef, useEffect, Component, type ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import type { YetiState } from './Yeti';
+import Yeti from './Yeti';
 
 interface Yeti3DProps {
     state: YetiState;
     lookAt?: { x: number; y: number };
+}
+
+// Error boundary to catch GLB loading failures and fall back to SVG Yeti
+class Yeti3DErrorBoundary extends Component<
+    { children: ReactNode; fallback: ReactNode },
+    { hasError: boolean }
+> {
+    constructor(props: { children: ReactNode; fallback: ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+    render() {
+        if (this.state.hasError) return this.props.fallback;
+        return this.props.children;
+    }
 }
 
 function YetiModel({ state, lookAt = { x: 0, y: 0 } }: Yeti3DProps) {
@@ -108,7 +127,7 @@ function YetiModel({ state, lookAt = { x: 0, y: 0 } }: Yeti3DProps) {
     );
 }
 
-export default function Yeti3D({ state, lookAt }: Yeti3DProps) {
+function Yeti3DCanvas({ state, lookAt }: Yeti3DProps) {
     return (
         <div className="w-full h-[350px] md:h-[450px]">
             <Canvas>
@@ -124,11 +143,20 @@ export default function Yeti3D({ state, lookAt }: Yeti3DProps) {
                 <Suspense fallback={null}>
                     <YetiModel state={state} lookAt={lookAt} />
                 </Suspense>
-
-                {/* Optional: Enable user rotation on desktop */}
-                {/* <OrbitControls enableZoom={false} enablePan={false} /> */}
             </Canvas>
         </div>
+    );
+}
+
+export default function Yeti3D({ state, lookAt }: Yeti3DProps) {
+    const svgFallback = <Yeti state={state} lookAt={lookAt} size="large" />;
+
+    return (
+        <Yeti3DErrorBoundary fallback={svgFallback}>
+            <Suspense fallback={svgFallback}>
+                <Yeti3DCanvas state={state} lookAt={lookAt} />
+            </Suspense>
+        </Yeti3DErrorBoundary>
     );
 }
 
