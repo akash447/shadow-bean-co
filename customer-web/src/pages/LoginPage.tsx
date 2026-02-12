@@ -96,28 +96,28 @@ export default function LoginPage() {
     trackInputCursor(e, emailRef.current);
   };
 
-  // Styles (Senior Designer Minimalist Polish)
-  const inputGroupClass = "relative flex items-center border-b-2 border-gray-100 py-4 transition-colors hover:border-gray-300 focus-within:border-black mb-12"; // Extreme spacing (mb-12), very subtle border initially
-  const iconClass = "text-gray-300 mr-6 w-6 h-6 transition-colors group-hover:text-gray-500 peer-focus:text-black";
-  const inputClass = "w-full bg-transparent border-none outline-none text-gray-900 placeholder-gray-300 text-xl font-medium h-12 tracking-wide peer"; // Large text (text-xl), tracking-wide
+  // Styles (Bondroy Match)
+  // Inputs: Rounded-md, border gray-200, px-4 py-3
+  const inputClass = "w-full bg-white border border-gray-200 rounded-md px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-400 focus:ring-0 transition-colors text-sm font-medium";
+
 
   // Verification Screen
   if (needsConfirmation) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4 font-sans">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center w-full max-w-md">
-          <div className="mb-10"><Yeti state="watching" size="small" /></div>
-          <h2 className="text-3xl font-bold text-black mb-4 tracking-tight">Verify Code</h2>
-          <p className="text-gray-400 mb-12 text-lg">Sent to {needsConfirmation.email}</p>
-          {error && <div className="text-red-500 mb-6 font-medium">{error}</div>}
-          <form onSubmit={handleConfirmation} className="space-y-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-10 w-full max-w-md text-center">
+          <Yeti state="watching" size="small" />
+          <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Verify Code</h2>
+          <p className="text-gray-500 mb-6">Sent to {needsConfirmation.email}</p>
+          {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+          <form onSubmit={handleConfirmation} className="space-y-4">
             <input
               value={confirmationCode}
               onChange={(e) => setConfirmationCode(e.target.value)}
-              className="w-full text-center text-4xl tracking-[0.8em] border-b-2 border-gray-200 focus:border-black outline-none py-4 font-mono transition-colors"
+              className="w-full text-center text-3xl tracking-[0.5em] border border-gray-300 rounded-lg focus:border-blue-500 outline-none py-3 font-mono"
               placeholder="000000" autoFocus
             />
-            <button disabled={loading} className="w-full bg-black text-white py-5 rounded-full font-bold text-lg hover:bg-gray-800 transition-all disabled:opacity-50">
+            <button disabled={loading} className="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition disabled:opacity-50">
               {loading ? 'Verifying...' : 'Verify'}
             </button>
           </form>
@@ -126,144 +126,131 @@ export default function LoginPage() {
     );
   }
 
-  // Main Layout: Minimalist Full Screen Split
+  // Main Layout: Centered Split Card (Bondroy Style)
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row font-sans overflow-hidden bg-white">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#F9FAFB] p-4 font-sans">
 
-      {/* CSS to override autofill background - aiming for pure white/transparent */}
-      <style>{`
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active{
-            -webkit-box-shadow: 0 0 0 30px white inset !important;
-            -webkit-text-fill-color: #000 !important;
-            transition: background-color 5000s ease-in-out 0s;
-        }
-      `}</style>
+      {/* Centered Card Container */}
+      <div className="bg-white w-full max-w-[1000px] min-h-[600px] flex rounded-3xl shadow-xl overflow-hidden">
 
-      {/* LEFT PANEL (50%) - Pure Branding */}
-      <div className="w-full md:w-1/2 bg-[#F5F7FA] flex flex-col items-center justify-center p-20 relative order-1 md:order-none min-h-[400px]">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }} // Elegant easing
-          className="flex flex-col items-center justify-center w-full max-w-lg text-center"
-        >
-          <div className="mb-16 scale-125 transform-gpu">
-            <Yeti state={yetiState} lookAt={lookAt} size="large" />
-          </div>
-          <h2 className="text-5xl font-black text-black tracking-tighter leading-none">
-            Shadow <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Bean Co.</span>
-          </h2>
-          {/* Subtitle REMOVED per user request */}
-        </motion.div>
-      </div>
+        {/* LEFT PANEL (50%) - Yeti Branding */}
+        <div className="hidden md:flex w-1/2 bg-[#F3F4F6] flex-col items-center justify-center p-12 relative">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            className="flex flex-col items-center justify-center w-full max-w-sm text-center"
+          >
+            <div className="mb-8 scale-110">
+              <Yeti state={yetiState} lookAt={lookAt} size="large" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 mt-4">Shadow Bean Co.</h2>
+            <p className="text-gray-500 mt-2">Premium Coffee Application</p>
+          </motion.div>
+        </div>
 
-      {/* RIGHT PANEL (50%) - Minimalist Form */}
-      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center items-center p-12 md:p-32 order-2 md:order-none">
-        <div className="w-full max-w-lg"> {/* Slightly narrower for elegance */}
+        {/* RIGHT PANEL (50%) - Bondroy Form */}
+        <div className="w-full md:w-1/2 bg-white flex flex-col justify-center p-10 md:p-16 relative">
 
-          <div className="mb-20 text-center md:text-left">
-            <h1 className="text-6xl font-black text-black tracking-tighter mb-2">
-              {tab === 'signin' ? 'Sign In.' : 'Join Us.'}
-            </h1>
-            {/* Descriptive p-tag REMOVED per user request */}
-          </div>
+          <div className="w-full max-w-sm mx-auto">
 
-          <form onSubmit={handleAuth} className="w-full">
-            {tab === 'register' && (
-              <div className={inputGroupClass}>
-                <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                <input type="text" placeholder="Full Name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+            {/* Header */}
+            <div className="mb-10 text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
+                {/* Optional Mini Logo or Brand Name if needed, Bondroy has logo at top */}
+                <span className="text-xl font-bold text-gray-900 tracking-tight">Shadow Bean Co.</span>
               </div>
-            )}
-
-            <div className={inputGroupClass}>
-              <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-              <input
-                ref={emailRef} type="email" placeholder="Email Address" className={inputClass}
-                value={email} onChange={onEmailChange} onFocus={() => setYetiState('watching')} onBlur={() => setYetiState('idle')} required
-              />
+              <h1 className="text-2xl font-semibold text-gray-900">
+                {tab === 'signin' ? 'Welcome back!' : 'Create an account'}
+              </h1>
             </div>
 
-            <div className={inputGroupClass}>
-              <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              <input
-                type="password" placeholder="Password" className={inputClass}
-                value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
-              />
-            </div>
+            <form onSubmit={handleAuth} className="space-y-4">
 
-            {tab === 'register' && (
-              <div className={inputGroupClass}>
-                <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              {tab === 'register' && (
+                <div>
+                  <input type="text" placeholder="Full Name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+              )}
+
+              <div>
                 <input
-                  type="password" placeholder="Confirm Password" className={inputClass}
-                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
+                  ref={emailRef} type="email" placeholder="name@email.com" className={inputClass}
+                  value={email} onChange={onEmailChange} onFocus={() => setYetiState('watching')} onBlur={() => setYetiState('idle')} required
                 />
               </div>
-            )}
 
-            {/* Checkbox & Forgot Password - Minimal style */}
-            {tab === 'signin' && (
-              <div className="flex items-center justify-between mt-10 mb-16">
-                <div className="flex items-center group cursor-pointer">
-                  <div className="relative flex items-center">
-                    <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="peer appearance-none w-6 h-6 border-2 border-gray-200 rounded-md bg-white checked:bg-black checked:border-black cursor-pointer transition-all" />
-                    <svg className="absolute w-4 h-4 text-white left-[4px] top-[4px] opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  </div>
-                  <label htmlFor="remember" className="ml-4 text-lg text-gray-400 font-medium cursor-pointer group-hover:text-black transition-colors select-none">Remember me</label>
+              <div>
+                <input
+                  type="password" placeholder="Password" className={inputClass}
+                  value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
+                />
+              </div>
+
+              {tab === 'register' && (
+                <div>
+                  <input
+                    type="password" placeholder="Confirm Password" className={inputClass}
+                    value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
+                  />
                 </div>
-                <a href="#" className="text-lg font-bold text-gray-400 hover:text-black transition-colors">Forgot?</a>
-              </div>
-            )}
-
-            {/* Error */}
-            <AnimatePresence>
-              {error && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="text-red-600 text-lg mb-8 font-medium">
-                  {error}
-                </motion.div>
               )}
-            </AnimatePresence>
 
-            {/* Main Action Button - Oversized & Bold */}
-            <button disabled={loading} className="w-full bg-black hover:bg-gray-900 text-white font-black py-6 rounded-full shadow-2xl hover:shadow-black/20 transition-all transform hover:-translate-y-1 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-16 text-2xl tracking-wide">
-              {loading ? 'Processing...' : (tab === 'signin' ? 'Sign In →' : 'Create Account →')}
-            </button>
+              {/* Action Row: Remember Me & Forgot Password */}
+              {tab === 'signin' && (
+                <div className="flex items-center justify-between text-sm mt-2 mb-6">
+                  <div className="flex items-center">
+                    <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 text-black border-gray-300 rounded focus:ring-0 cursor-pointer" />
+                    <label htmlFor="remember" className="ml-2 text-gray-600 cursor-pointer select-none font-medium">Remember me</label>
+                  </div>
+                  <a href="#" className="font-medium text-gray-900 hover:underline">Reset password</a>
+                </div>
+              )}
 
-            {/* Bottom Actions are now just Socials (Toggle moved to top implicitly or minimalistic bottom) */}
-            <div className="flex flex-col items-center space-y-8">
+              {/* Error */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-red-500 text-sm bg-red-50 p-2 rounded mb-4">
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <div className="text-gray-400 text-lg font-medium">Or continue with</div>
+              {/* Main Button - Black Full Width */}
+              <button disabled={loading} className="w-full bg-[#2D2D2D] hover:bg-black text-white font-semibold py-3 rounded-md shadow-sm transition-colors disabled:opacity-50 text-sm h-12">
+                {loading ? 'Processing...' : (tab === 'signin' ? 'Sign in' : 'Sign up')}
+              </button>
 
-              <div className="flex gap-8">
-                <button type="button" className="w-16 h-16 rounded-full border-2 border-gray-100 flex items-center justify-center hover:border-black transition-colors group">
-                  <span className="font-bold text-2xl text-gray-400 group-hover:text-black transition-colors">f</span>
-                </button>
-                <button type="button" className="w-16 h-16 rounded-full border-2 border-gray-100 flex items-center justify-center hover:border-black transition-colors group">
-                  <svg className="w-7 h-7 text-gray-400 group-hover:text-black transition-colors" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
-                </button>
-                <button type="button" onClick={handleGoogle} className="w-16 h-16 rounded-full border-2 border-gray-100 flex items-center justify-center hover:border-black transition-colors group">
-                  <span className="font-bold text-2xl text-gray-400 group-hover:text-black transition-colors">G</span>
-                </button>
-              </div>
-
-              {/* Minimal Toggle */}
-              <div className="pt-8">
+              {/* Toggle Link */}
+              <div className="text-center text-sm text-gray-500 mt-6 mb-4">
+                {tab === 'signin' ? "Don't have an account? " : "Already have an account? "}
                 <button
+                  type="button"
                   onClick={() => { setTab(tab === 'signin' ? 'register' : 'signin'); setError(''); }}
-                  className="text-gray-400 hover:text-black transition-colors text-lg font-bold border-b-2 border-transparent hover:border-black pb-1"
+                  className="text-gray-900 font-bold hover:underline transition-colors ml-1"
                 >
-                  {tab === 'signin' ? "Don't have an account? Join" : "Already a member? Sign In"}
+                  {tab === 'signin' ? 'Sign up' : 'Log in'}
                 </button>
               </div>
 
-            </div>
+              {/* Divider - REMOVED per user request */}
+              {/* <div className="relative flex py-2 items-center">...</div> */}
 
-          </form>
+              {/* Socials - Stacked Vertical */}
+              <div className="flex flex-col gap-3 mt-8">
+                <button type="button" onClick={handleGoogle} className="w-full bg-white border border-gray-200 text-gray-700 font-medium py-3 rounded-md flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors h-12">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M24 12.276c0-.816-.073-1.6-.21-2.362H12.247v4.468h6.591a5.632 5.632 0 0 1-2.443 3.693v3.07h3.957c2.316-2.133 3.648-5.27 3.648-8.869z" /><path fill="#34A853" d="M12.247 24c3.305 0 6.075-1.095 8.103-2.97l-3.957-3.07c-1.096.735-2.5.1.17-2.072 1.17 0 2.222-7.23 2.222-2.31 0-.414-.047-.814-.132l-3.996-3.103C9.932 23.336 11.026 24 12.247 24z" /><path fill="#FBBC05" d="M5.022 14.126A7.265 7.265 0 0 1 4.636 12c0-.728.13-1.428.386-2.126l-3.996-3.103A11.906 11.906 0 0 0 .25 12c0 1.944.475 3.778 1.306 5.378l4.772-3.103-1.306-.149z" /><path fill="#4285F4" d="M12.247 4.755c1.797 0 3.414.618 4.685 1.833l3.513-3.514C18.32 1.055 15.548 0 12.247 0 7.697 0 3.826 2.59 1.936 6.425l3.994 3.102c.94-2.822 3.594-4.772 6.317-4.772z" /></svg>
+                  Continue with Google
+                </button>
+
+                <button type="button" className="w-full bg-white border border-gray-200 text-gray-700 font-medium py-3 rounded-md flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors h-12">
+                  <svg className="w-5 h-5 text-[#1DA1F2]" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
+                  Continue with Twitter
+                </button>
+              </div>
+
+            </form>
+          </div>
         </div>
       </div>
     </div>
