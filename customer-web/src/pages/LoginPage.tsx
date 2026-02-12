@@ -154,7 +154,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm mx-auto">
 
             {/* Header */}
-            <div className="mb-[60rem] text-center md:text-left">
+            <div className="mb-[20pt] text-center md:text-left">
               {/* Title removed per user request */}
               <h1 className="text-2xl font-semibold text-gray-900">
                 {tab === 'signin' ? 'Welcome back!' : 'Create an account'}
