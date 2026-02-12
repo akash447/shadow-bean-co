@@ -20,7 +20,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  // const [phone, setPhone] = useState(''); // Removed per refined layout
   const [confirmPassword, setConfirmPassword] = useState('');
   const [confirmationCode, setConfirmationCode] = useState('');
   const [error, setError] = useState('');
@@ -97,15 +96,16 @@ export default function LoginPage() {
     trackInputCursor(e, emailRef.current);
   };
 
-  // Styles (Refined Minimalist)
-  const inputGroupClass = "relative flex items-center border-b border-gray-300 py-4 transition-colors hover:border-gray-500 focus-within:border-blue-600 mb-8";
-  const iconClass = "text-gray-400 mr-5 w-6 h-6";
-  const inputClass = "w-full bg-transparent border-none outline-none text-gray-800 placeholder-gray-400 text-base font-medium";
+  // Styles (Optimized Professional Look)
+  const inputGroupClass = "relative flex items-center border-b-2 border-gray-200 py-3 transition-colors hover:border-gray-400 focus-within:border-blue-600 mb-10"; // Increased spacing (mb-10), clear border
+  const iconClass = "text-gray-400 mr-6 w-6 h-6"; // More spacing for icon
+  const inputClass = "w-full bg-transparent border-none outline-none text-gray-800 placeholder-gray-400 text-lg font-medium h-10"; // Taller input, larger font
 
   // Verification Screen
   if (needsConfirmation) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        {/* ... (Verification screen kept simple or can be optimized too if requested, but focusing on main login first) */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-10 w-full max-w-md text-center">
           <Yeti state="watching" size="small" />
           <h2 className="text-2xl font-bold text-gray-800 mt-6 mb-2">Verify Code</h2>
@@ -127,38 +127,57 @@ export default function LoginPage() {
     );
   }
 
-  // Main Layout: Full Screen Split
+  // Main Layout: Full Screen Split optimized
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row font-sans overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col md:flex-row font-sans overflow-hidden bg-white">
 
-      {/* LEFT PANEL (50%) - Branding & Yeti */}
-      <div className="w-full md:w-1/2 bg-[#F0F4F8] flex flex-col items-center justify-center p-12 relative order-1 md:order-none min-h-[40vh] md:min-h-screen">
+      {/* CSS to override autofill background */}
+      <style>{`
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px white inset !important;
+            -webkit-text-fill-color: #1f2937 !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+      `}</style>
+
+      {/* LEFT PANEL (50%) - Branding */}
+      <div className="w-full md:w-1/2 bg-[#F8FAFC] flex flex-col items-center justify-center p-12 md:p-20 relative order-1 md:order-none min-h-[400px]">
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, type: "spring" }}
-          className="flex-1 flex flex-col items-center justify-center w-full max-w-md"
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="flex flex-col items-center justify-center w-full max-w-lg text-center"
         >
-          <Yeti state={yetiState} lookAt={lookAt} size="large" />
-          <h2 className="text-2xl font-bold text-gray-700 mt-8 tracking-tight">Welcome Back!</h2>
-          <p className="text-gray-500 mt-2 text-center max-w-xs">Access your account to manage your orders and preferences.</p>
+          <div className="mb-10 scale-110">
+            <Yeti state={yetiState} lookAt={lookAt} size="large" />
+          </div>
+          <h2 className="text-4xl font-extrabold text-[#1e293b] mt-6 tracking-tight leading-tight">
+            Welcome to <br />
+            <span className="text-blue-600">Shadow Bean Co.</span>
+          </h2>
+          <p className="text-slate-500 mt-6 text-lg max-w-sm leading-relaxed">
+            Manage your coffee subscription, track orders, and explore our premium blends.
+          </p>
         </motion.div>
       </div>
 
       {/* RIGHT PANEL (50%) - Login Form */}
-      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center items-center p-10 md:p-20 order-2 md:order-none flex-1 min-h-[60vh] md:min-h-screen">
-        <div className="w-full max-w-md">
+      <div className="w-full md:w-1/2 bg-white flex flex-col justify-center items-center p-10 md:p-24 order-2 md:order-none">
+        <div className="w-full max-w-xl"> {/* Widened container for better breathing room */}
 
-          <div className="mb-12">
-            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
-              {tab === 'signin' ? 'Sign In' : 'Sign Up'}
+          <div className="mb-16">
+            <h1 className="text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
+              {tab === 'signin' ? 'Sign In' : 'Create Account'}
             </h1>
-            <p className="text-gray-500 text-lg">
-              Please enter your details to continue.
+            <p className="text-slate-500 text-xl font-light">
+              {tab === 'signin' ? 'Enter your credentials to access your account.' : 'Join us today for exclusive coffee perks.'}
             </p>
           </div>
 
-          <form onSubmit={handleAuth} className="w-full">
+          <form onSubmit={handleAuth} className="w-full space-y-2">
             {tab === 'register' && (
               <div className={inputGroupClass}>
                 <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -194,58 +213,61 @@ export default function LoginPage() {
 
             {/* Checkbox & Forgot Password */}
             {tab === 'signin' && (
-              <div className="flex items-center justify-between mt-6 mb-10">
-                <div className="flex items-center">
-                  <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 cursor-pointer" />
-                  <label htmlFor="remember" className="text-sm font-medium text-gray-600 cursor-pointer select-none">Remember me</label>
+              <div className="flex items-center justify-between mt-8 mb-12">
+                <div className="flex items-center group cursor-pointer">
+                  <div className="relative flex items-center">
+                    <input type="checkbox" id="remember" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded bg-white checked:bg-blue-600 checked:border-blue-600 cursor-pointer transition-all" />
+                    <svg className="absolute w-3.5 h-3.5 text-white left-[3px] top-[3px] opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <label htmlFor="remember" className="ml-3 text-base text-gray-500 font-medium cursor-pointer group-hover:text-gray-700 transition-colors select-none">Remember me</label>
                 </div>
-                <a href="#" className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">Forgot Password?</a>
+                <a href="#" className="text-base font-semibold text-blue-600 hover:text-blue-800 transition-colors">Forgot Password?</a>
               </div>
             )}
 
             {/* Error */}
             <AnimatePresence>
               {error && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-red-500 text-sm bg-red-50 p-3 rounded-lg mb-6 font-medium">
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-red-500 text-base bg-red-50 border border-red-100 p-4 rounded-xl mb-8 font-medium shadow-sm">
                   {error}
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* Main Action Button */}
-            <button disabled={loading} className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mb-8 text-lg">
-              {loading ? 'Processing...' : (tab === 'signin' ? 'Sign In' : 'Sign Up')}
+            <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-2xl shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed mb-10 text-xl tracking-wide">
+              {loading ? 'Processing...' : (tab === 'signin' ? 'Sign In' : 'Create Account')}
             </button>
 
             {/* Bottom Actions: Socials & Toggle */}
-            <div className="flex flex-col items-center space-y-8">
+            <div className="flex flex-col items-center space-y-10">
 
               {/* Divider */}
               <div className="w-full flex items-center justify-between">
                 <div className="h-px bg-gray-200 flex-1"></div>
-                <span className="text-gray-400 text-sm font-medium px-4">Or continue with</span>
+                <span className="text-gray-400 text-base font-medium px-6">Or continue with</span>
                 <div className="h-px bg-gray-200 flex-1"></div>
               </div>
 
               {/* Social Icons */}
-              <div className="flex gap-4">
-                <button type="button" className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-blue-500 transition-all group">
-                  <span className="font-bold text-xl text-[#3b5998] group-hover:scale-110 transition-transform">f</span>
+              <div className="flex gap-6">
+                <button type="button" className="w-14 h-14 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-blue-600 transition-all group shadow-sm hover:shadow-md">
+                  <span className="font-bold text-2xl text-[#3b5998] group-hover:scale-110 transition-transform">f</span>
                 </button>
-                <button type="button" className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-blue-400 transition-all group">
-                  <svg className="w-5 h-5 text-[#1DA1F2] group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
+                <button type="button" className="w-14 h-14 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-[#1DA1F2] transition-all group shadow-sm hover:shadow-md">
+                  <svg className="w-6 h-6 text-[#1DA1F2] group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
                 </button>
-                <button type="button" onClick={handleGoogle} className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-red-500 transition-all group">
-                  <span className="font-bold text-xl text-[#DB4437] group-hover:scale-110 transition-transform">G</span>
+                <button type="button" onClick={handleGoogle} className="w-14 h-14 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-[#DB4437] transition-all group shadow-sm hover:shadow-md">
+                  <span className="font-bold text-2xl text-[#DB4437] group-hover:scale-110 transition-transform">G</span>
                 </button>
               </div>
 
               {/* Toggle Link */}
-              <div className="text-gray-600 font-medium">
+              <div className="text-gray-600 text-lg">
                 {tab === 'signin' ? "Don't have an account? " : "Already have an account? "}
                 <button
                   onClick={() => { setTab(tab === 'signin' ? 'register' : 'signin'); setError(''); }}
-                  className="text-blue-600 font-bold hover:underline transition-colors ml-1"
+                  className="text-blue-600 font-bold hover:text-blue-700 hover:underline transition-colors ml-1"
                 >
                   {tab === 'signin' ? 'Register Now' : 'Sign In'}
                 </button>
