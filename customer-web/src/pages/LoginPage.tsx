@@ -5,20 +5,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { useYeti } from '../components/YetiMascot';
 import Yeti from '../components/Yeti';
 
-
 type Tab = 'signin' | 'register';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/profile';
-  const message = searchParams.get('message');
-  const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'signin';
 
   const { user, loading: authLoading, login, loginWithGoogle, register, needsConfirmation, confirmSignUp } = useAuth();
   const { state: yetiState, lookAt, setYetiState, trackInputCursor } = useYeti();
 
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>((searchParams.get('tab') === 'register' ? 'register' : 'signin'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -27,52 +24,44 @@ export default function LoginPage() {
   const [confirmationCode, setConfirmationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const emailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate(redirectTo, { replace: true });
-    }
-  }, [user, authLoading, navigate, redirectTo]);
-
-  useEffect(() => {
+    if (!authLoading && user) navigate(redirectTo, { replace: true });
     return () => setYetiState('idle');
-  }, [setYetiState]);
+  }, [user, authLoading, navigate, redirectTo, setYetiState]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: loginError } = await login(email, password);
-    if (loginError) {
-      setError(loginError.message);
-      setYetiState('sad');
-      setLoading(false);
-      setTimeout(() => setYetiState('idle'), 2000);
-    } else {
-      setYetiState('happy');
-      setTimeout(() => navigate(redirectTo), 600);
-    }
-  };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
-    setLoading(true);
-    const { error: regError, needsConfirmation: needsCode } = await register(email, password, name, phone || undefined);
-    if (regError) {
-      setError(regError.message);
-      setYetiState('sad');
-      setLoading(false);
-      setTimeout(() => setYetiState('idle'), 2000);
-    } else if (needsCode) {
-      setLoading(false);
+    if (tab === 'signin') {
+      const { error } = await login(email, password);
+      if (error) {
+        setError(error.message);
+        setYetiState('sad');
+        setLoading(false);
+        setTimeout(() => setYetiState('idle'), 2000);
+      } else {
+        setYetiState('happy');
+        setTimeout(() => navigate(redirectTo), 600);
+      }
     } else {
-      setYetiState('happy');
-      setTimeout(() => navigate(redirectTo), 600);
+      if (password !== confirmPassword) { setError('Passwords do not match'); setLoading(false); return; }
+      const { error, needsConfirmation } = await register(email, password, name, phone || undefined);
+      if (error) {
+        setError(error.message);
+        setYetiState('sad');
+        setLoading(false);
+      } else if (!needsConfirmation) {
+        setYetiState('happy');
+        setTimeout(() => navigate(redirectTo), 600);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -80,9 +69,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: confirmError } = await confirmSignUp(confirmationCode);
-    if (confirmError) {
-      setError(confirmError.message);
+    const { error } = await confirmSignUp(confirmationCode);
+    if (error) {
+      setError(error.message);
       setLoading(false);
     } else {
       setYetiState('happy');
@@ -90,248 +79,166 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError('');
+  const handleGoogle = async () => {
     try {
       sessionStorage.setItem('shadow_bean_oauth_redirect', redirectTo);
       await loginWithGoogle();
     } catch {
-      setError('Google login failed. Please try again.');
+      setError('Google login failed');
       setYetiState('sad');
       setTimeout(() => setYetiState('idle'), 2000);
     }
   };
 
-  const onEmailFocus = () => setYetiState('watching');
+  // Field interactions
   const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     trackInputCursor(e, emailRef.current);
   };
-  const onPasswordFocus = () => setYetiState('shy');
-  const onFieldBlur = () => setYetiState('idle');
 
-  const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4E8AAF]/30 focus:border-[#6BA4CC] transition-all bg-white placeholder:text-gray-400";
+  // Shared styles
+  const inputGroupClass = "relative flex items-center border-b border-gray-300 py-2 focus-within:border-blue-500 transition-colors";
+  const iconClass = "text-gray-400 mr-3 w-5 h-5";
+  const inputClass = "w-full bg-transparent border-none outline-none text-gray-700 placeholder-gray-400 text-sm";
 
-  // ===== CONFIRMATION CODE SCREEN =====
   if (needsConfirmation) {
     return (
-      <div className="min-h-[100dvh] bg-[#FAF8F5] flex items-center justify-center p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6"
-        >
-          <div className="flex justify-center mb-3">
-            <Yeti state="watching" size="small" />
-          </div>
-          <h1 className="text-2xl font-bold text-[#1c0d02] text-center" style={{ fontFamily: "'Agdasima', sans-serif" }}>
-            Verify Your Email
-          </h1>
-          <p className="text-sm text-gray-500 text-center mt-1 mb-4">
-            Enter the code sent to <strong>{needsConfirmation.email}</strong>
-          </p>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2 mb-3">{error}</div>
-          )}
-          <form onSubmit={handleConfirmation} className="space-y-3">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center">
+          <Yeti state="watching" size="small" />
+          <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-2">Verify Code</h2>
+          <p className="text-sm text-gray-500 mb-6">Sent to {needsConfirmation.email}</p>
+          {error && <div className="text-red-500 text-sm mb-4 bg-red-50 p-2 rounded">{error}</div>}
+          <form onSubmit={handleConfirmation} className="space-y-4">
             <input
-              type="text"
               value={confirmationCode}
               onChange={(e) => setConfirmationCode(e.target.value)}
-              placeholder="Enter 6-digit code"
-              required
-              autoFocus
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-center text-lg tracking-[4px] focus:outline-none focus:ring-2 focus:ring-[#4E8AAF]/30 focus:border-[#6BA4CC]"
+              className="w-full text-center text-2xl tracking-[0.5em] border-b-2 border-gray-200 focus:border-blue-500 outline-none py-2"
+              placeholder="000000" autoFocus
             />
-            <button type="submit" disabled={loading} className="w-full py-2.5 bg-[#1c0d02] text-white rounded-xl font-semibold hover:bg-[#2a1a0a] transition-colors disabled:opacity-50">
-              {loading ? 'Verifying...' : 'Verify & Sign In'}
+            <button disabled={loading} className="w-full bg-[#4285F4] text-white py-3 rounded-lg font-medium hover:bg-blue-600 transition disabled:opacity-50">
+              {loading ? 'Verifying...' : 'Verify'}
             </button>
           </form>
-          <p className="text-xs text-gray-400 text-center mt-3">Didn't receive the code? Check your spam folder.</p>
         </motion.div>
       </div>
     );
   }
 
-  // ===== MAIN LOGIN LAYOUT =====
   return (
-    <div className="h-[100dvh] flex overflow-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden"
+      >
+        {/* LEFT: Illustration */}
+        <div className="w-full md:w-1/2 bg-white flex flex-col items-center justify-center p-8 md:p-12 border-r border-gray-100">
+          <motion.div whileHover={{ scale: 1.05 }} className="cursor-pointer mb-6">
+            <Yeti state={yetiState} lookAt={lookAt} size="large" />
+          </motion.div>
 
-      {/* ===== LEFT HALF: Yeti + Branding ===== */}
-      <div className="hidden md:flex w-1/2 bg-gradient-to-b from-[#e8f1f8] to-[#d4e6f3] flex-col items-center justify-center">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        >
-          <Yeti state={yetiState} lookAt={lookAt} size="large" />
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-center mt-2"
-        >
-          <h2 className="text-3xl font-bold text-[#1c0d02]" style={{ fontFamily: "'Agdasima', sans-serif" }}>
-            Shadow Bean Co.
-          </h2>
-          <p className="text-[#1c0d02]/50 text-xs mt-1 tracking-wide">Your coffee, your way</p>
-        </motion.div>
-      </div>
-
-      {/* ===== RIGHT HALF: Login Tile ===== */}
-      <div className="w-full md:w-1/2 bg-[#FAF8F5] flex flex-col items-center justify-center overflow-y-auto p-4 md:p-8 relative">
-
-        {/* Mobile only: Yeti + branding in top-left */}
-        <div className="md:hidden absolute top-4 left-4 flex items-center gap-2 z-10">
-          <Yeti state={yetiState} lookAt={lookAt} size="small" />
-          <div>
-            <h2 className="text-sm font-bold text-[#1c0d02]" style={{ fontFamily: "'Agdasima', sans-serif" }}>Shadow Bean Co.</h2>
-            <p className="text-[#1c0d02]/50 text-[9px] tracking-wide">Your coffee, your way</p>
-          </div>
+          <button
+            onClick={() => { setTab(tab === 'signin' ? 'register' : 'signin'); setError(''); }}
+            className="text-sm text-gray-500 hover:text-gray-800 underline decoration-gray-300 hover:decoration-gray-800 transition-all offset-4"
+          >
+            {tab === 'signin' ? 'Create an account' : 'Already have an account?'}
+          </button>
         </div>
 
-        {/* ===== THE TILE ===== */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="w-full max-w-[380px] bg-white rounded-2xl shadow-lg border border-gray-100 p-5 md:p-6"
-        >
-          {/* Back to Home */}
-          <button
-            onClick={() => navigate('/')}
-            className="text-[11px] text-gray-400 hover:text-[#1c0d02] mb-2.5 flex items-center gap-1 transition-colors"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-            Back to Home
-          </button>
+        {/* RIGHT: Form */}
+        <div className="w-full md:w-1/2 p-8 md:p-16 flex flex-col justify-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-10">
+            {tab === 'signin' ? 'Sign In' : 'Sign Up'}
+          </h1>
 
-          {/* Tab Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-0.5 mb-3">
-            {(['signin', 'register'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => { setTab(t); setError(''); }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${tab === t
-                  ? 'bg-white text-[#1c0d02] shadow-sm'
-                  : 'text-gray-400 hover:text-gray-600'
-                  }`}
-              >
-                {t === 'signin' ? 'Sign In' : 'Create Account'}
-              </button>
-            ))}
-          </div>
-
-          {/* Error */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-red-50 border border-red-100 text-red-600 text-xs rounded-lg px-3 py-1.5 mb-2"
-              >{error}</motion.div>
+          <form onSubmit={handleAuth} className="space-y-6">
+            {tab === 'register' && (
+              <>
+                <div className={inputGroupClass}>
+                  <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  <input type="text" placeholder="Your Name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className={inputGroupClass}>
+                  <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  <input type="tel" placeholder="Phone (Optional)" className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
+              </>
             )}
-          </AnimatePresence>
 
-          {/* Info message */}
-          {message === 'login_required' && (
-            <div className="bg-blue-50 border border-blue-100 text-blue-700 text-[11px] rounded-lg px-3 py-1.5 mb-2">
-              Please sign in or create an account to continue.
+            <div className={inputGroupClass}>
+              <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              <input
+                ref={emailRef} type="email" placeholder="Your Email" className={inputClass}
+                value={email} onChange={onEmailChange} onFocus={() => setYetiState('watching')} onBlur={() => setYetiState('idle')} required
+              />
             </div>
-          )}
 
-          {/* Google Sign-in */}
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            type="button"
-            onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-all shadow-sm text-sm mb-2"
-          >
-            <svg viewBox="0 0 24 24" width="15" height="15">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-            </svg>
-            <span className="font-medium text-gray-600 text-[13px]">Continue with Google</span>
-          </motion.button>
+            <div className={inputGroupClass}>
+              <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              <input
+                type="password" placeholder="Password" className={inputClass}
+                value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
+              />
+            </div>
 
-          {/* Divider */}
-          <div className="flex items-center mb-2">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="px-3 text-[9px] text-gray-400 uppercase tracking-widest font-medium">or</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* ===== FORMS ===== */}
-          <AnimatePresence mode="wait">
-            {tab === 'signin' ? (
-              <motion.form
-                key="signin"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                transition={{ duration: 0.2 }}
-                onSubmit={handleSignIn}
-                className="space-y-2"
-              >
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</label>
-                  <input ref={emailRef} type="email" value={email} onChange={onEmailChange} onFocus={onEmailFocus} onBlur={onFieldBlur} placeholder="you@example.com" required className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Password</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Min. 8 characters" required className={inputClass} />
-                </div>
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full py-2 bg-[#1c0d02] text-white rounded-lg font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md mt-1">
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </motion.button>
-              </motion.form>
-            ) : (
-              <motion.form
-                key="register"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                onSubmit={handleRegister}
-                className="space-y-1.5"
-              >
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Full Name</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} onFocus={onFieldBlur} placeholder="John Doe" required className={inputClass} />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Phone <span className="text-gray-300 font-normal normal-case tracking-normal">(opt)</span></label>
-                    <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onFocus={onFieldBlur} placeholder="+91 98765..." className={inputClass} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</label>
-                  <input ref={emailRef} type="email" value={email} onChange={onEmailChange} onFocus={onEmailFocus} onBlur={onFieldBlur} placeholder="you@example.com" required className={inputClass} />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Password</label>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Min. 8 chars" required className={inputClass} />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Confirm</label>
-                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onFocus={onPasswordFocus} onBlur={onFieldBlur} placeholder="Re-enter" required className={inputClass} />
-                  </div>
-                </div>
-                <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full py-2 bg-[#1c0d02] text-white rounded-lg font-semibold text-sm hover:bg-[#2a1a0a] transition-colors disabled:opacity-50 shadow-md mt-1">
-                  {loading ? 'Creating account...' : 'Create Account'}
-                </motion.button>
-              </motion.form>
+            {tab === 'register' && (
+              <div className={inputGroupClass}>
+                <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <input
+                  type="password" placeholder="Confirm Password" className={inputClass}
+                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onFocus={() => setYetiState('shy')} onBlur={() => setYetiState('idle')} required
+                />
+              </div>
             )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+
+            {/* Remember Me & Forgot Password */}
+            {tab === 'signin' && (
+              <div className="flex items-center justify-between mt-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500" />
+                  <span className="text-xs text-gray-500">Remember me</span>
+                </label>
+                <a href="#" className="text-xs text-gray-500 hover:text-gray-800">Forgot password?</a>
+              </div>
+            )}
+
+            {/* Error Message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-red-500 text-xs bg-red-50 p-2 rounded">
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button disabled={loading} className="w-full bg-[#4A90E2] hover:bg-[#357ABD] text-white font-medium py-3 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? 'Thinking...' : (tab === 'signin' ? 'Log in' : 'Sign up')}
+            </button>
+          </form>
+
+          {/* Social Login */}
+          <div className="mt-10">
+            <p className="text-center text-xs text-gray-400 mb-4">Or login with</p>
+            <div className="flex justify-center gap-4">
+              <button className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm w-12 h-12 flex items-center justify-center">
+                <span className="font-bold text-lg">f</span>
+              </button>
+              <button className="p-3 bg-[#1DA1F2] text-white rounded-lg hover:bg-[#0c85d0] transition shadow-sm w-12 h-12 flex items-center justify-center">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" /></svg>
+              </button>
+              <button onClick={handleGoogle} className="p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition shadow-sm w-12 h-12 flex items-center justify-center group">
+                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
