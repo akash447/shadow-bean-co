@@ -153,7 +153,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm mx-auto">
 
           {/* Header */}
-          <div className="mb-[20pt] text-center md:text-left">
+          <div style={{ marginBottom: '40px' }} className="text-center md:text-left">
             {/* Title removed per user request */}
             <h1 className="text-2xl font-semibold text-gray-900">
               {tab === 'signin' ? 'Welcome back!' : 'Create an account'}
@@ -229,9 +229,15 @@ export default function LoginPage() {
             </div>
 
             {/* Socials - Stacked Vertical */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-              <button type="button" onClick={handleGoogle} className="w-full bg-white border border-gray-200 text-gray-700 font-medium py-3 rounded-md flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors h-12">
-                <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M24 12.276c0-.816-.073-1.6-.21-2.362H12.247v4.468h6.591a5.632 5.632 0 0 1-2.443 3.693v3.07h3.957c2.316-2.133 3.648-5.27 3.648-8.869z" /><path fill="#34A853" d="M12.247 24c3.305 0 6.075-1.095 8.103-2.97l-3.957-3.07c-1.096.735-2.5.1.17-2.072 1.17 0 2.222-7.23 2.222-2.31 0-.414-.047-.814-.132l-3.996-3.103C9.932 23.336 11.026 24 12.247 24z" /><path fill="#FBBC05" d="M5.022 14.126A7.265 7.265 0 0 1 4.636 12c0-.728.13-1.428.386-2.126l-3.996-3.103A11.906 11.906 0 0 0 .25 12c0 1.944.475 3.778 1.306 5.378l4.772-3.103-1.306-.149z" /><path fill="#4285F4" d="M12.247 4.755c1.797 0 3.414.618 4.685 1.833l3.513-3.514C18.32 1.055 15.548 0 12.247 0 7.697 0 3.826 2.59 1.936 6.425l3.994 3.102c.94-2.822 3.594-4.772 6.317-4.772z" /></svg>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={handleGoogle}
+                style={{ width: '100%', height: '52px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'white', border: '1.5px solid #d1d5db', borderRadius: '8px', color: '#374151', fontWeight: '500', fontSize: '15px', cursor: 'pointer', transition: 'background 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+              >
+                <svg style={{ width: '20px', height: '20px', flexShrink: 0 }} viewBox="0 0 24 24"><path fill="#EA4335" d="M24 12.276c0-.816-.073-1.6-.21-2.362H12.247v4.468h6.591a5.632 5.632 0 0 1-2.443 3.693v3.07h3.957c2.316-2.133 3.648-5.27 3.648-8.869z" /><path fill="#34A853" d="M12.247 24c3.305 0 6.075-1.095 8.103-2.97l-3.957-3.07c-1.096.735-2.5.1.17-2.072 1.17 0 2.222-7.23 2.222-2.31 0-.414-.047-.814-.132l-3.996-3.103C9.932 23.336 11.026 24 12.247 24z" /><path fill="#FBBC05" d="M5.022 14.126A7.265 7.265 0 0 1 4.636 12c0-.728.13-1.428.386-2.126l-3.996-3.103A11.906 11.906 0 0 0 .25 12c0 1.944.475 3.778 1.306 5.378l4.772-3.103-1.306-.149z" /><path fill="#4285F4" d="M12.247 4.755c1.797 0 3.414.618 4.685 1.833l3.513-3.514C18.32 1.055 15.548 0 12.247 0 7.697 0 3.826 2.59 1.936 6.425l3.994 3.102c.94-2.822 3.594-4.772 6.317-4.772z" /></svg>
                 Continue with Google
               </button>
             </div>
