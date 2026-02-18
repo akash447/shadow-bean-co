@@ -12,7 +12,8 @@ import {
     LogOut,
     Coffee,
     Package,
-    Shield
+    Shield,
+    Tag
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -40,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         { path: '/products', icon: Package, label: 'Products' },
         { path: '/reviews', icon: Star, label: 'Reviews' },
         { path: '/pricing', icon: DollarSign, label: 'Pricing' },
+        { path: '/offers', icon: Tag, label: 'Offers' },
         { path: '/terms', icon: FileText, label: 'Terms & Conditions' },
         { path: '/media', icon: Image, label: 'Media' },
         { path: '/access', icon: Shield, label: 'Admin Access' },

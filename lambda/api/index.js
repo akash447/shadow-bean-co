@@ -240,12 +240,29 @@ exports.handler = async (event) => {
 
         // POST /profiles/ensure
         if (method === 'POST' && path === '/profiles/ensure') {
-            const rows = await query('SELECT * FROM profiles WHERE cognito_sub = $1', [user.sub]);
-            if (rows.length) return ok(rows[0]);
+            const emailToUse = body.email || user.email;
+            const nameToUse = body.full_name || user.name || '';
 
+            // 1. Try by cognito_sub first
+            let rows = await query('SELECT * FROM profiles WHERE cognito_sub = $1', [user.sub]);
+            if (rows.length) {
+                // Update email/name in case they changed
+                await query('UPDATE profiles SET email = $1, full_name = COALESCE(NULLIF($2,\'\'), full_name) WHERE cognito_sub = $3', [emailToUse, nameToUse, user.sub]);
+                return ok(rows[0]);
+            }
+
+            // 2. Try by email (same person, different sub — e.g. Google vs email login)
+            rows = await query('SELECT * FROM profiles WHERE email = $1', [emailToUse]);
+            if (rows.length) {
+                // Link this cognito_sub to the existing profile
+                await query('UPDATE profiles SET cognito_sub = $1, full_name = COALESCE(NULLIF($2,\'\'), full_name) WHERE email = $3', [user.sub, nameToUse, emailToUse]);
+                return ok(rows[0]);
+            }
+
+            // 3. Create new profile
             const newRows = await query(
-                'INSERT INTO profiles (cognito_sub, email, full_name) VALUES ($1, $2, $3) ON CONFLICT (cognito_sub) DO UPDATE SET email = $2 RETURNING *',
-                [user.sub, body.email || user.email, body.full_name || user.name || '']
+                'INSERT INTO profiles (cognito_sub, email, full_name) VALUES ($1, $2, $3) RETURNING *',
+                [user.sub, emailToUse, nameToUse]
             );
             return created(newRows[0]);
         }
@@ -642,6 +659,110 @@ exports.handler = async (event) => {
                 return ok({ deleted: true });
             }
 
+            // ─── OFFERS / COUPONS ───
+
+            // Auto-create offers table
+            if (method === 'POST' && path === '/admin/offers/init') {
+                await query(`
+                    CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )
+                `);
+                return ok({ created: true });
+            }
+
+            // GET /admin/offers
+            if (method === 'GET' && path === '/admin/offers') {
+                await query(`
+                    CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )
+                `);
+                const rows = await query('SELECT * FROM offers ORDER BY created_at DESC');
+                return ok(rows);
+            }
+
+            // POST /admin/offers
+            if (method === 'POST' && path === '/admin/offers') {
+                const rows = await query(
+                    'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                    [body.code?.toUpperCase(), body.description || '', body.type || 'percentage', body.value || 0, body.min_order || 0, body.max_uses || 0, body.is_active !== false, body.expires_at || null]
+                );
+                return created(rows[0]);
+            }
+
+            // PUT /admin/offers/:id
+            if (method === 'PUT' && path.match(/^\/admin\/offers\/[\w-]+$/)) {
+                const id = path.split('/')[3];
+                const rows = await query(
+                    'UPDATE offers SET code = COALESCE($1, code), description = COALESCE($2, description), type = COALESCE($3, type), value = COALESCE($4, value), min_order = COALESCE($5, min_order), max_uses = COALESCE($6, max_uses), is_active = COALESCE($7, is_active), expires_at = $8 WHERE id = $9::uuid RETURNING *',
+                    [body.code?.toUpperCase(), body.description, body.type, body.value, body.min_order, body.max_uses, body.is_active, body.expires_at || null, id]
+                );
+                return ok(rows[0]);
+            }
+
+            // DELETE /admin/offers/:id
+            if (method === 'DELETE' && path.match(/^\/admin\/offers\/[\w-]+$/)) {
+                const id = path.split('/')[3];
+                await query('DELETE FROM offers WHERE id = $1::uuid', [id]);
+                return ok({ deleted: true });
+            }
+
+        }
+
+        // ─── PUBLIC: Validate offer code ───
+        if (method === 'POST' && path === '/offers/validate') {
+            const code = (body.code || '').toUpperCase().trim();
+            const cartTotal = Number(body.cart_total) || 0;
+            if (!code) return error(400, 'Code required');
+
+            try {
+                await query(
+                    `CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )`
+                );
+            } catch (e) { /* table may already exist */ }
+
+            const rows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [code]);
+            if (!rows.length) return ok({ valid: false, reason: 'Invalid or inactive code' });
+
+            const offer = rows[0];
+            if (offer.expires_at && new Date(offer.expires_at) < new Date()) return ok({ valid: false, reason: 'Expired' });
+            if (offer.max_uses > 0 && offer.used_count >= offer.max_uses) return ok({ valid: false, reason: 'Max uses reached' });
+            if (cartTotal < Number(offer.min_order)) return ok({ valid: false, reason: `Min order ₹${offer.min_order}` });
+
+            return ok({ valid: true, type: offer.type, value: Number(offer.value), description: offer.description });
         }
 
         return error(404, 'Not found');

@@ -329,4 +329,14 @@ export async function getAssetByKey(key: string): Promise<AppAsset | null> {
     return data;
 }
 
+// ==============================================
+// OFFERS / COUPONS
+// ==============================================
+
+export async function validateOffer(code: string, cartTotal: number): Promise<{ valid: boolean; type?: string; value?: number; reason?: string }> {
+    const { data } = await api.post('/offers/validate', { code, cart_total: cartTotal });
+    return data;
+}
+
 export default api;
+

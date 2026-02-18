@@ -14,6 +14,7 @@ import { ReviewsPage } from './pages/ReviewsPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { MediaPage } from './pages/MediaPage';
 import { AccessPage } from './pages/AccessPage';
+import { OffersPage } from './pages/OffersPage';
 import { getSession, isGoogleRedirecting, handleOAuthCallback } from './lib/admin-api';
 import './index.css';
 
@@ -183,6 +184,7 @@ function App() {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/offers" element={<OffersPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/media" element={<MediaPage />} />
               <Route path="/access" element={<AccessPage />} />

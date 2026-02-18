@@ -523,6 +523,43 @@ export const deleteAsset = async (key: string) => {
     }
 };
 
+// Offers / Coupons
+export const getOffers = async () => {
+    try {
+        const { data } = await api.get('/admin/offers');
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const createOffer = async (offer: any) => {
+    try {
+        const { data } = await api.post('/admin/offers', offer);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const updateOffer = async (id: string, updates: any) => {
+    try {
+        const { data } = await api.put(`/admin/offers/${id}`, updates);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const deleteOffer = async (id: string) => {
+    try {
+        await api.delete(`/admin/offers/${id}`);
+        return { error: null };
+    } catch (err: any) {
+        return { error: { message: err.message } };
+    }
+};
+
 // Real-time order subscription (polling every 10s for responsive admin experience)
 export const subscribeToOrders = (callback: () => void) => {
     const interval = setInterval(callback, 10000);
