@@ -30,13 +30,22 @@ export const OffersPage: React.FC = () => {
 
     const load = async () => {
         const { data, error } = await getOffers();
+        if (error) {
+            console.error('Failed to load offers:', error);
+        }
         if (!error && data) setOffers(data);
         setLoading(false);
     };
 
     const handleCreate = async () => {
         const payload = { ...newOffer, expires_at: newOffer.expires_at || null };
-        await createOffer(payload);
+        const { data, error } = await createOffer(payload);
+        if (error) {
+            alert('Failed to create offer: ' + (error.message || 'Unknown error'));
+            console.error('Create offer error:', error);
+            return;
+        }
+        console.log('Offer created:', data);
         setShowAdd(false);
         setNewOffer({ ...emptyOffer });
         load();

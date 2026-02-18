@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCartStore } from '../stores/cartStore';
 import { useState } from 'react';
 import { validateOffer } from '../services/api';
+import { useAsset } from '../contexts/AssetContext';
 
 /* ───────── shared colours ───────── */
 const BG = '#FAF8F5';
@@ -16,6 +17,7 @@ const ACCENT = '#f5efe8';
 export default function CartPage() {
   const nav = useNavigate();
   const { items, removeItem, updateQuantity, getTotal, clearCart } = useCartStore();
+  const productBag = useAsset('product_bag.png');
   const [coupon, setCoupon] = useState('');
   const [couponStatus, setCouponStatus] = useState<null | 'loading' | 'success' | 'error'>(null);
   const [discount, setDiscount] = useState<{ code: string; type: string; value: number } | null>(null);
@@ -113,18 +115,14 @@ export default function CartPage() {
                     alignItems: 'center',
                   }}
                 >
-                  {/* Product icon */}
+                  {/* Product image */}
                   <div style={{
                     width: 72, height: 72, borderRadius: 18,
                     background: `linear-gradient(135deg, ${ACCENT}, #ede5d8)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
+                    flexShrink: 0, overflow: 'hidden',
                   }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={OLIVE} strokeWidth="1.5">
-                      <path d="M8 2v3M12 2v3M16 2v3" />
-                      <path d="M5 5h14l-1.5 15a2 2 0 01-2 1.9H8.5a2 2 0 01-2-1.9L5 5z" />
-                      <path d="M9 9c0 3 6 3 6 0" />
-                    </svg>
+                    <img src={productBag} alt="Coffee" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
 
                   {/* Details */}
