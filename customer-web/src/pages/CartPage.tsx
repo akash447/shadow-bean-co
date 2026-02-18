@@ -6,126 +6,132 @@ export default function CartPage() {
   const navigate = useNavigate();
   const { items, removeItem, updateQuantity, getTotal, clearCart } = useCartStore();
 
-  const hasItems = items.length > 0;
-
-  const handleCheckout = () => {
-    navigate('/checkout');
-  };
-
   return (
-    <div className="min-h-[100dvh] bg-[#FAF8F5]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
+    <div style={{ minHeight: '100dvh', background: '#F7F4F0', fontFamily: "'Montserrat', sans-serif" }}>
+
+      {/* ── Top Nav Bar ── */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #EDE8E1', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 20px', height: 60, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button
             onClick={() => navigate('/shop')}
-            className="text-sm text-[#4f5130] hover:text-[#1c0d02] flex items-center gap-1 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4f5130', fontWeight: 600, fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, transition: 'background .15s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#f0ede7')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
           >
-            <span>←</span> Shop
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
+            Shop
           </button>
-          <h1
-            className="text-xl md:text-2xl font-bold text-[#1c0d02]"
-            style={{ fontFamily: "'Agdasima', sans-serif" }}
-          >
-            Your Cart
+          <div style={{ width: 1, height: 20, background: '#E0D9CF' }} />
+          <h1 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 22, fontWeight: 700, color: '#1c0d02', margin: 0 }}>
+            Your Cart {items.length > 0 && <span style={{ fontSize: 14, fontWeight: 500, color: '#888', marginLeft: 4 }}>({items.length} item{items.length > 1 ? 's' : ''})</span>}
           </h1>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
-        {/* Empty cart */}
-        {!hasItems && (
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px' }}>
+
+        {/* ── Empty State ── */}
+        {items.length === 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16 md:py-24"
+            style={{ textAlign: 'center', padding: '80px 20px' }}
           >
-            {/* Coffee cup icon instead of mascot */}
-            <div className="text-6xl mb-4">☕</div>
-            <h2 className="text-xl font-bold text-[#1c0d02] mb-2" style={{ fontFamily: "'Agdasima', sans-serif" }}>
-              Your cart is empty
-            </h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Add some custom coffee blends to get started!
-            </p>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>☕</div>
+            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: '#1c0d02', margin: '0 0 8px' }}>Your cart is empty</h2>
+            <p style={{ color: '#888', fontSize: 14, marginBottom: 28 }}>Add some custom coffee blends to get started!</p>
             <button
               onClick={() => navigate('/shop')}
-              className="px-8 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors"
+              style={{ padding: '12px 32px', background: '#4f5130', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', letterSpacing: '0.05em' }}
             >
-              Start Shopping
+              Browse Blends
             </button>
           </motion.div>
         )}
 
-        {/* Cart with items */}
-        {hasItems && (
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Items list */}
-            <div className="flex-1 space-y-3">
+        {/* ── Cart Layout ── */}
+        {items.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}
+            className="cart-grid">
+            {/* Left: Items */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <AnimatePresence>
                 {items.map((item, i) => (
                   <motion.div
                     key={item.profile.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100"
+                    exit={{ opacity: 0, x: -40, height: 0, marginBottom: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    style={{
+                      background: '#fff',
+                      borderRadius: 16,
+                      border: '1px solid #EDE8E1',
+                      padding: '20px 24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 20,
+                    }}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-[#1c0d02] text-sm md:text-base">
-                          {item.profile.name}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {item.profile.roastLevel} · {item.profile.grindType} · 250g
-                        </p>
-                        <div className="flex gap-1.5 mt-2 flex-wrap">
-                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
-                            Bitter: {item.profile.bitterness}/5
-                          </span>
-                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
-                            Acid: {item.profile.acidity}/5
-                          </span>
-                          <span className="text-[10px] md:text-xs bg-[#f7f3ed] text-[#4f5130] px-2 py-0.5 rounded-full">
-                            Flavor: {item.profile.flavour}/5
-                          </span>
-                        </div>
+                    {/* Coffee icon */}
+                    <div style={{
+                      width: 56, height: 56, borderRadius: 14,
+                      background: 'linear-gradient(135deg, #f7f3ed, #ede8df)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 26, flexShrink: 0,
+                    }}>☕</div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#1c0d02', marginBottom: 4 }}>{item.profile.name}</div>
+                      <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+                        {item.profile.roastLevel} · {item.profile.grindType} · 250g
                       </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Bitter', val: item.profile.bitterness },
+                          { label: 'Acid', val: item.profile.acidity },
+                          { label: 'Body', val: item.profile.body },
+                          { label: 'Flavor', val: item.profile.flavour },
+                        ].map(t => (
+                          <span key={t.label} style={{
+                            fontSize: 11, background: '#f0ede7', color: '#4f5130',
+                            padding: '2px 8px', borderRadius: 20, fontWeight: 600,
+                          }}>{t.label} {t.val}/5</span>
+                        ))}
+                      </div>
+                    </div>
 
-                      <div className="flex flex-col items-end gap-3 shrink-0">
-                        <span className="font-bold text-[#1c0d02] text-base md:text-lg">
-                          ₹{799 * item.quantity}
-                        </span>
+                    {/* Price + Controls */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12, flexShrink: 0 }}>
+                      <span style={{ fontWeight: 800, fontSize: 18, color: '#1c0d02' }}>₹{799 * item.quantity}</span>
 
-                        <div className="flex items-center gap-2">
-                          {/* Quantity controls */}
-                          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-8">
-                            <button
-                              onClick={() => updateQuantity(item.profile.id, Math.max(1, item.quantity - 1))}
-                              disabled={item.quantity <= 1}
-                              className="w-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors text-sm h-full"
-                            >
-                              −
-                            </button>
-                            <span className="px-3 flex items-center justify-center text-sm font-semibold border-x border-gray-200 h-full min-w-[2.5rem] text-center">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.profile.id, item.quantity + 1)}
-                              className="w-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-sm h-full"
-                            >
-                              +
-                            </button>
-                          </div>
-
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {/* Qty stepper */}
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #E0D9CF', borderRadius: 10, overflow: 'hidden', height: 34 }}>
                           <button
-                            onClick={() => removeItem(item.profile.id)}
-                            className="text-red-400 hover:text-red-600 text-xs font-medium transition-colors px-1"
-                          >
-                            Remove
-                          </button>
+                            onClick={() => updateQuantity(item.profile.id, Math.max(1, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
+                            style={{ width: 34, height: 34, background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: item.quantity <= 1 ? 0.3 : 1 }}
+                          >−</button>
+                          <span style={{ minWidth: 32, textAlign: 'center', fontWeight: 700, fontSize: 14, color: '#1c0d02', borderLeft: '1.5px solid #E0D9CF', borderRight: '1.5px solid #E0D9CF', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.profile.id, item.quantity + 1)}
+                            style={{ width: 34, height: 34, background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >+</button>
                         </div>
+
+                        <button
+                          onClick={() => removeItem(item.profile.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = '#e55')}
+                          onMouseLeave={e => (e.currentTarget.style.color = '#ccc')}
+                          title="Remove"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
+                        </button>
                       </div>
                     </div>
                   </motion.div>
@@ -133,53 +139,84 @@ export default function CartPage() {
               </AnimatePresence>
             </div>
 
-            {/* Order Summary */}
-            <div className="lg:w-72 xl:w-80">
-              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 lg:sticky lg:top-6">
-                <h2
-                  className="text-base font-bold text-[#1c0d02] mb-4"
-                  style={{ fontFamily: "'Agdasima', sans-serif" }}
-                >
-                  Order Summary
-                </h2>
+            {/* Right: Order Summary */}
+            <div style={{ position: 'sticky', top: 76 }}>
+              <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #EDE8E1', padding: '28px 24px' }}>
+                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 20, fontWeight: 700, color: '#1c0d02', margin: '0 0 20px' }}>Order Summary</h2>
 
-                <div className="space-y-2.5 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Subtotal ({items.length} item{items.length > 1 ? 's' : ''})</span>
-                    <span className="font-semibold text-[#1c0d02]">₹{getTotal()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Shipping</span>
-                    <span className="font-semibold text-[#4f5130]">Free</span>
-                  </div>
-                  <div className="border-t border-gray-100 pt-2.5 mt-1">
-                    <div className="flex justify-between text-base">
-                      <span className="font-bold text-[#1c0d02]">Total</span>
-                      <span className="font-bold text-[#1c0d02]">₹{getTotal()}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14 }}>
+                  {items.map(item => (
+                    <div key={item.profile.id} style={{ display: 'flex', justifyContent: 'space-between', color: '#555' }}>
+                      <span style={{ flex: 1, marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.profile.name} <span style={{ color: '#aaa' }}>×{item.quantity}</span>
+                      </span>
+                      <span style={{ fontWeight: 600, color: '#1c0d02', flexShrink: 0 }}>₹{799 * item.quantity}</span>
                     </div>
-                  </div>
+                  ))}
+                </div>
+
+                <div style={{ borderTop: '1px solid #EDE8E1', margin: '16px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#888', marginBottom: 8 }}>
+                  <span>Shipping</span>
+                  <span style={{ color: '#4f5130', fontWeight: 700 }}>FREE</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, fontWeight: 800, color: '#1c0d02', marginBottom: 24 }}>
+                  <span>Total</span>
+                  <span>₹{getTotal()}</span>
                 </div>
 
                 <motion.button
                   whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleCheckout}
-                  className="w-full mt-5 py-3 bg-[#4f5130] text-white rounded-xl font-semibold hover:bg-[#3a3c22] transition-colors uppercase tracking-wider text-sm shadow-md"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate('/checkout')}
+                  style={{
+                    width: '100%', padding: '14px 0',
+                    background: 'linear-gradient(135deg, #4f5130, #3a3c22)',
+                    color: '#fff', border: 'none', borderRadius: 14,
+                    fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                    letterSpacing: '0.07em', textTransform: 'uppercase',
+                    boxShadow: '0 4px 16px rgba(79,81,48,0.3)',
+                  }}
                 >
-                  Proceed to Checkout
+                  Proceed to Checkout →
                 </motion.button>
 
                 <button
                   onClick={clearCart}
-                  className="w-full mt-2 py-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  style={{ width: '100%', marginTop: 10, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: 12, transition: 'color .15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#e55')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#bbb')}
                 >
-                  Clear Cart
+                  Clear cart
                 </button>
+              </div>
+
+              {/* Trust badges */}
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { icon: '🚚', text: 'Free delivery on all orders' },
+                  { icon: '🔒', text: 'Secure checkout' },
+                  { icon: '☕', text: 'Freshly roasted to order' },
+                ].map(b => (
+                  <div key={b.text} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#888' }}>
+                    <span>{b.icon}</span>
+                    <span>{b.text}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Responsive: stack on mobile */}
+      <style>{`
+        @media (max-width: 768px) {
+          .cart-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
