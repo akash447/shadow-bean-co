@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useYeti } from '../components/YetiMascot';
-import Yeti from '../components/Yeti';
+
+import Jerry from '../components/Jerry';
 
 type Tab = 'signin' | 'register';
 
@@ -106,7 +107,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-10 w-full max-w-md text-center">
-          <Yeti state="watching" size="small" />
+          <Jerry state="watching" size="small" />
           <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Verify Code</h2>
           <p className="text-gray-500 mb-6">Sent to {needsConfirmation.email}</p>
           {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
@@ -138,8 +139,9 @@ export default function LoginPage() {
           transition={{ duration: 0.8 }}
           className="flex flex-col items-center justify-center w-full max-w-sm text-center"
         >
+
           <div className="mb-8 scale-110">
-            <Yeti state={yetiState} lookAt={lookAt} size="large" />
+            <Jerry state={yetiState} lookAt={lookAt} size="large" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mt-4">Shadow Bean Co.</h2>
         </motion.div>
