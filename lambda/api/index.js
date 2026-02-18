@@ -348,12 +348,19 @@ exports.handler = async (event) => {
 
             if (body.items?.length) {
                 for (const item of body.items) {
-                    // taste_profile_id may be a client-generated id (e.g. 'custom-xxx') — only insert valid UUIDs
+                    // taste_profile_id may be null or a client-generated id — only insert valid UUIDs
                     const tpId = item.taste_profile_id && /^[0-9a-f-]{36}$/i.test(item.taste_profile_id) ? item.taste_profile_id : null;
-                    await query(
-                        'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
-                        [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
-                    );
+                    if (tpId) {
+                        await query(
+                            'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+                            [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
+                        );
+                    } else {
+                        await query(
+                            'INSERT INTO order_items (order_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2, $3, $4)',
+                            [order.id, item.taste_profile_name, item.quantity, item.unit_price]
+                        );
+                    }
                 }
             }
 
