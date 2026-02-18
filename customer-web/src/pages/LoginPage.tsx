@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useYeti } from '../components/YetiMascot';
 
-import Jerry from '../components/Jerry';
+import CoffeeMug from '../components/CoffeeMug';
 
 type Tab = 'signin' | 'register';
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl p-10 w-full max-w-md text-center">
-          <Jerry state="watching" size="small" />
+          <CoffeeMug state={yetiState} size="small" />
           <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Verify Code</h2>
           <p className="text-gray-500 mb-6">Sent to {needsConfirmation.email}</p>
           {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
@@ -141,7 +141,7 @@ export default function LoginPage() {
         >
 
           <div className="mb-8 scale-110">
-            <Jerry state={yetiState} lookAt={lookAt} size="large" />
+            <CoffeeMug state={yetiState} lookAt={lookAt} size="large" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mt-4">Shadow Bean Co.</h2>
         </motion.div>
