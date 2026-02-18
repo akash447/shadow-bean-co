@@ -130,7 +130,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
                         <CartIcon />
                         {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
                     </button>
-                    <button className="icon-button desktop-only" onClick={() => navigate('/profile')} style={{ color: textColor }}>
+                    <button className="icon-button desktop-only" onClick={() => navigate(user ? '/profile' : '/login')} style={{ color: textColor }}>
                         <ProfileIcon />
                     </button>
                     {/* Mobile Menu Toggle */}
@@ -149,7 +149,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
                         </button>
 
                         {/* Profile Header Section */}
-                        <div className="mobile-profile-header" onClick={() => handleNavClick('/profile')}>
+                        <div className="mobile-profile-header" onClick={() => handleNavClick(user ? '/profile' : '/login')}>
                             {profile?.avatar_url ? (
                                 <img src={profile.avatar_url} alt="Profile" className="mobile-profile-avatar" />
                             ) : (
