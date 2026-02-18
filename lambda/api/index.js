@@ -449,6 +449,9 @@ exports.handler = async (event) => {
             // PUT /admin/orders/:id/cancel
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/cancel$/)) {
                 const id = path.split('/')[3];
+                // Ensure cancel columns exist
+                await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`).catch(() => { });
+                await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`).catch(() => { });
                 const rows = await query(
                     'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_at = NOW() WHERE id = $3 RETURNING *',
                     ['cancelled', body.reason, id]
@@ -704,6 +707,21 @@ exports.handler = async (event) => {
 
             // POST /admin/offers
             if (method === 'POST' && path === '/admin/offers') {
+                await query(`
+                    CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )
+                `);
                 const rows = await query(
                     'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
                     [body.code?.toUpperCase(), body.description || '', body.type || 'percentage', body.value || 0, body.min_order || 0, body.max_uses || 0, body.is_active !== false, body.expires_at || null]

@@ -113,13 +113,19 @@ export default function CartPage() {
                     alignItems: 'center',
                   }}
                 >
-                  {/* Coffee icon */}
+                  {/* Product icon */}
                   <div style={{
                     width: 72, height: 72, borderRadius: 18,
                     background: `linear-gradient(135deg, ${ACCENT}, #ede5d8)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 32, flexShrink: 0,
-                  }}>☕</div>
+                    flexShrink: 0,
+                  }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={OLIVE} strokeWidth="1.5">
+                      <path d="M8 2v3M12 2v3M16 2v3" />
+                      <path d="M5 5h14l-1.5 15a2 2 0 01-2 1.9H8.5a2 2 0 01-2-1.9L5 5z" />
+                      <path d="M9 9c0 3 6 3 6 0" />
+                    </svg>
+                  </div>
 
                   {/* Details */}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -130,8 +136,6 @@ export default function CartPage() {
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {[
                         { l: 'Bitter', v: item.profile.bitterness },
-                        { l: 'Acid', v: item.profile.acidity },
-                        { l: 'Body', v: item.profile.body },
                         { l: 'Flavor', v: item.profile.flavour },
                       ].map(t => (
                         <span key={t.l} style={{
@@ -290,14 +294,7 @@ export default function CartPage() {
               </button>
             </div>
 
-            {/* Trust */}
-            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10, padding: '0 4px' }}>
-              {[{ i: '🚚', t: 'Free delivery on all orders' }, { i: '🔒', t: 'Secure checkout' }, { i: '☕', t: 'Freshly roasted to order' }].map(b => (
-                <div key={b.t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: MUTED }}>
-                  <span>{b.i}</span><span>{b.t}</span>
-                </div>
-              ))}
-            </div>
+
           </div>
         </div>
       </div>

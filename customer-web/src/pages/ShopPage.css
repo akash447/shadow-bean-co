@@ -629,6 +629,10 @@
     gap: 12px;
 }
 
+.step-section.roast-in-step1 {
+    margin-top: 40px;
+}
+
 .step-section:last-child {
     margin-bottom: 0;
 }
