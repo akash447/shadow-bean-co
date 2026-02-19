@@ -440,16 +440,45 @@ exports.handler = async (event) => {
                 return ok(rows);
             }
 
+            // GET /admin/orders/:id (detailed order with items)
+            if (method === 'GET' && path.match(/^\/admin\/orders\/[\w-]+$/) && !path.includes('/status') && !path.includes('/cancel')) {
+                const id = path.split('/')[3];
+                console.log('GET order detail:', id);
+                const orderRows = await query(
+                    `SELECT o.*, p.full_name as user_name, p.email as user_email, p.phone as user_phone
+                     FROM orders o
+                     LEFT JOIN profiles p ON o.user_id = p.id
+                     WHERE o.id = $1`,
+                    [id]
+                );
+                if (!orderRows.length) return error(404, 'Order not found');
+                const order = orderRows[0];
+                // Get order items
+                const items = await query(
+                    `SELECT oi.*, tp.name as profile_name
+                     FROM order_items oi
+                     LEFT JOIN taste_profiles tp ON oi.taste_profile_id = tp.id
+                     WHERE oi.order_id = $1`,
+                    [id]
+                );
+                order.items = items;
+                return ok(order);
+            }
+
             // PUT /admin/orders/:id/status
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/status$/)) {
                 const id = path.split('/')[3];
+                console.log('Updating order status:', id, '->', body.status);
                 const rows = await query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [body.status, id]);
+                if (!rows.length) return error(404, 'Order not found');
+                console.log('Order status updated:', rows[0].id, rows[0].status);
                 return ok(rows[0]);
             }
 
             // PUT /admin/orders/:id/cancel
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/cancel$/)) {
                 const id = path.split('/')[3];
+                console.log('Cancelling order:', id, 'reason:', body.reason);
                 // Ensure cancel columns exist
                 await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`).catch(() => { });
                 await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`).catch(() => { });
@@ -457,6 +486,8 @@ exports.handler = async (event) => {
                     'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_at = NOW() WHERE id = $3 RETURNING *',
                     ['cancelled', body.reason, id]
                 );
+                if (!rows.length) return error(404, 'Order not found');
+                console.log('Order cancelled:', rows[0].id);
                 return ok(rows[0]);
             }
 
@@ -708,6 +739,7 @@ exports.handler = async (event) => {
 
             // POST /admin/offers
             if (method === 'POST' && path === '/admin/offers') {
+                console.log('Creating offer:', body.code, body.type, body.value);
                 await query(`
                     CREATE TABLE IF NOT EXISTS offers (
                         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -727,6 +759,7 @@ exports.handler = async (event) => {
                     'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
                     [body.code?.toUpperCase(), body.description || '', body.type || 'percentage', body.value || 0, body.min_order || 0, body.max_uses || 0, body.is_active !== false, body.expires_at || null]
                 );
+                console.log('Offer created:', rows[0]?.id);
                 return created(rows[0]);
             }
 

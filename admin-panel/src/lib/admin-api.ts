@@ -311,6 +311,15 @@ export const getOrders = async () => {
     }
 };
 
+export const getOrderDetail = async (orderId: string) => {
+    try {
+        const { data } = await api.get(`/admin/orders/${orderId}`);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
 export const updateOrderStatus = async (orderId: string, status: string) => {
     try {
         const { data } = await api.put(`/admin/orders/${orderId}/status`, { status });
