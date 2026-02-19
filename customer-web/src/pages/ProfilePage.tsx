@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import { getOrders, getTasteProfiles, getReviews } from '../services/api';
+import { getOrders, getTasteProfiles, getReviews, createReview } from '../services/api';
 import type { Order, TasteProfile as ApiTasteProfile, Review } from '../services/api';
 import { useShopStore } from '../stores/shopStore';
 import Header from '../components/Header';
@@ -19,9 +19,21 @@ export default function ProfilePage() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [dataLoading, setDataLoading] = useState(false);
 
+    // Review modal state
+    const [reviewModalOpen, setReviewModalOpen] = useState(false);
+    const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
+
     const dbUserId = profile?.id || user?.id;
 
     useEffect(() => {
+        if (!dbUserId) return;
+        loadData();
+    }, [dbUserId]);
+
+    const loadData = () => {
         if (!dbUserId) return;
         setDataLoading(true);
         Promise.all([
@@ -34,7 +46,7 @@ export default function ProfilePage() {
             // Filter reviews to only show the user's reviews
             setReviews(reviewsData.filter(r => r.user_id === dbUserId));
         }).finally(() => setDataLoading(false));
-    }, [dbUserId]);
+    };
 
     const loadBlendIntoShop = (blend: ApiTasteProfile) => {
         setTaste('bitterness', blend.bitterness);
@@ -48,6 +60,44 @@ export default function ProfilePage() {
     const handleLogout = async () => {
         await logout();
         navigate('/');
+    };
+
+    const openReviewModal = (orderId: string) => {
+        setReviewOrderId(orderId);
+        setReviewRating(5);
+        setReviewComment('');
+        setReviewModalOpen(true);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!dbUserId || !reviewOrderId) return;
+        if (!reviewComment.trim()) {
+            alert('Please write a comment for your review');
+            return;
+        }
+        setSubmittingReview(true);
+        try {
+            await createReview({
+                user_id: dbUserId,
+                order_id: reviewOrderId,
+                rating: reviewRating,
+                comment: reviewComment.trim(),
+            });
+            setReviewModalOpen(false);
+            setReviewOrderId(null);
+            setReviewComment('');
+            setReviewRating(5);
+            alert('Thank you for your review! It will appear on the website once approved.');
+            loadData();
+        } catch (err: any) {
+            alert('Failed to submit review: ' + (err.message || 'Unknown error'));
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    const hasReviewedOrder = (orderId: string) => {
+        return reviews.some(r => r.order_id === orderId);
     };
 
     if (loading) {
@@ -146,12 +196,23 @@ export default function ProfilePage() {
                                         <div key={order.id} className="order-item">
                                             <div className="order-row">
                                                 <span className="order-id">#{order.id.slice(0, 8)}</span>
-                                                <span className="order-status">{order.status}</span>
+                                                <span className={`order-status status-${order.status}`}>{order.status}</span>
                                             </div>
                                             <div className="order-row">
                                                 <span className="order-date">{new Date(order.created_at).toLocaleDateString()}</span>
                                                 <span className="order-total">&#8377;{order.total_amount}</span>
                                             </div>
+                                            {order.status === 'delivered' && !hasReviewedOrder(order.id) && (
+                                                <button
+                                                    className="review-btn"
+                                                    onClick={() => openReviewModal(order.id)}
+                                                >
+                                                    ⭐ Write a Review
+                                                </button>
+                                            )}
+                                            {order.status === 'delivered' && hasReviewedOrder(order.id) && (
+                                                <span className="review-done">✅ Review submitted</span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -167,6 +228,60 @@ export default function ProfilePage() {
                     </button>
                 </div>
             </main>
+
+            {/* Review Modal */}
+            {reviewModalOpen && (
+                <div className="review-modal-overlay" onClick={() => setReviewModalOpen(false)}>
+                    <div className="review-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3>Write a Review</h3>
+                        <p className="review-modal-subtitle">
+                            Share your experience with your coffee order
+                        </p>
+
+                        <div className="rating-picker">
+                            <label>Rating</label>
+                            <div className="stars">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                        key={star}
+                                        className={`star-btn ${star <= reviewRating ? 'active' : ''}`}
+                                        onClick={() => setReviewRating(star)}
+                                    >
+                                        ★
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="comment-field">
+                            <label>Your Review</label>
+                            <textarea
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Tell us about your experience with Shadow Bean Co. coffee..."
+                                rows={4}
+                            />
+                        </div>
+
+                        <div className="review-modal-actions">
+                            <button
+                                className="secondary-btn"
+                                onClick={() => setReviewModalOpen(false)}
+                                disabled={submittingReview}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="primary-btn"
+                                onClick={handleSubmitReview}
+                                disabled={submittingReview || !reviewComment.trim()}
+                            >
+                                {submittingReview ? 'Submitting...' : 'Submit Review'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

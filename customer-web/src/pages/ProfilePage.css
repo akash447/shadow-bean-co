@@ -274,7 +274,7 @@
     align-items: center;
 }
 
-.order-row + .order-row {
+.order-row+.order-row {
     margin-top: 4px;
 }
 
@@ -305,4 +305,191 @@
     font-weight: 700;
     font-size: 14px;
     color: #2C2724;
+}
+
+/* Order Status Colors */
+.status-delivered {
+    color: #059669;
+    background: #d1fae5;
+}
+
+.status-shipped {
+    color: #10b981;
+    background: #d1fae5;
+}
+
+.status-processing {
+    color: #8b5cf6;
+    background: #ede9fe;
+}
+
+.status-confirmed {
+    color: #3b82f6;
+    background: #dbeafe;
+}
+
+.status-pending {
+    color: #f59e0b;
+    background: #fef3c7;
+}
+
+.status-cancelled {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+/* Write Review Button */
+.review-btn {
+    margin-top: 10px;
+    width: 100%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s all;
+}
+
+.review-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.review-done {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #059669;
+    font-weight: 500;
+}
+
+/* Review Modal */
+.review-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.review-modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 450px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.review-modal h3 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #2C2724;
+    margin-bottom: 4px;
+}
+
+.review-modal-subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 24px;
+}
+
+.rating-picker {
+    margin-bottom: 20px;
+}
+
+.rating-picker label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2C2724;
+    margin-bottom: 8px;
+}
+
+.stars {
+    display: flex;
+    gap: 6px;
+}
+
+.star-btn {
+    background: none;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    color: #ddd;
+    transition: 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+
+.star-btn.active {
+    color: #f59e0b;
+}
+
+.star-btn:hover {
+    transform: scale(1.15);
+}
+
+.comment-field {
+    margin-bottom: 24px;
+}
+
+.comment-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2C2724;
+    margin-bottom: 8px;
+}
+
+.comment-field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: system-ui, -apple-system, sans-serif;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.comment-field textarea:focus {
+    border-color: #5D4037;
+}
+
+.review-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.review-modal-actions .primary-btn:disabled,
+.review-modal-actions .secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }

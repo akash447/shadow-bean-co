@@ -198,14 +198,21 @@ exports.handler = async (event) => {
         // GET /products/:id
         if (method === 'GET' && path.match(/^\/products\/[\w-]+$/)) {
             const id = path.split('/')[2];
-            const rows = await query('SELECT * FROM products WHERE id = $1', [id]);
+            const rows = await query('SELECT * FROM products WHERE id::text = $1', [id]);
             return rows.length ? ok(rows[0]) : error(404, 'Product not found');
         }
 
         // GET /reviews
         if (method === 'GET' && path === '/reviews') {
             const limit = parseInt(qs.limit || '10', 10);
-            const rows = await query('SELECT * FROM reviews WHERE is_approved = true ORDER BY rating DESC LIMIT $1', [limit]);
+            const rows = await query(
+                `SELECT r.*, p.full_name as user_name
+                 FROM reviews r
+                 LEFT JOIN profiles p ON r.user_id = p.id
+                 WHERE r.is_approved = true
+                 ORDER BY r.rating DESC LIMIT $1`,
+                [limit]
+            );
             return ok(rows);
         }
 
@@ -271,7 +278,7 @@ exports.handler = async (event) => {
         // GET /profiles/:id
         if (method === 'GET' && path.match(/^\/profiles\/[\w-]+$/)) {
             const id = path.split('/')[2];
-            const rows = await query('SELECT * FROM profiles WHERE id = $1 OR cognito_sub = $1', [id]);
+            const rows = await query('SELECT * FROM profiles WHERE id::text = $1 OR cognito_sub = $1', [id]);
             return ok(rows[0] || null);
         }
 
@@ -279,7 +286,7 @@ exports.handler = async (event) => {
         if (method === 'PUT' && path.match(/^\/profiles\/[\w-]+$/)) {
             const id = path.split('/')[2];
             const rows = await query(
-                'UPDATE profiles SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone), avatar_url = COALESCE($3, avatar_url) WHERE id = $4 OR cognito_sub = $4 RETURNING *',
+                'UPDATE profiles SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone), avatar_url = COALESCE($3, avatar_url) WHERE id::text = $4 OR cognito_sub = $4 RETURNING *',
                 [body.full_name, body.phone, body.avatar_url, id]
             );
             return ok(rows[0]);
@@ -311,9 +318,9 @@ exports.handler = async (event) => {
             const profileId = uid ? await resolveProfileId(uid) : null;
             // Allow delete if profileId matches, or if no user_id provided just delete by id
             if (profileId) {
-                await query('DELETE FROM taste_profiles WHERE id = $1 AND user_id = $2::uuid', [id, profileId]);
+                await query('DELETE FROM taste_profiles WHERE id::text = $1 AND user_id = $2::uuid', [id, profileId]);
             } else {
-                await query('DELETE FROM taste_profiles WHERE id = $1', [id]);
+                await query('DELETE FROM taste_profiles WHERE id::text = $1', [id]);
             }
             return ok({ deleted: true });
         }
@@ -389,9 +396,25 @@ exports.handler = async (event) => {
         if (method === 'POST' && path === '/reviews') {
             const profileId = await resolveProfileId(body.user_id);
             if (!profileId) return error(400, 'User profile not found');
+            // Ensure reviews table has needed columns
+            await query(`CREATE TABLE IF NOT EXISTS reviews (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                user_id UUID REFERENCES profiles(id),
+                order_id UUID,
+                rating INTEGER NOT NULL DEFAULT 5,
+                comment TEXT,
+                user_name TEXT,
+                is_approved BOOLEAN DEFAULT false,
+                created_at TIMESTAMPTZ DEFAULT now()
+            )`).catch(() => { });
+            await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS user_name TEXT').catch(() => { });
+            await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT false').catch(() => { });
+            // Get the user's name
+            const profileRows = await query('SELECT full_name FROM profiles WHERE id::text = $1', [profileId]);
+            const userName = profileRows[0]?.full_name || 'Anonymous';
             const rows = await query(
-                'INSERT INTO reviews (user_id, order_id, rating, comment) VALUES ($1::uuid, $2::uuid, $3, $4) RETURNING *',
-                [profileId, body.order_id, body.rating, body.comment]
+                'INSERT INTO reviews (user_id, order_id, rating, comment, user_name, is_approved) VALUES ($1::uuid, $2::uuid, $3, $4, $5, false) RETURNING *',
+                [profileId, body.order_id, body.rating, body.comment, userName]
             );
             return created(rows[0]);
         }
@@ -448,19 +471,19 @@ exports.handler = async (event) => {
                     `SELECT o.*, p.full_name as user_name, p.email as user_email, p.phone as user_phone
                      FROM orders o
                      LEFT JOIN profiles p ON o.user_id = p.id
-                     WHERE o.id = $1`,
+                     WHERE o.id::text = $1`,
                     [id]
                 );
                 if (!orderRows.length) return error(404, 'Order not found');
                 const order = orderRows[0];
                 // Get order items
-                const items = await query(
-                    `SELECT oi.*, tp.name as profile_name
-                     FROM order_items oi
-                     LEFT JOIN taste_profiles tp ON oi.taste_profile_id = tp.id
-                     WHERE oi.order_id = $1`,
-                    [id]
-                );
+                let items = [];
+                try {
+                    items = await query(
+                        `SELECT * FROM order_items WHERE order_id::text = $1`,
+                        [id]
+                    );
+                } catch (e) { console.log('order_items query error (table may not exist):', e.message); }
                 order.items = items;
                 return ok(order);
             }
@@ -469,7 +492,7 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/status$/)) {
                 const id = path.split('/')[3];
                 console.log('Updating order status:', id, '->', body.status);
-                const rows = await query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [body.status, id]);
+                const rows = await query('UPDATE orders SET status = $1 WHERE id::text = $2 RETURNING *', [body.status, id]);
                 if (!rows.length) return error(404, 'Order not found');
                 console.log('Order status updated:', rows[0].id, rows[0].status);
                 return ok(rows[0]);
@@ -483,7 +506,7 @@ exports.handler = async (event) => {
                 await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`).catch(() => { });
                 await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`).catch(() => { });
                 const rows = await query(
-                    'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_at = NOW() WHERE id = $3 RETURNING *',
+                    'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_at = NOW() WHERE id::text = $3 RETURNING *',
                     ['cancelled', body.reason, id]
                 );
                 if (!rows.length) return error(404, 'Order not found');
@@ -516,7 +539,7 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/products\/[\w-]+$/)) {
                 const id = path.split('/')[3];
                 const rows = await query(
-                    'UPDATE products SET name = COALESCE($1, name), description = COALESCE($2, description), base_price = COALESCE($3, base_price), image_url = COALESCE($4, image_url), is_active = COALESCE($5, is_active) WHERE id = $6 RETURNING *',
+                    'UPDATE products SET name = COALESCE($1, name), description = COALESCE($2, description), base_price = COALESCE($3, base_price), image_url = COALESCE($4, image_url), is_active = COALESCE($5, is_active) WHERE id::text = $6 RETURNING *',
                     [body.name, body.description, body.base_price, body.image_url, body.is_active, id]
                 );
                 return ok(rows[0]);
@@ -525,20 +548,36 @@ exports.handler = async (event) => {
             // DELETE /admin/products/:id
             if (method === 'DELETE' && path.match(/^\/admin\/products\/[\w-]+$/)) {
                 const id = path.split('/')[3];
-                await query('DELETE FROM products WHERE id = $1', [id]);
+                await query('DELETE FROM products WHERE id::text = $1', [id]);
                 return ok({ deleted: true });
             }
 
             // GET /admin/reviews
             if (method === 'GET' && path === '/admin/reviews') {
-                const rows = await query('SELECT * FROM reviews ORDER BY created_at DESC');
+                const rows = await query(
+                    `SELECT r.*, p.full_name as user_name
+                     FROM reviews r
+                     LEFT JOIN profiles p ON r.user_id = p.id
+                     ORDER BY r.created_at DESC`
+                );
                 return ok(rows);
+            }
+
+            // PUT /admin/reviews/:id (approve/unapprove)
+            if (method === 'PUT' && path.match(/^\/admin\/reviews\/[\w-]+$/)) {
+                const id = path.split('/')[3];
+                await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT false').catch(() => { });
+                const rows = await query(
+                    'UPDATE reviews SET is_approved = $1 WHERE id::text = $2 RETURNING *',
+                    [body.is_approved !== false, id]
+                );
+                return ok(rows[0]);
             }
 
             // DELETE /admin/reviews/:id
             if (method === 'DELETE' && path.match(/^\/admin\/reviews\/[\w-]+$/)) {
                 const id = path.split('/')[3];
-                await query('DELETE FROM reviews WHERE id = $1', [id]);
+                await query('DELETE FROM reviews WHERE id::text = $1', [id]);
                 return ok({ deleted: true });
             }
 
@@ -561,7 +600,7 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/pricing\/[\w-]+$/)) {
                 const id = path.split('/')[3];
                 const rows = await query(
-                    'UPDATE pricing SET name = COALESCE($1, name), base_price = COALESCE($2, base_price), is_active = COALESCE($3, is_active) WHERE id = $4 RETURNING *',
+                    'UPDATE pricing SET name = COALESCE($1, name), base_price = COALESCE($2, base_price), is_active = COALESCE($3, is_active) WHERE id::text = $4 RETURNING *',
                     [body.name, body.base_price, body.is_active, id]
                 );
                 return ok(rows[0]);
@@ -681,7 +720,7 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/access\/[\w-]+$/)) {
                 const id = path.split('/')[3];
                 const rows = await query(
-                    'UPDATE admin_users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role) WHERE id = $3 RETURNING *',
+                    'UPDATE admin_users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role) WHERE id::text = $3 RETURNING *',
                     [body.is_active, body.role, id]
                 );
                 return ok(rows[0]);
@@ -690,7 +729,7 @@ exports.handler = async (event) => {
             // DELETE /admin/access/:id
             if (method === 'DELETE' && path.match(/^\/admin\/access\/[\w-]+$/)) {
                 const id = path.split('/')[3];
-                await query('DELETE FROM admin_users WHERE id = $1', [id]);
+                await query('DELETE FROM admin_users WHERE id::text = $1', [id]);
                 return ok({ deleted: true });
             }
 
@@ -751,7 +790,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
+                        expires_at TEXT,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
