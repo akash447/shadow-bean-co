@@ -132,8 +132,8 @@ export interface TasteProfile {
     created_at: string;
 }
 
-export async function getTasteProfiles(userId: string): Promise<TasteProfile[]> {
-    const { data } = await api.get(`/taste-profiles?user_id=${userId}`);
+export async function getTasteProfiles(_userId?: string): Promise<TasteProfile[]> {
+    const { data } = await api.get('/taste-profiles');
     return data;
 }
 
@@ -169,8 +169,8 @@ export interface Address {
     is_default: boolean;
 }
 
-export async function getAddresses(userId: string): Promise<Address[]> {
-    const { data } = await api.get(`/addresses?user_id=${userId}`);
+export async function getAddresses(_userId?: string): Promise<Address[]> {
+    const { data } = await api.get('/addresses');
     return data;
 }
 
@@ -220,8 +220,8 @@ export interface Order {
     created_at: string;
 }
 
-export async function getOrders(userId: string): Promise<Order[]> {
-    const { data } = await api.get(`/orders?user_id=${userId}`);
+export async function getOrders(_userId?: string): Promise<Order[]> {
+    const { data } = await api.get('/orders');
     return data;
 }
 

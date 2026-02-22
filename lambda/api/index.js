@@ -133,6 +133,51 @@ async function resolveProfileId(identifier) {
     return rows.length ? rows[0].id : null;
 }
 
+// Verify that a requested user_id belongs to the authenticated user
+async function verifyOwnership(user, requestedUserId) {
+    if (!user || !requestedUserId) return false;
+    const rows = await query(
+        'SELECT id FROM profiles WHERE (id::text = $1 OR cognito_sub = $1) AND cognito_sub = $2',
+        [requestedUserId, user.sub]
+    );
+    return rows.length > 0;
+}
+
+// Resolve authenticated user's own profile ID (from JWT sub)
+async function resolveOwnProfileId(user) {
+    if (!user?.sub) return null;
+    const rows = await query('SELECT id FROM profiles WHERE cognito_sub = $1', [user.sub]);
+    return rows.length ? rows[0].id : null;
+}
+
+// ==============================================
+// RATE LIMITER (in-memory, per Lambda instance)
+// ==============================================
+
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 100; // max requests per window per IP
+
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const entry = rateLimitStore.get(ip);
+    if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+        rateLimitStore.set(ip, { windowStart: now, count: 1 });
+        return true;
+    }
+    entry.count++;
+    if (entry.count > RATE_LIMIT_MAX) return false;
+    return true;
+}
+
+// Clean up stale entries periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of rateLimitStore) {
+        if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS * 2) rateLimitStore.delete(ip);
+    }
+}, 5 * 60 * 1000);
+
 async function isAdmin(user) {
     if (!user?.email) return false;
     // Master admin always has access
@@ -345,16 +390,19 @@ async function ensureUpiTables() {
 // RESPONSE HELPERS
 // ==============================================
 
-const ALLOWED_ORIGINS = [
+const PROD_ORIGINS = [
     'https://shadowbeanco.net',
     'https://www.shadowbeanco.net',
     'https://admin.shadowbeanco.net',
     'https://admin-shadowbeanco.com',
     'https://www.admin-shadowbeanco.com',
+];
+const DEV_ORIGINS = process.env.ALLOW_DEV_CORS === 'true' ? [
     'http://localhost:5173',
     'http://localhost:8081',
     'http://localhost:8098',
-];
+] : [];
+const ALLOWED_ORIGINS = [...PROD_ORIGINS, ...DEV_ORIGINS];
 
 function getCorsHeaders(event) {
     const origin = event?.headers?.origin || event?.headers?.Origin || '';
@@ -393,6 +441,12 @@ exports.handler = async (event) => {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+    }
+
+    // Rate limiting
+    const clientIp = event.requestContext?.identity?.sourceIp || event.headers?.['X-Forwarded-For']?.split(',')[0]?.trim() || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+        return { statusCode: 429, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'Retry-After': '60' }, body: JSON.stringify({ error: 'Too many requests. Please try again later.' }) };
     }
 
     const method = event.httpMethod;
@@ -501,6 +555,8 @@ exports.handler = async (event) => {
         // GET /profiles/:id
         if (method === 'GET' && path.match(/^\/profiles\/[\w-]+$/)) {
             const id = path.split('/')[2];
+            // Users can only view their own profile
+            if (!(await verifyOwnership(user, id))) return error(403, 'Access denied');
             const rows = await query('SELECT * FROM profiles WHERE id::text = $1 OR cognito_sub = $1', [id]);
             return ok(rows[0] || null);
         }
@@ -508,6 +564,8 @@ exports.handler = async (event) => {
         // PUT /profiles/:id
         if (method === 'PUT' && path.match(/^\/profiles\/[\w-]+$/)) {
             const id = path.split('/')[2];
+            // Users can only update their own profile
+            if (!(await verifyOwnership(user, id))) return error(403, 'Access denied');
             const rows = await query(
                 'UPDATE profiles SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone), avatar_url = COALESCE($3, avatar_url) WHERE id::text = $4 OR cognito_sub = $4 RETURNING *',
                 [body.full_name, body.phone, body.avatar_url, id]
@@ -517,7 +575,8 @@ exports.handler = async (event) => {
 
         // GET /taste-profiles
         if (method === 'GET' && path === '/taste-profiles') {
-            const profileId = await resolveProfileId(qs.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return ok([]);
             const rows = await query('SELECT * FROM taste_profiles WHERE user_id = $1::uuid ORDER BY created_at DESC', [profileId]);
             return ok(rows);
@@ -525,7 +584,8 @@ exports.handler = async (event) => {
 
         // POST /taste-profiles
         if (method === 'POST' && path === '/taste-profiles') {
-            const profileId = await resolveProfileId(body.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
                 'INSERT INTO taste_profiles (user_id, name, bitterness, acidity, body, flavour, roast_level, grind_type) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
@@ -537,20 +597,17 @@ exports.handler = async (event) => {
         // DELETE /taste-profiles/:id
         if (method === 'DELETE' && path.match(/^\/taste-profiles\/[\w-]+$/)) {
             const id = path.split('/')[2];
-            const uid = body.user_id || qs.user_id;
-            const profileId = uid ? await resolveProfileId(uid) : null;
-            // Allow delete if profileId matches, or if no user_id provided just delete by id
-            if (profileId) {
-                await query('DELETE FROM taste_profiles WHERE id::text = $1 AND user_id = $2::uuid', [id, profileId]);
-            } else {
-                await query('DELETE FROM taste_profiles WHERE id::text = $1', [id]);
-            }
+            // Only delete if it belongs to the authenticated user
+            const profileId = await resolveOwnProfileId(user);
+            if (!profileId) return error(403, 'Access denied');
+            await query('DELETE FROM taste_profiles WHERE id::text = $1 AND user_id = $2::uuid', [id, profileId]);
             return ok({ deleted: true });
         }
 
         // GET /addresses
         if (method === 'GET' && path === '/addresses') {
-            const profileId = await resolveProfileId(qs.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return ok([]);
             const rows = await query('SELECT * FROM addresses WHERE user_id = $1::uuid ORDER BY is_default DESC, created_at DESC', [profileId]);
             return ok(rows);
@@ -558,7 +615,8 @@ exports.handler = async (event) => {
 
         // POST /addresses
         if (method === 'POST' && path === '/addresses') {
-            const profileId = await resolveProfileId(body.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found');
             const rows = await query(
                 'INSERT INTO addresses (user_id, label, full_name, phone, address_line, city, state, pincode, country, is_default) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -569,7 +627,8 @@ exports.handler = async (event) => {
 
         // GET /orders
         if (method === 'GET' && path === '/orders') {
-            const profileId = await resolveProfileId(qs.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return ok([]);
             const rows = await query(
                 `SELECT o.*, json_agg(oi.*) as order_items
@@ -583,9 +642,9 @@ exports.handler = async (event) => {
 
         // POST /orders
         if (method === 'POST' && path === '/orders') {
-            console.log('Creating order for user:', body.user_id, 'amount:', body.total_amount, 'payment:', body.payment_method);
-            const profileId = await resolveProfileId(body.user_id);
-            console.log('Resolved profileId:', profileId);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
+            console.log('Creating order for user:', user.sub, 'profileId:', profileId, 'amount:', body.total_amount);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
             await ensureUpiTables();
@@ -625,9 +684,11 @@ exports.handler = async (event) => {
         if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/payment-status$/)) {
             const id = path.split('/')[2];
             await ensureUpiTables();
+            // Verify order belongs to the authenticated user
+            const ownProfileId = await resolveOwnProfileId(user);
             const rows = await query(
-                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1',
-                [id]
+                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                [id, ownProfileId]
             );
             if (!rows.length) return error(404, 'Order not found');
 
@@ -636,8 +697,8 @@ exports.handler = async (event) => {
                 await checkGmailForPendingPayments();
                 // Re-fetch in case it was just matched
                 const updated = await query(
-                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1',
-                    [id]
+                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                    [id, ownProfileId]
                 );
                 if (updated.length) return ok(updated[0]);
             }
@@ -647,7 +708,8 @@ exports.handler = async (event) => {
 
         // POST /reviews
         if (method === 'POST' && path === '/reviews') {
-            const profileId = await resolveProfileId(body.user_id);
+            // Always use authenticated user's own profile
+            const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found');
             // Ensure reviews table has needed columns
             await query(`CREATE TABLE IF NOT EXISTS reviews (
