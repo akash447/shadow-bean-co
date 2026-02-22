@@ -250,6 +250,46 @@ CREATE TRIGGER trg_pricing_updated_at BEFORE UPDATE ON pricing FOR EACH ROW EXEC
 CREATE TRIGGER trg_assets_updated_at BEFORE UPDATE ON app_assets FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ==============================================
+-- UPI PAYMENT SYSTEM - Migration
+-- ==============================================
+
+-- Add UPI payment columns to orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(10) DEFAULT 'cod';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS upi_ref_number VARCHAR(100);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gmail_message_id VARCHAR(255);
+
+CREATE INDEX IF NOT EXISTS idx_orders_payment_method ON orders(payment_method);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+
+-- Parsed UPI bank emails (before matching to orders)
+CREATE TABLE IF NOT EXISTS upi_payments (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    gmail_message_id VARCHAR(255) UNIQUE,
+    sender_name     TEXT,
+    upi_ref         VARCHAR(100),
+    amount          DECIMAL(10,2),
+    received_at     TIMESTAMPTZ,
+    status          VARCHAR(20) DEFAULT 'unmatched'
+                    CHECK (status IN ('unmatched', 'matched', 'confirmed', 'ignored')),
+    matched_order_id UUID REFERENCES orders(id),
+    raw_subject     TEXT,
+    raw_body        TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_upi_payments_status ON upi_payments(status);
+CREATE INDEX IF NOT EXISTS idx_upi_payments_amount ON upi_payments(amount);
+
+-- Gmail watch state tracker
+CREATE TABLE IF NOT EXISTS gmail_sync (
+    id              SERIAL PRIMARY KEY,
+    history_id      BIGINT,
+    watch_expiry    TIMESTAMPTZ,
+    last_synced     TIMESTAMPTZ
+);
+
+-- ==============================================
 -- VERIFICATION
 -- ==============================================
 SELECT table_name FROM information_schema.tables

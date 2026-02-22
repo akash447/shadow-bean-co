@@ -583,3 +583,62 @@ export const subscribeToOrders = (callback: () => void) => {
     const interval = setInterval(callback, 10000);
     return () => clearInterval(interval);
 };
+
+// ==============================================
+// UPI PAYMENTS
+// ==============================================
+
+export const getUPIPayments = async (status?: string) => {
+    try {
+        const params = status && status !== 'all' ? `?status=${status}` : '';
+        const { data } = await api.get(`/admin/upi-payments${params}`);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const matchUPIPayment = async (id: string, orderId: string) => {
+    try {
+        const { data } = await api.put(`/admin/upi-payments/${id}/match`, { order_id: orderId });
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const confirmUPIPayment = async (id: string) => {
+    try {
+        const { data } = await api.put(`/admin/upi-payments/${id}/confirm`);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const ignoreUPIPayment = async (id: string) => {
+    try {
+        const { data } = await api.put(`/admin/upi-payments/${id}/ignore`);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const startGmailWatch = async (topic?: string) => {
+    try {
+        const { data } = await api.post('/admin/gmail/watch', topic ? { topic } : {});
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
+export const getGmailStatus = async () => {
+    try {
+        const { data } = await api.get('/admin/gmail/status');
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};

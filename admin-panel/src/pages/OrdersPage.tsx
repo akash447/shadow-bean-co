@@ -212,7 +212,19 @@ export const OrdersPage: React.FC = () => {
                                             <div>{order.user_name || 'Unknown'}</div>
                                             <div style={{ fontSize: '12px', color: '#666' }}>{order.user_email}</div>
                                         </td>
-                                        <td style={{ fontWeight: '600' }}>₹{order.total_amount?.toLocaleString() || 0}</td>
+                                        <td style={{ fontWeight: '600' }}>
+                                            ₹{order.total_amount?.toLocaleString() || 0}
+                                            <div style={{ marginTop: 2 }}>
+                                                <span style={{
+                                                    padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                                                    background: order.payment_method === 'upi' ? '#ede9fe' : '#f0fdf4',
+                                                    color: order.payment_method === 'upi' ? '#7c3aed' : '#16a34a',
+                                                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                                                }}>
+                                                    {order.payment_method || 'cod'}
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td>{getStatusBadge(order.status)}</td>
                                         <td style={{ fontSize: 13 }}>{formatDate(order.created_at)}</td>
                                         <td onClick={(e) => e.stopPropagation()}>
@@ -366,6 +378,33 @@ export const OrdersPage: React.FC = () => {
                                         ₹{orderDetail.total_amount?.toLocaleString() || 0}
                                     </span>
                                 </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 6, color: '#888' }}>
+                                    <span>Method</span>
+                                    <span style={{
+                                        padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                                        background: orderDetail.payment_method === 'upi' ? '#ede9fe' : '#f0fdf4',
+                                        color: orderDetail.payment_method === 'upi' ? '#7c3aed' : '#16a34a',
+                                        textTransform: 'uppercase',
+                                    }}>
+                                        {orderDetail.payment_method || 'cod'}
+                                    </span>
+                                </div>
+                                {orderDetail.payment_method === 'upi' && orderDetail.payment_status && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 6, color: '#888' }}>
+                                        <span>Payment Status</span>
+                                        <span style={{ fontWeight: 600, color: orderDetail.payment_status === 'confirmed' ? '#059669' : orderDetail.payment_status === 'detected' ? '#3b82f6' : '#f59e0b' }}>
+                                            {orderDetail.payment_status}
+                                        </span>
+                                    </div>
+                                )}
+                                {orderDetail.upi_ref_number && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 6, color: '#888' }}>
+                                        <span>UPI Ref</span>
+                                        <code style={{ background: '#ede9fe', padding: '2px 6px', borderRadius: 3, color: '#7c3aed' }}>
+                                            {orderDetail.upi_ref_number}
+                                        </code>
+                                    </div>
+                                )}
                                 {orderDetail.razorpay_payment_id && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 6, color: '#888' }}>
                                         <span>Payment ID</span>

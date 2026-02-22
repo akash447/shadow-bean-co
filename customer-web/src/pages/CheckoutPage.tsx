@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder, ensureProfile } from '../services/api';
+import { createOrder, ensureProfile, getPaymentStatus } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 /* ───────── colours ───────── */
@@ -21,6 +21,7 @@ interface ShippingAddress {
 }
 
 const STORAGE_KEY = 'shadow_bean_shipping_address';
+const UPI_ID = 'shadowbeanco@hdfcbank';
 
 export default function CheckoutPage() {
     const nav = useNavigate();
@@ -31,6 +32,9 @@ export default function CheckoutPage() {
     const [ordId, setOrdId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [focus, setFocus] = useState<string | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod');
+    const [upiPolling, setUpiPolling] = useState(false);
+    const [upiStatus, setUpiStatus] = useState<string>('pending');
 
     const init = (): ShippingAddress => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || ''); } catch { return { fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' }; }
@@ -38,6 +42,41 @@ export default function CheckoutPage() {
 
     const [addr, setAddr] = useState<ShippingAddress>(init);
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(addr)); }, [addr]);
+
+    // UPI payment polling
+    useEffect(() => {
+        if (!upiPolling || !ordId) return;
+        let cancelled = false;
+        const startTime = Date.now();
+        const TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+        const poll = async () => {
+            if (cancelled) return;
+            if (Date.now() - startTime > TIMEOUT) {
+                setUpiStatus('timeout');
+                setUpiPolling(false);
+                return;
+            }
+            try {
+                const res = await getPaymentStatus(ordId);
+                if (cancelled) return;
+                setUpiStatus(res.payment_status);
+                if (res.payment_status === 'confirmed') {
+                    setUpiPolling(false);
+                    setSuccess(true);
+                } else if (res.payment_status === 'detected') {
+                    // Keep polling until confirmed
+                    setTimeout(poll, 5000);
+                } else {
+                    setTimeout(poll, 5000);
+                }
+            } catch {
+                if (!cancelled) setTimeout(poll, 5000);
+            }
+        };
+        poll();
+        return () => { cancelled = true; };
+    }, [upiPolling, ordId]);
 
     const set = (e: React.ChangeEvent<HTMLInputElement>) => {
         setAddr(p => ({ ...p, [e.target.name]: e.target.value }));
@@ -68,6 +107,57 @@ export default function CheckoutPage() {
                 <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>Nothing to check out</h2>
                 <p style={{ color: MUTED, fontSize: 14, marginBottom: 28 }}>Add items to your cart first.</p>
                 <button onClick={() => nav('/shop')} style={{ padding: '14px 36px', background: OLIVE, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Go to Shop</button>
+            </div>
+        );
+    }
+
+    /* ── UPI Polling Screen ── */
+    if (upiPolling || (upiStatus === 'timeout')) {
+        return (
+            <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
+                <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }} style={{ textAlign: 'center', maxWidth: 440 }}>
+                    {upiStatus === 'timeout' ? (
+                        <>
+                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                            </div>
+                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>Payment Not Received</h2>
+                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 24 }}>We didn't detect your UPI payment within 30 minutes.</p>
+                            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                    onClick={() => { setUpiStatus('pending'); setUpiPolling(true); }}
+                                    style={{ padding: '14px 28px', background: OLIVE, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Retry</motion.button>
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                    onClick={() => nav('/')}
+                                    style={{ padding: '14px 28px', background: '#e5e0d8', color: DARK, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Back to Home</motion.button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: upiStatus === 'detected' ? '#d1fae5' : '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                                {upiStatus === 'detected' ? (
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                ) : (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                                        style={{ width: 40, height: 40, border: `3px solid ${BORDER}`, borderTopColor: OLIVE, borderRadius: '50%' }} />
+                                )}
+                            </div>
+                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>
+                                {upiStatus === 'detected' ? 'Payment Detected!' : 'Waiting for Payment...'}
+                            </h2>
+                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 8 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
+                            <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 24, textAlign: 'left' }}>
+                                <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Pay to UPI ID</div>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: DARK, marginBottom: 12, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
+                                <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
+                                <div style={{ fontSize: 22, fontWeight: 800, color: DARK }}>₹{getTotal()}</div>
+                            </div>
+                            <p style={{ color: '#aaa', fontSize: 12 }}>
+                                {upiStatus === 'detected' ? 'Confirming your payment...' : 'We\'ll auto-detect your payment. This may take a few minutes.'}
+                            </p>
+                        </>
+                    )}
+                </motion.div>
             </div>
         );
     }
@@ -103,7 +193,8 @@ export default function CheckoutPage() {
             if (user.email) await ensureProfile(user.id, user.email, user.fullName || '');
             const order = await createOrder({
                 user_id: user.id, total_amount: getTotal(),
-                razorpay_payment_id: 'COD-' + Date.now(),
+                payment_method: paymentMethod,
+                razorpay_payment_id: paymentMethod === 'cod' ? 'COD-' + Date.now() : undefined,
                 shipping_address: addr,
                 items: items.map(it => ({
                     taste_profile_id: it.profile.id && /^[0-9a-f-]{36}$/i.test(it.profile.id) ? it.profile.id : undefined,
@@ -111,8 +202,12 @@ export default function CheckoutPage() {
                 })),
             });
             setOrdId(order?.id || 'N/A');
-            setSuccess(true);
             clearCart();
+            if (paymentMethod === 'upi') {
+                setUpiPolling(true);
+            } else {
+                setSuccess(true);
+            }
         } catch (err: any) {
             setError(err?.response?.data?.error || err?.message || 'Something went wrong');
         } finally { setSubmitting(false); }
@@ -190,17 +285,60 @@ export default function CheckoutPage() {
                                     <span style={{ width: 30, height: 30, borderRadius: '50%', background: OLIVE, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>2</span>
                                     Payment Method
                                 </h2>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#f5efe8', border: `2px solid ${OLIVE}`, borderRadius: 16, padding: '16px 20px' }}>
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {/* COD Option */}
+                                    <div onClick={() => setPaymentMethod('cod')} style={{
+                                        display: 'flex', alignItems: 'center', gap: 16, background: paymentMethod === 'cod' ? '#f5efe8' : '#fafafa',
+                                        border: `2px solid ${paymentMethod === 'cod' ? OLIVE : BORDER}`, borderRadius: 16, padding: '16px 20px', cursor: 'pointer',
+                                        transition: 'border-color .15s',
+                                    }}>
+                                        <div style={{ width: 44, height: 44, borderRadius: 12, background: paymentMethod === 'cod' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: DARK }}>Cash on Delivery</div>
+                                            <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>Pay when your order arrives</div>
+                                        </div>
+                                        {paymentMethod === 'cod' && (
+                                            <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: 15, color: DARK }}>Cash on Delivery</div>
-                                        <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>Pay when your order arrives</div>
+
+                                    {/* UPI Option */}
+                                    <div onClick={() => setPaymentMethod('upi')} style={{
+                                        display: 'flex', alignItems: 'center', gap: 16, background: paymentMethod === 'upi' ? '#f5efe8' : '#fafafa',
+                                        border: `2px solid ${paymentMethod === 'upi' ? OLIVE : BORDER}`, borderRadius: 16, padding: '16px 20px', cursor: 'pointer',
+                                        transition: 'border-color .15s',
+                                    }}>
+                                        <div style={{ width: 44, height: 44, borderRadius: 12, background: paymentMethod === 'upi' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: DARK }}>UPI Payment</div>
+                                            <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>Pay via any UPI app</div>
+                                        </div>
+                                        {paymentMethod === 'upi' && (
+                                            <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                    </div>
+
+                                    {/* UPI Details (shown when UPI selected) */}
+                                    {paymentMethod === 'upi' && (
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }}
+                                            style={{ background: '#faf7f3', border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: '18px 20px' }}>
+                                            <div style={{ fontSize: 12, color: MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pay to UPI ID</div>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', marginBottom: 14, wordBreak: 'break-all' }}>{UPI_ID}</div>
+                                            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
+                                                1. Open any UPI app (GPay, PhonePe, Paytm, etc.)<br />
+                                                2. Send ₹{getTotal()} to the UPI ID above<br />
+                                                3. Place the order - we'll auto-detect your payment
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
                             </motion.section>
 

@@ -11,6 +11,8 @@ const { RDSDataClient, ExecuteStatementCommand } = require('@aws-sdk/client-rds-
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
+const { google } = require('googleapis');
+const nodemailer = require('nodemailer');
 
 // Configuration from environment
 const DB_CLUSTER_ARN = process.env.DB_CLUSTER_ARN;
@@ -25,6 +27,16 @@ const MASTER_ADMIN_EMAIL = 'akasingh.singh6@gmail.com';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
 const rds = new RDSDataClient({ region: REGION });
 const s3 = new S3Client({ region: REGION });
+
+// UPI / Gmail configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
+const UPI_ID = process.env.UPI_ID || 'shadowbeanco@hdfcbank';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'akasingh.singh6@gmail.com';
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
 
 // JWT verifier for Cognito tokens
 const verifier = CognitoJwtVerifier.create({
@@ -128,6 +140,174 @@ async function isAdmin(user) {
     // Check admin_users table
     const rows = await query('SELECT id FROM admin_users WHERE email = $1 AND is_active = true', [user.email]);
     return rows.length > 0;
+}
+
+// ==============================================
+// UPI / GMAIL HELPERS
+// ==============================================
+
+function getGmailClient() {
+    const oauth2 = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+    oauth2.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+    return google.gmail({ version: 'v1', auth: oauth2 });
+}
+
+function parseHDFCEmail(subject, body) {
+    // HDFC bank credit alert format varies; extract amount, sender, UPI ref
+    const result = { amount: null, senderName: null, upiRef: null, receivedAt: null };
+
+    // Amount: "Rs.799.00" or "INR 799.00" or "Rs 799"
+    const amtMatch = body.match(/(?:Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/i);
+    if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
+
+    // Sender / VPA: "from VPA xyz@upi" or "from Mr. JOHN DOE"
+    const senderMatch = body.match(/(?:from|by)\s+(?:VPA\s+)?(.+?)(?:\s+(?:on|has|credited|to))/i);
+    if (senderMatch) result.senderName = senderMatch[1].trim();
+
+    // UPI Ref / UTR: "UPI Ref No. 412345678901" or "Ref No 412345678901"
+    const refMatch = body.match(/(?:UPI\s*)?Ref\.?\s*(?:No\.?\s*)?:?\s*(\d{10,})/i);
+    if (refMatch) result.upiRef = refMatch[1];
+
+    // Date from email body: "on 23-02-26" or timestamp
+    const dateMatch = body.match(/on\s+(\d{2}-\d{2}-\d{2,4}\s*\d{2}:\d{2}:\d{2})/i);
+    if (dateMatch) {
+        try { result.receivedAt = new Date(dateMatch[1]).toISOString(); } catch { }
+    }
+
+    return result;
+}
+
+async function processGmailMessage(gmail, messageId) {
+    const msg = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
+    const headers = msg.data.payload?.headers || [];
+    const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
+    const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+
+    // Only process HDFC bank alerts
+    if (!from.toLowerCase().includes('alerts@hdfcbank.net')) return null;
+
+    // Extract body text
+    let bodyText = '';
+    const parts = msg.data.payload?.parts || [];
+    if (parts.length) {
+        const textPart = parts.find(p => p.mimeType === 'text/plain') || parts[0];
+        bodyText = Buffer.from(textPart.body?.data || '', 'base64').toString('utf-8');
+    } else if (msg.data.payload?.body?.data) {
+        bodyText = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+    }
+
+    const parsed = parseHDFCEmail(subject, bodyText);
+    if (!parsed.amount) return null;
+
+    // Check duplicate
+    const existing = await query('SELECT id FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
+    if (existing.length) return existing[0];
+
+    // Insert into upi_payments
+    const rows = await query(
+        `INSERT INTO upi_payments (gmail_message_id, sender_name, upi_ref, amount, received_at, raw_subject, raw_body)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [messageId, parsed.senderName, parsed.upiRef, parsed.amount,
+         parsed.receivedAt || new Date().toISOString(), subject, bodyText]
+    );
+
+    if (rows.length) {
+        await autoMatchPayment(rows[0].id, parsed.amount, parsed.upiRef);
+    }
+
+    return rows[0] || null;
+}
+
+async function autoMatchPayment(upiPaymentId, amount, upiRef) {
+    // Find pending UPI orders with matching amount, created within last 24h
+    const candidates = await query(
+        `SELECT id, total_amount FROM orders
+         WHERE payment_method = 'upi' AND payment_status = 'pending'
+         AND total_amount = $1 AND created_at > NOW() - INTERVAL '24 hours'
+         ORDER BY created_at DESC`,
+        [amount]
+    );
+
+    if (candidates.length === 1) {
+        const orderId = candidates[0].id;
+        // Auto-match
+        await query(
+            `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
+            [orderId, upiPaymentId]
+        );
+        await query(
+            `UPDATE orders SET payment_status = 'detected', upi_ref_number = $1 WHERE id = $2::uuid`,
+            [upiRef, orderId]
+        );
+        console.log(`Auto-matched UPI payment ${upiPaymentId} to order ${orderId}`);
+
+        // Send notifications
+        try {
+            const orderRows = await query(
+                `SELECT o.*, p.email as user_email, p.full_name as user_name
+                 FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
+                 WHERE o.id = $1::uuid`, [orderId]
+            );
+            if (orderRows.length) {
+                const order = orderRows[0];
+                await sendEmail(ADMIN_EMAIL, 'UPI Payment Detected',
+                    `<h3>UPI payment auto-matched</h3>
+                     <p>Amount: ₹${amount}</p>
+                     <p>Order: ${orderId}</p>
+                     <p>Customer: ${order.user_name} (${order.user_email})</p>
+                     <p>UPI Ref: ${upiRef || 'N/A'}</p>`
+                );
+                if (order.user_email) {
+                    await sendEmail(order.user_email, 'Payment Received - Shadow Bean Co',
+                        `<h3>We received your payment!</h3>
+                         <p>Your UPI payment of ₹${amount} for order ${orderId.slice(0, 8)} has been detected.</p>
+                         <p>We'll confirm it shortly.</p>`
+                    );
+                }
+            }
+        } catch (emailErr) {
+            console.error('Notification email error:', emailErr);
+        }
+
+        return true;
+    }
+
+    console.log(`No unique auto-match for amount ₹${amount} (${candidates.length} candidates)`);
+    return false;
+}
+
+async function sendEmail(to, subject, html) {
+    if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+        console.log('SMTP not configured, skipping email to:', to, subject);
+        return;
+    }
+    const transporter = nodemailer.createTransport({
+        host: SMTP_HOST, port: 587, secure: false,
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+    await transporter.sendMail({
+        from: `"Shadow Bean Co" <${SMTP_USER}>`,
+        to, subject, html,
+    });
+}
+
+async function ensureUpiTables() {
+    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(10) DEFAULT 'cod'`).catch(() => {});
+    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'pending'`).catch(() => {});
+    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS upi_ref_number VARCHAR(100)`).catch(() => {});
+    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gmail_message_id VARCHAR(255)`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS upi_payments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        gmail_message_id VARCHAR(255) UNIQUE,
+        sender_name TEXT, upi_ref VARCHAR(100), amount DECIMAL(10,2),
+        received_at TIMESTAMPTZ, status VARCHAR(20) DEFAULT 'unmatched',
+        matched_order_id UUID, raw_subject TEXT, raw_body TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {});
+    await query(`CREATE TABLE IF NOT EXISTS gmail_sync (
+        id SERIAL PRIMARY KEY, history_id BIGINT,
+        watch_expiry TIMESTAMPTZ, last_synced TIMESTAMPTZ
+    )`).catch(() => {});
 }
 
 // ==============================================
@@ -253,6 +433,60 @@ exports.handler = async (event) => {
             return ok(rows[0] || null);
         }
 
+        // --- GMAIL WEBHOOK (no auth - called by Google Pub/Sub) ---
+
+        if (method === 'POST' && path === '/webhooks/gmail') {
+            try {
+                await ensureUpiTables();
+                const pubsubMessage = body.message;
+                if (!pubsubMessage?.data) return ok({ status: 'no data' });
+
+                const decoded = Buffer.from(pubsubMessage.data, 'base64').toString('utf-8');
+                let historyData;
+                try { historyData = JSON.parse(decoded); } catch { historyData = { historyId: decoded }; }
+
+                const gmail = getGmailClient();
+                const syncRows = await query('SELECT * FROM gmail_sync ORDER BY id DESC LIMIT 1');
+                const lastHistoryId = syncRows.length ? syncRows[0].history_id : null;
+
+                if (!lastHistoryId) {
+                    // First time: just save the historyId
+                    await query('INSERT INTO gmail_sync (history_id, last_synced) VALUES ($1, NOW())', [historyData.historyId || 0]);
+                    return ok({ status: 'initialized' });
+                }
+
+                // Fetch history since last known
+                const history = await gmail.users.history.list({
+                    userId: 'me',
+                    startHistoryId: String(lastHistoryId),
+                    historyTypes: ['messageAdded'],
+                });
+
+                const messages = [];
+                for (const h of (history.data.history || [])) {
+                    for (const m of (h.messagesAdded || [])) {
+                        messages.push(m.message.id);
+                    }
+                }
+
+                // Process each new message
+                let processed = 0;
+                for (const msgId of messages) {
+                    const result = await processGmailMessage(gmail, msgId);
+                    if (result) processed++;
+                }
+
+                // Update sync state
+                const newHistoryId = history.data.historyId || historyData.historyId;
+                await query('UPDATE gmail_sync SET history_id = $1, last_synced = NOW() WHERE id = (SELECT id FROM gmail_sync ORDER BY id DESC LIMIT 1)', [newHistoryId]);
+
+                return ok({ status: 'ok', processed, totalMessages: messages.length });
+            } catch (webhookErr) {
+                console.error('Gmail webhook error:', webhookErr);
+                return ok({ status: 'error', message: webhookErr.message });
+            }
+        }
+
         // --- AUTHENTICATED ROUTES ---
 
         const user = await verifyToken(event);
@@ -372,14 +606,20 @@ exports.handler = async (event) => {
 
         // POST /orders
         if (method === 'POST' && path === '/orders') {
-            console.log('Creating order for user:', body.user_id, 'amount:', body.total_amount);
+            console.log('Creating order for user:', body.user_id, 'amount:', body.total_amount, 'payment:', body.payment_method);
             const profileId = await resolveProfileId(body.user_id);
             console.log('Resolved profileId:', profileId);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
+            await ensureUpiTables();
+
+            const paymentMethod = body.payment_method || 'cod';
+            const paymentStatus = paymentMethod === 'upi' ? 'pending' : 'pending';
+            const razorpayId = paymentMethod === 'upi' ? null : (body.razorpay_payment_id || 'COD-' + Date.now());
+
             const orderRows = await query(
-                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address) VALUES ($1::uuid, $2, $3, $4, $5::jsonb) RETURNING *',
-                [profileId, 'pending', body.total_amount, body.razorpay_payment_id, JSON.stringify(body.shipping_address)]
+                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address, payment_method, payment_status) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) RETURNING *',
+                [profileId, 'pending', body.total_amount, razorpayId, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus]
             );
             const order = orderRows[0];
 
@@ -402,6 +642,17 @@ exports.handler = async (event) => {
             }
 
             return created(order);
+        }
+
+        // GET /orders/:id/payment-status
+        if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/payment-status$/)) {
+            const id = path.split('/')[2];
+            const rows = await query(
+                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1',
+                [id]
+            );
+            if (!rows.length) return error(404, 'Order not found');
+            return ok(rows[0]);
         }
 
         // POST /reviews
@@ -524,6 +775,134 @@ exports.handler = async (event) => {
                 if (!rows.length) return error(404, 'Order not found');
                 console.log('Order cancelled:', rows[0].id);
                 return ok(rows[0]);
+            }
+
+            // --- UPI PAYMENT MANAGEMENT ---
+
+            // GET /admin/upi-payments
+            if (method === 'GET' && path === '/admin/upi-payments') {
+                await ensureUpiTables();
+                const statusFilter = qs.status;
+                let sql = 'SELECT * FROM upi_payments';
+                const params = [];
+                if (statusFilter && statusFilter !== 'all') {
+                    sql += ' WHERE status = $1';
+                    params.push(statusFilter);
+                }
+                sql += ' ORDER BY created_at DESC';
+                const rows = await query(sql, params);
+                return ok(rows);
+            }
+
+            // PUT /admin/upi-payments/:id/match
+            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/match$/)) {
+                await ensureUpiTables();
+                const id = path.split('/')[3];
+                const orderId = body.order_id;
+                if (!orderId) return error(400, 'order_id required');
+
+                await query(
+                    `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
+                    [orderId, id]
+                );
+
+                // Get the UPI ref to store on the order
+                const upiRows = await query('SELECT upi_ref, amount FROM upi_payments WHERE id = $1::uuid', [id]);
+                const upiRef = upiRows[0]?.upi_ref || null;
+
+                await query(
+                    `UPDATE orders SET payment_status = 'detected', upi_ref_number = $1, gmail_message_id = (SELECT gmail_message_id FROM upi_payments WHERE id = $2::uuid) WHERE id = $3::uuid`,
+                    [upiRef, id, orderId]
+                );
+
+                return ok({ matched: true });
+            }
+
+            // PUT /admin/upi-payments/:id/confirm
+            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/confirm$/)) {
+                await ensureUpiTables();
+                const id = path.split('/')[3];
+
+                const upiRows = await query('SELECT matched_order_id, amount FROM upi_payments WHERE id = $1::uuid', [id]);
+                if (!upiRows.length) return error(404, 'UPI payment not found');
+                const orderId = upiRows[0].matched_order_id;
+
+                await query(`UPDATE upi_payments SET status = 'confirmed' WHERE id = $1::uuid`, [id]);
+
+                if (orderId) {
+                    await query(`UPDATE orders SET payment_status = 'confirmed' WHERE id = $1::uuid`, [orderId]);
+
+                    // Notify customer
+                    try {
+                        const orderRows = await query(
+                            `SELECT o.total_amount, p.email, p.full_name FROM orders o
+                             LEFT JOIN profiles p ON o.user_id = p.id WHERE o.id = $1::uuid`, [orderId]
+                        );
+                        if (orderRows.length && orderRows[0].email) {
+                            await sendEmail(orderRows[0].email, 'Payment Confirmed - Shadow Bean Co',
+                                `<h3>Your payment is confirmed!</h3>
+                                 <p>Hi ${orderRows[0].full_name || ''},</p>
+                                 <p>Your UPI payment of ₹${orderRows[0].total_amount} has been confirmed. We're processing your order now!</p>`
+                            );
+                        }
+                    } catch (e) { console.error('Confirm email error:', e); }
+                }
+
+                return ok({ confirmed: true });
+            }
+
+            // PUT /admin/upi-payments/:id/ignore
+            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/ignore$/)) {
+                await ensureUpiTables();
+                const id = path.split('/')[3];
+                await query(`UPDATE upi_payments SET status = 'ignored' WHERE id = $1::uuid`, [id]);
+                return ok({ ignored: true });
+            }
+
+            // POST /admin/gmail/watch
+            if (method === 'POST' && path === '/admin/gmail/watch') {
+                await ensureUpiTables();
+                const gmail = getGmailClient();
+                const topicName = body.topic || process.env.GMAIL_PUBSUB_TOPIC;
+                if (!topicName) return error(400, 'Pub/Sub topic name required (body.topic or GMAIL_PUBSUB_TOPIC env var)');
+
+                const watchRes = await gmail.users.watch({
+                    userId: 'me',
+                    requestBody: {
+                        topicName,
+                        labelIds: ['INBOX'],
+                    },
+                });
+
+                const expiry = new Date(parseInt(watchRes.data.expiration));
+                const historyId = watchRes.data.historyId;
+
+                // Upsert gmail_sync
+                const existing = await query('SELECT id FROM gmail_sync LIMIT 1');
+                if (existing.length) {
+                    await query('UPDATE gmail_sync SET history_id = $1, watch_expiry = $2, last_synced = NOW() WHERE id = $3', [historyId, expiry.toISOString(), existing[0].id]);
+                } else {
+                    await query('INSERT INTO gmail_sync (history_id, watch_expiry, last_synced) VALUES ($1, $2, NOW())', [historyId, expiry.toISOString()]);
+                }
+
+                return ok({ historyId, expiry: expiry.toISOString(), status: 'watching' });
+            }
+
+            // GET /admin/gmail/status
+            if (method === 'GET' && path === '/admin/gmail/status') {
+                await ensureUpiTables();
+                const rows = await query('SELECT * FROM gmail_sync ORDER BY id DESC LIMIT 1');
+                if (!rows.length) return ok({ status: 'not_initialized', watching: false });
+
+                const sync = rows[0];
+                const isExpired = sync.watch_expiry ? new Date(sync.watch_expiry) < new Date() : true;
+                return ok({
+                    status: isExpired ? 'expired' : 'active',
+                    watching: !isExpired,
+                    historyId: sync.history_id,
+                    watchExpiry: sync.watch_expiry,
+                    lastSynced: sync.last_synced,
+                });
             }
 
             // GET /admin/profiles

@@ -207,6 +207,9 @@ export interface Order {
     status: string;
     total_amount: number;
     razorpay_payment_id?: string;
+    payment_method?: string;
+    payment_status?: string;
+    upi_ref_number?: string;
     shipping_address?: Record<string, any>;
     shiprocket_order_id?: string;
     shiprocket_shipment_id?: string;
@@ -230,11 +233,17 @@ export async function getOrder(orderId: string): Promise<Order> {
 export async function createOrder(order: {
     user_id: string;
     total_amount: number;
-    razorpay_payment_id: string;
+    razorpay_payment_id?: string;
+    payment_method?: 'cod' | 'upi';
     shipping_address: Record<string, any>;
     items: OrderItem[];
 }): Promise<Order> {
     const { data } = await api.post('/orders', order);
+    return data;
+}
+
+export async function getPaymentStatus(orderId: string): Promise<{ payment_status: string; payment_method: string; upi_ref_number?: string }> {
+    const { data } = await api.get(`/orders/${orderId}/payment-status`);
     return data;
 }
 
