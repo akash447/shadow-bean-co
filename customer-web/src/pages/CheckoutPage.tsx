@@ -35,7 +35,6 @@ export default function CheckoutPage() {
     const { user, loading, profile } = useAuth();
     const { items, getSubtotal, getDiscountAmount, getTotal, discount, clearCart } = useCartStore();
     const [submitting, setSubmitting] = useState(false);
-    const [success, setSuccess] = useState(false);
     const [ordId, setOrdId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [focus, setFocus] = useState<string | null>(null);
@@ -119,10 +118,9 @@ export default function CheckoutPage() {
                 const res = await getPaymentStatus(ordId);
                 if (cancelled) return;
                 setUpiStatus(res.payment_status);
-                // Payment verified — money received
+                // Payment verified — stop polling, stay on detected screen
                 if (res.payment_status === 'confirmed' || res.payment_status === 'detected') {
                     setUpiPolling(false);
-                    setSuccess(true);
                 } else {
                     setTimeout(poll, 5000);
                 }
@@ -165,7 +163,7 @@ export default function CheckoutPage() {
     };
 
     /* ── Empty ── */
-    if (items.length === 0 && !success && !upiPolling) {
+    if (items.length === 0 && !upiPolling && upiStatus === 'pending') {
         return (
             <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
                 <div style={{ width: 80, height: 80, borderRadius: 20, background: '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, marginBottom: 20 }}>🛒</div>
@@ -177,7 +175,7 @@ export default function CheckoutPage() {
     }
 
     /* ── UPI Polling Screen ── */
-    if (upiPolling || (upiStatus === 'timeout')) {
+    if (upiPolling || upiStatus === 'detected' || upiStatus === 'confirmed' || upiStatus === 'timeout') {
         const amt = orderTotalRef.current;
         return (
             <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
@@ -246,7 +244,9 @@ export default function CheckoutPage() {
                             )}
 
                             <p style={{ color: '#aaa', fontSize: 12 }}>
-                                {upiStatus === 'detected' ? 'Confirming your payment...' : 'Waiting for HDFC bank payment alert. This may take up to a minute.'}
+                                {(upiStatus === 'detected' || upiStatus === 'confirmed')
+                                    ? 'Order placed! Redirecting to your orders...'
+                                    : 'Waiting for HDFC bank payment alert. This may take up to a minute.'}
                             </p>
                         </>
                     )}
@@ -255,31 +255,13 @@ export default function CheckoutPage() {
         );
     }
 
-    /* ── Success — brief confirmation then redirect to profile ── */
+    /* ── Payment detected → wait 4s → redirect to profile/orders ── */
     useEffect(() => {
-        if (!success) return;
+        if (upiStatus !== 'detected' && upiStatus !== 'confirmed') return;
         const timer = setTimeout(() => nav('/profile'), 4000);
         return () => clearTimeout(timer);
-    }, [success, nav]);
+    }, [upiStatus, nav]);
 
-    if (success) {
-        return (
-            <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
-                <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }} style={{ textAlign: 'center', maxWidth: 440 }}>
-                    <div style={{ width: 90, height: 90, borderRadius: '50%', background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 8px 32px rgba(79,81,48,0.3)' }}>
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                    </div>
-                    <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 30, color: DARK, margin: '0 0 8px' }}>Order Placed Successfully!</h2>
-                    <p style={{ color: '#666', fontSize: 14 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId}</strong></p>
-                    <p style={{ color: MUTED, fontSize: 13, marginTop: 4, marginBottom: 32 }}>We'll contact you at <strong>{orderPhoneRef.current}</strong> for delivery updates.</p>
-                    <p style={{ color: '#aaa', fontSize: 12, marginBottom: 16 }}>Redirecting to your orders...</p>
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => nav('/profile')}
-                        style={{ padding: '14px 40px', background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(79,81,48,0.3)' }}
-                    >View My Orders</motion.button>
-                </motion.div>
-            </div>
-        );
-    }
 
     /* ── Submit ── */
     const submit = async (e: React.FormEvent) => {
