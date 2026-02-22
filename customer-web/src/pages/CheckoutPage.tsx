@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder, ensureProfile, getPaymentStatus } from '../services/api';
+import { createOrder, ensureProfile, getPaymentStatus, getAddresses } from '../services/api';
+import type { Address } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 /* ───────── colours ───────── */
@@ -29,17 +30,23 @@ const upiUri = (amount: number) =>
 
 export default function CheckoutPage() {
     const nav = useNavigate();
-    const { user, loading } = useAuth();
-    const { items, getTotal, clearCart } = useCartStore();
+    const { user, loading, profile } = useAuth();
+    const { items, getSubtotal, getDiscountAmount, getTotal, discount, clearCart } = useCartStore();
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [ordId, setOrdId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [focus, setFocus] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod');
+    const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('upi');
     const [upiPolling, setUpiPolling] = useState(false);
     const [upiStatus, setUpiStatus] = useState<string>('pending');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+    // Saved addresses
+    const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+    const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
+
+    const dbUserId = profile?.id || user?.id;
 
     const init = (): ShippingAddress => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || ''); } catch { return { fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' }; }
@@ -48,12 +55,33 @@ export default function CheckoutPage() {
     const [addr, setAddr] = useState<ShippingAddress>(init);
     useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(addr)); }, [addr]);
 
+    // Load saved addresses
+    useEffect(() => {
+        if (!dbUserId) return;
+        getAddresses(dbUserId).then(addrs => {
+            setSavedAddresses(addrs);
+        }).catch(() => {});
+    }, [dbUserId]);
+
+    const selectSavedAddress = (a: Address) => {
+        setSelectedAddrId(a.id);
+        setAddr({
+            fullName: a.full_name,
+            phone: a.phone,
+            addressLine1: a.address_line,
+            addressLine2: '',
+            city: a.city,
+            state: a.state,
+            pincode: a.pincode,
+        });
+    };
+
     // UPI payment polling
     useEffect(() => {
         if (!upiPolling || !ordId) return;
         let cancelled = false;
         const startTime = Date.now();
-        const TIMEOUT = 30 * 60 * 1000; // 30 minutes
+        const TIMEOUT = 30 * 60 * 1000;
 
         const poll = async () => {
             if (cancelled) return;
@@ -69,9 +97,6 @@ export default function CheckoutPage() {
                 if (res.payment_status === 'confirmed') {
                     setUpiPolling(false);
                     setSuccess(true);
-                } else if (res.payment_status === 'detected') {
-                    // Keep polling until confirmed
-                    setTimeout(poll, 5000);
                 } else {
                     setTimeout(poll, 5000);
                 }
@@ -84,6 +109,7 @@ export default function CheckoutPage() {
     }, [upiPolling, ordId]);
 
     const set = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSelectedAddrId(null); // user is editing manually
         setAddr(p => ({ ...p, [e.target.name]: e.target.value }));
     };
 
@@ -103,6 +129,10 @@ export default function CheckoutPage() {
         color: MUTED, textTransform: 'uppercase',
         letterSpacing: '0.05em', marginBottom: 6,
     };
+
+    const subtotal = getSubtotal();
+    const discountAmount = getDiscountAmount();
+    const total = getTotal();
 
     /* ── Empty ── */
     if (items.length === 0 && !success) {
@@ -152,16 +182,9 @@ export default function CheckoutPage() {
                             </h2>
                             <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
 
-                            {/* QR Code on polling screen */}
                             {upiStatus === 'pending' && (
                                 <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                                    <QRCodeSVG
-                                        value={upiUri(getTotal())}
-                                        size={160}
-                                        level="M"
-                                        bgColor="#ffffff"
-                                        fgColor="#1c0d02"
-                                    />
+                                    <QRCodeSVG value={upiUri(total)} size={160} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
                                 </div>
                             )}
 
@@ -177,7 +200,7 @@ export default function CheckoutPage() {
                                     </button>
                                 </div>
                                 <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
-                                <div style={{ fontSize: 22, fontWeight: 800, color: DARK }}>₹{getTotal()}</div>
+                                <div style={{ fontSize: 22, fontWeight: 800, color: DARK }}>₹{total}</div>
                             </div>
                             <p style={{ color: '#aaa', fontSize: 12 }}>
                                 {upiStatus === 'detected' ? 'Confirming your payment...' : 'We\'ll auto-detect your payment. This may take a few minutes.'}
@@ -220,7 +243,7 @@ export default function CheckoutPage() {
         try {
             if (user.email) await ensureProfile(user.id, user.email, user.fullName || '');
             const order = await createOrder({
-                user_id: user.id, total_amount: getTotal(),
+                user_id: user.id, total_amount: total,
                 payment_method: paymentMethod,
                 razorpay_payment_id: paymentMethod === 'cod' ? 'COD-' + Date.now() : undefined,
                 shipping_address: addr,
@@ -252,22 +275,63 @@ export default function CheckoutPage() {
                 </div>
             </header>
 
-            <div style={{ maxWidth: 960, margin: '0 auto', padding: '36px 24px 80px' }}>
+            <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 16px 80px' }}>
                 <form onSubmit={submit}>
-                    <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <div className="checkout-layout" style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
 
                         {/* ─── Left: Form ─── */}
-                        <div style={{ flex: '1 1 500px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div className="checkout-form-col" style={{ flex: '1 1 500px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                            {/* Saved Addresses */}
+                            {savedAddresses.length > 0 && (
+                                <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                                    style={{ background: CARD, borderRadius: 18, border: `1.5px solid ${BORDER}`, padding: '22px 22px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
+                                    <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 18, fontWeight: 700, color: DARK, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={OLIVE} strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        Saved Addresses
+                                    </h2>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {savedAddresses.map(a => (
+                                            <div
+                                                key={a.id}
+                                                onClick={() => selectSavedAddress(a)}
+                                                style={{
+                                                    padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                                                    border: `2px solid ${selectedAddrId === a.id ? OLIVE : BORDER}`,
+                                                    background: selectedAddrId === a.id ? '#f5efe8' : '#fafafa',
+                                                    transition: 'border-color 0.15s, background 0.15s',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: 13, color: DARK }}>{a.label || a.full_name}</span>
+                                                    {selectedAddrId === a.id && (
+                                                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
+                                                    {a.address_line}, {a.city}, {a.state} - {a.pincode}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{a.phone}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: MUTED, marginTop: 10, textAlign: 'center' }}>
+                                        Or fill in a new address below
+                                    </div>
+                                </motion.section>
+                            )}
 
                             {/* Shipping */}
                             <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                                style={{ background: CARD, borderRadius: 20, border: `1.5px solid ${BORDER}`, padding: '28px 28px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
-                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 20, fontWeight: 700, color: DARK, margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <span style={{ width: 30, height: 30, borderRadius: '50%', background: OLIVE, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>1</span>
+                                style={{ background: CARD, borderRadius: 18, border: `1.5px solid ${BORDER}`, padding: '22px 22px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
+                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 18, fontWeight: 700, color: DARK, margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: OLIVE, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>1</span>
                                     Shipping Address
                                 </h2>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                                     <div>
                                         <label style={lbl}>Full Name *</label>
                                         <input name="fullName" value={addr.fullName} onChange={set} required placeholder="Your full name"
@@ -306,76 +370,46 @@ export default function CheckoutPage() {
                                 </div>
                             </motion.section>
 
-                            {/* Payment */}
+                            {/* Payment — UPI first, then COD */}
                             <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                                style={{ background: CARD, borderRadius: 20, border: `1.5px solid ${BORDER}`, padding: '28px 28px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
-                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 20, fontWeight: 700, color: DARK, margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <span style={{ width: 30, height: 30, borderRadius: '50%', background: OLIVE, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>2</span>
+                                style={{ background: CARD, borderRadius: 18, border: `1.5px solid ${BORDER}`, padding: '22px 22px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
+                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 18, fontWeight: 700, color: DARK, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: OLIVE, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>2</span>
                                     Payment Method
                                 </h2>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    {/* COD Option */}
-                                    <div onClick={() => setPaymentMethod('cod')} style={{
-                                        display: 'flex', alignItems: 'center', gap: 16, background: paymentMethod === 'cod' ? '#f5efe8' : '#fafafa',
-                                        border: `2px solid ${paymentMethod === 'cod' ? OLIVE : BORDER}`, borderRadius: 16, padding: '16px 20px', cursor: 'pointer',
-                                        transition: 'border-color .15s',
-                                    }}>
-                                        <div style={{ width: 44, height: 44, borderRadius: 12, background: paymentMethod === 'cod' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 700, fontSize: 15, color: DARK }}>Cash on Delivery</div>
-                                            <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>Pay when your order arrives</div>
-                                        </div>
-                                        {paymentMethod === 'cod' && (
-                                            <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* UPI Option */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {/* UPI Option — FIRST */}
                                     <div onClick={() => setPaymentMethod('upi')} style={{
-                                        display: 'flex', alignItems: 'center', gap: 16, background: paymentMethod === 'upi' ? '#f5efe8' : '#fafafa',
-                                        border: `2px solid ${paymentMethod === 'upi' ? OLIVE : BORDER}`, borderRadius: 16, padding: '16px 20px', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: 14, background: paymentMethod === 'upi' ? '#f5efe8' : '#fafafa',
+                                        border: `2px solid ${paymentMethod === 'upi' ? OLIVE : BORDER}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer',
                                         transition: 'border-color .15s',
                                     }}>
-                                        <div style={{ width: 44, height: 44, borderRadius: 12, background: paymentMethod === 'upi' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                                        <div style={{ width: 40, height: 40, borderRadius: 10, background: paymentMethod === 'upi' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                                         </div>
-                                        <div>
-                                            <div style={{ fontWeight: 700, fontSize: 15, color: DARK }}>UPI Payment</div>
-                                            <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>Pay via any UPI app</div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 14, color: DARK }}>UPI Payment</div>
+                                            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Pay via any UPI app</div>
                                         </div>
                                         {paymentMethod === 'upi' && (
-                                            <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                            <div style={{ width: 20, height: 20, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* UPI Details with QR Code (shown when UPI selected) */}
+                                    {/* UPI Details with QR Code */}
                                     {paymentMethod === 'upi' && (
                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }}
-                                            style={{ background: '#faf7f3', border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: '20px' }}>
-
-                                            {/* QR Code */}
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
-                                                <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                                                    <QRCodeSVG
-                                                        value={upiUri(getTotal())}
-                                                        size={180}
-                                                        level="M"
-                                                        bgColor="#ffffff"
-                                                        fgColor="#1c0d02"
-                                                    />
+                                            style={{ background: '#faf7f3', border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '18px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                                                <div style={{ background: '#fff', padding: 12, borderRadius: 14, border: `1.5px solid ${BORDER}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                                                    <QRCodeSVG value={upiUri(total)} size={160} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
                                                 </div>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: DARK, marginTop: 12 }}>Scan & Pay ₹{getTotal()}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: DARK, marginTop: 10 }}>Scan & Pay ₹{total}</div>
                                                 <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Works with GPay, PhonePe, Paytm & all UPI apps</div>
                                             </div>
-
-                                            {/* UPI ID for manual payment */}
-                                            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 14 }}>
+                                            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 12 }}>
                                                 <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Or pay manually to UPI ID</div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                                     <div style={{ fontSize: 15, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
@@ -385,14 +419,33 @@ export default function CheckoutPage() {
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.7, marginTop: 14, background: '#fff', borderRadius: 10, padding: '10px 14px', border: `1px solid ${BORDER}` }}>
+                                            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.7, marginTop: 12, background: '#fff', borderRadius: 10, padding: '10px 14px', border: `1px solid ${BORDER}` }}>
                                                 1. Scan the QR code above or copy the UPI ID<br />
-                                                2. Pay <strong style={{ color: DARK }}>₹{getTotal()}</strong> from any UPI app<br />
+                                                2. Pay <strong style={{ color: DARK }}>₹{total}</strong> from any UPI app<br />
                                                 3. Click "Place Order" below — we'll auto-detect your payment
                                             </div>
                                         </motion.div>
                                     )}
+
+                                    {/* COD Option — SECOND */}
+                                    <div onClick={() => setPaymentMethod('cod')} style={{
+                                        display: 'flex', alignItems: 'center', gap: 14, background: paymentMethod === 'cod' ? '#f5efe8' : '#fafafa',
+                                        border: `2px solid ${paymentMethod === 'cod' ? OLIVE : BORDER}`, borderRadius: 14, padding: '14px 18px', cursor: 'pointer',
+                                        transition: 'border-color .15s',
+                                    }}>
+                                        <div style={{ width: 40, height: 40, borderRadius: 10, background: paymentMethod === 'cod' ? OLIVE : '#e5e0d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 14, color: DARK }}>Cash on Delivery</div>
+                                            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Pay when your order arrives</div>
+                                        </div>
+                                        {paymentMethod === 'cod' && (
+                                            <div style={{ width: 20, height: 20, borderRadius: '50%', background: OLIVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </motion.section>
 
@@ -405,14 +458,14 @@ export default function CheckoutPage() {
                         </div>
 
                         {/* ─── Right: Summary ─── */}
-                        <div style={{ flex: '0 0 320px', position: 'sticky', top: 88 }}>
+                        <div className="checkout-summary-col" style={{ flex: '0 0 320px', position: 'sticky', top: 88 }}>
                             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                                style={{ background: CARD, borderRadius: 22, border: `1.5px solid ${BORDER}`, padding: '28px 24px', boxShadow: '0 4px 20px rgba(28,13,2,0.07)' }}>
-                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 20, fontWeight: 700, color: DARK, margin: '0 0 18px' }}>Order Summary</h2>
+                                style={{ background: CARD, borderRadius: 20, border: `1.5px solid ${BORDER}`, padding: '24px 22px', boxShadow: '0 4px 20px rgba(28,13,2,0.07)' }}>
+                                <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 20, fontWeight: 700, color: DARK, margin: '0 0 16px' }}>Order Summary</h2>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {items.map(it => (
-                                        <div key={it.profile.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                        <div key={it.profile.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                                             <span style={{ color: '#666', flex: 1, marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {it.profile.name} <span style={{ color: '#aaa' }}>×{it.quantity}</span>
                                             </span>
@@ -421,20 +474,29 @@ export default function CheckoutPage() {
                                     ))}
                                 </div>
 
-                                <div style={{ borderTop: `1px solid ${BORDER}`, margin: '16px 0', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+                                <div style={{ borderTop: `1px solid ${BORDER}`, margin: '14px 0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: MUTED }}>
+                                        <span>Subtotal</span><span style={{ fontWeight: 600 }}>₹{subtotal}</span>
+                                    </div>
+                                    {discount && discountAmount > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
+                                            <span>Discount ({discount.code})</span>
+                                            <span style={{ fontWeight: 600 }}>−₹{discountAmount}</span>
+                                        </div>
+                                    )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', color: MUTED }}>
                                         <span>Shipping</span><span style={{ fontWeight: 700, color: OLIVE }}>FREE</span>
                                     </div>
                                 </div>
 
-                                <div style={{ borderTop: `1.5px solid ${BORDER}`, paddingTop: 14 }}>
+                                <div style={{ borderTop: `1.5px solid ${BORDER}`, paddingTop: 12 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 800, color: DARK }}>
-                                        <span>Total</span><span>₹{getTotal()}</span>
+                                        <span>Total</span><span>₹{total}</span>
                                     </div>
                                 </div>
 
                                 {/* T&C Checkbox */}
-                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 18, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
                                     <input
                                         type="checkbox"
                                         checked={agreedToTerms}
@@ -452,7 +514,7 @@ export default function CheckoutPage() {
                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                     type="submit" disabled={submitting || !agreedToTerms}
                                     style={{
-                                        width: '100%', marginTop: 14, padding: '16px 0',
+                                        width: '100%', marginTop: 12, padding: '15px 0',
                                         background: (submitting || !agreedToTerms) ? '#aaa' : `linear-gradient(135deg, ${DARK}, #3a1a08)`,
                                         color: '#fff', border: 'none', borderRadius: 14,
                                         fontWeight: 800, fontSize: 15, cursor: (submitting || !agreedToTerms) ? 'not-allowed' : 'pointer',
@@ -461,14 +523,22 @@ export default function CheckoutPage() {
                                     }}
                                 >{submitting ? '⏳ Placing Order...' : paymentMethod === 'upi' ? 'Place Order & Pay via UPI →' : 'Place Order →'}</motion.button>
 
-                                <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 14 }}>🔒 Secure & encrypted checkout</p>
+                                <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 12 }}>🔒 Secure & encrypted checkout</p>
                             </motion.div>
                         </div>
                     </div>
                 </form>
             </div>
 
-            <style>{`@media(max-width:860px){div[style*="flex: 0 0 320px"]{flex:1 1 100%!important;position:static!important;}div[style*="gridTemplateColumns: '1fr 1fr'"]{grid-template-columns:1fr!important;}}input:focus{outline:none;}`}</style>
+            <style>{`
+                @media(max-width:860px) {
+                    .checkout-layout { flex-direction: column !important; }
+                    .checkout-summary-col { flex: 1 1 100% !important; position: static !important; }
+                    .checkout-form-col { flex: 1 1 100% !important; }
+                    .checkout-grid { grid-template-columns: 1fr !important; }
+                }
+                input:focus { outline: none; }
+            `}</style>
         </div>
     );
 }

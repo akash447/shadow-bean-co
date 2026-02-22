@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import { getOrders, getTasteProfiles, getReviews, createReview } from '../services/api';
-import type { Order, TasteProfile as ApiTasteProfile, Review } from '../services/api';
+import { getOrders, getTasteProfiles, getReviews, createReview, getAddresses, createAddress, deleteAddress } from '../services/api';
+import type { Order, TasteProfile as ApiTasteProfile, Review, Address } from '../services/api';
 import { useShopStore } from '../stores/shopStore';
 import Header from '../components/Header';
 import './ProfilePage.css';
@@ -17,7 +17,17 @@ export default function ProfilePage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [savedBlends, setSavedBlends] = useState<ApiTasteProfile[]>([]);
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [addresses, setAddresses] = useState<Address[]>([]);
     const [dataLoading, setDataLoading] = useState(false);
+
+    // Expand toggles
+    const [showAllOrders, setShowAllOrders] = useState(false);
+    const [showAllBlends, setShowAllBlends] = useState(false);
+
+    // Address form
+    const [showAddrForm, setShowAddrForm] = useState(false);
+    const [addrForm, setAddrForm] = useState({ label: '', full_name: '', phone: '', address_line: '', city: '', state: '', pincode: '', country: 'India' });
+    const [savingAddr, setSavingAddr] = useState(false);
 
     // Review modal state
     const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -40,11 +50,12 @@ export default function ProfilePage() {
             getOrders(dbUserId).catch(() => []),
             getTasteProfiles(dbUserId).catch(() => []),
             getReviews(50).catch(() => []),
-        ]).then(([ordersData, blendsData, reviewsData]) => {
+            getAddresses(dbUserId).catch(() => []),
+        ]).then(([ordersData, blendsData, reviewsData, addrsData]) => {
             setOrders(ordersData);
             setSavedBlends(blendsData);
-            // Filter reviews to only show the user's reviews
             setReviews(reviewsData.filter(r => r.user_id === dbUserId));
+            setAddresses(addrsData);
         }).finally(() => setDataLoading(false));
     };
 
@@ -62,6 +73,25 @@ export default function ProfilePage() {
         navigate('/');
     };
 
+    const handleSaveAddress = async () => {
+        if (!dbUserId || !addrForm.full_name || !addrForm.phone || !addrForm.address_line || !addrForm.city || !addrForm.state || !addrForm.pincode) return;
+        setSavingAddr(true);
+        try {
+            await createAddress({ ...addrForm, user_id: dbUserId, is_default: addresses.length === 0 });
+            setAddrForm({ label: '', full_name: '', phone: '', address_line: '', city: '', state: '', pincode: '', country: 'India' });
+            setShowAddrForm(false);
+            loadData();
+        } catch { /* ignore */ }
+        finally { setSavingAddr(false); }
+    };
+
+    const handleDeleteAddress = async (id: string) => {
+        try {
+            await deleteAddress(id);
+            setAddresses(prev => prev.filter(a => a.id !== id));
+        } catch { /* ignore */ }
+    };
+
     const openReviewModal = (orderId: string) => {
         setReviewOrderId(orderId);
         setReviewRating(5);
@@ -71,10 +101,7 @@ export default function ProfilePage() {
 
     const handleSubmitReview = async () => {
         if (!dbUserId || !reviewOrderId) return;
-        if (!reviewComment.trim()) {
-            alert('Please write a comment for your review');
-            return;
-        }
+        if (!reviewComment.trim()) return;
         setSubmittingReview(true);
         try {
             await createReview({
@@ -84,34 +111,35 @@ export default function ProfilePage() {
                 comment: reviewComment.trim(),
             });
             setReviewModalOpen(false);
-            setReviewOrderId(null);
             setReviewComment('');
-            setReviewRating(5);
-            alert('Thank you for your review! It will appear on the website once approved.');
             loadData();
-        } catch (err: any) {
-            alert('Failed to submit review: ' + (err.message || 'Unknown error'));
-        } finally {
-            setSubmittingReview(false);
-        }
+        } catch { /* ignore */ }
+        finally { setSubmittingReview(false); }
     };
 
-    const hasReviewedOrder = (orderId: string) => {
-        return reviews.some(r => r.order_id === orderId);
+    const hasReviewedOrder = (orderId: string) => reviews.some(r => r.order_id === orderId);
+
+    const statusColor = (s: string) => {
+        const map: Record<string, { bg: string; fg: string }> = {
+            delivered: { bg: '#d1fae5', fg: '#059669' },
+            shipped: { bg: '#d1fae5', fg: '#10b981' },
+            processing: { bg: '#ede9fe', fg: '#8b5cf6' },
+            confirmed: { bg: '#dbeafe', fg: '#3b82f6' },
+            pending: { bg: '#fef3c7', fg: '#f59e0b' },
+            cancelled: { bg: '#fee2e2', fg: '#ef4444' },
+        };
+        return map[s] || { bg: '#F5F0EB', fg: '#5D4037' };
     };
 
     if (loading) {
         return (
             <div className="profile-container">
                 <Header variant="light" />
-                <main className="profile-main">
-                    <div className="loading-spinner">Loading...</div>
-                </main>
+                <main className="profile-main"><div className="loading-spinner">Loading...</div></main>
             </div>
         );
     }
 
-    // Not logged in - show login prompt
     if (!user) {
         return (
             <div className="profile-container">
@@ -122,12 +150,8 @@ export default function ProfilePage() {
                         <h1>Welcome to Shadow Bean Co.</h1>
                         <p>Sign in to view your profile, saved blends, and order history.</p>
                         <div className="prompt-buttons">
-                            <button className="primary-btn" onClick={() => navigate('/login')}>
-                                Sign In
-                            </button>
-                            <button className="secondary-btn" onClick={() => navigate('/register')}>
-                                Create Account
-                            </button>
+                            <button className="primary-btn" onClick={() => navigate('/login')}>Sign In</button>
+                            <button className="secondary-btn" onClick={() => navigate('/register')}>Create Account</button>
                         </div>
                     </div>
                 </main>
@@ -135,13 +159,17 @@ export default function ProfilePage() {
         );
     }
 
-    // Logged in - show profile
+    const displayOrders = showAllOrders ? orders : orders.slice(0, 2);
+    const displayBlends = showAllBlends ? savedBlends : savedBlends.slice(0, 3);
+
     return (
         <div className="profile-container">
             <Header variant="light" />
-            <main className="profile-main">
-                <div className="profile-card">
-                    <div className="profile-header">
+            <main className="profile-main dashboard">
+                <div className="dashboard-content">
+
+                    {/* ── Profile Header ── */}
+                    <div className="dash-header">
                         <div className="profile-avatar">
                             {profile?.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
@@ -151,6 +179,7 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
+                    {/* ── Quick Stats ── */}
                     <div className="profile-stats">
                         <div className="stat-item">
                             <span className="stat-value">{dataLoading ? '...' : orders.length}</span>
@@ -158,74 +187,136 @@ export default function ProfilePage() {
                         </div>
                         <div className="stat-item">
                             <span className="stat-value">{dataLoading ? '...' : savedBlends.length}</span>
-                            <span className="stat-label">Saved Blends</span>
+                            <span className="stat-label">Blends</span>
                         </div>
                         <div className="stat-item">
-                            <span className="stat-value">{dataLoading ? '...' : reviews.length}</span>
-                            <span className="stat-label">Reviews</span>
+                            <span className="stat-value">{dataLoading ? '...' : addresses.length}</span>
+                            <span className="stat-label">Addresses</span>
                         </div>
                     </div>
 
-                    <div className="profile-sections">
-                        <div className="section">
-                            <h2>Your Saved Blends</h2>
-                            {savedBlends.length === 0 ? (
-                                <p className="empty-state">No saved blends yet. Create your first custom blend!</p>
-                            ) : (
-                                <div className="blends-list">
-                                    {savedBlends.map(blend => (
-                                        <div key={blend.id} className="blend-item" onClick={() => loadBlendIntoShop(blend)}>
-                                            <div className="blend-name">{blend.name}</div>
-                                            <div className="blend-details">{blend.roast_level} &bull; {blend.grind_type}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <button className="section-btn" onClick={() => navigate('/shop')}>
-                                Create Blend
-                            </button>
-                        </div>
+                    {/* ── Dashboard Grid ── */}
+                    <div className="dash-grid">
 
-                        <div className="section">
-                            <h2>Order History</h2>
+                        {/* Orders Section */}
+                        <div className="dash-card">
+                            <div className="dash-card-header">
+                                <h2>Orders</h2>
+                                {orders.length > 2 && (
+                                    <button className="toggle-btn" onClick={() => setShowAllOrders(!showAllOrders)}>
+                                        {showAllOrders ? 'Show less' : `View all ${orders.length}`}
+                                    </button>
+                                )}
+                            </div>
                             {orders.length === 0 ? (
                                 <p className="empty-state">No orders yet. Start your coffee journey!</p>
                             ) : (
                                 <div className="orders-list">
-                                    {orders.map(order => (
-                                        <div key={order.id} className="order-item">
-                                            <div className="order-row">
-                                                <span className="order-id">#{order.id.slice(0, 8)}</span>
-                                                <span className={`order-status status-${order.status}`}>{order.status}</span>
+                                    {displayOrders.map(order => {
+                                        const sc = statusColor(order.status);
+                                        return (
+                                            <div key={order.id} className="order-item">
+                                                <div className="order-row">
+                                                    <span className="order-id">#{order.id.slice(0, 8)}</span>
+                                                    <span className="order-status" style={{ background: sc.bg, color: sc.fg }}>{order.status}</span>
+                                                </div>
+                                                <div className="order-row">
+                                                    <span className="order-date">{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                    <span className="order-total">₹{order.total_amount}</span>
+                                                </div>
+                                                {order.order_items && order.order_items.length > 0 && (
+                                                    <div className="order-items-preview">
+                                                        {order.order_items.map((oi, idx) => (
+                                                            <span key={idx} className="order-item-tag">{oi.taste_profile_name} ×{oi.quantity}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {order.status === 'delivered' && !hasReviewedOrder(order.id) && (
+                                                    <button className="review-btn" onClick={() => openReviewModal(order.id)}>Write a Review</button>
+                                                )}
+                                                {order.status === 'delivered' && hasReviewedOrder(order.id) && (
+                                                    <span className="review-done">Review submitted</span>
+                                                )}
                                             </div>
-                                            <div className="order-row">
-                                                <span className="order-date">{new Date(order.created_at).toLocaleDateString()}</span>
-                                                <span className="order-total">&#8377;{order.total_amount}</span>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <button className="section-btn" onClick={() => navigate('/shop')}>Shop Now</button>
+                        </div>
+
+                        {/* Blends Section */}
+                        <div className="dash-card">
+                            <div className="dash-card-header">
+                                <h2>Your Blends</h2>
+                                {savedBlends.length > 3 && (
+                                    <button className="toggle-btn" onClick={() => setShowAllBlends(!showAllBlends)}>
+                                        {showAllBlends ? 'Show less' : `View all ${savedBlends.length}`}
+                                    </button>
+                                )}
+                            </div>
+                            {savedBlends.length === 0 ? (
+                                <p className="empty-state">No saved blends yet.</p>
+                            ) : (
+                                <div className="blends-list">
+                                    {displayBlends.map(blend => (
+                                        <div key={blend.id} className="blend-item" onClick={() => loadBlendIntoShop(blend)}>
+                                            <div>
+                                                <div className="blend-name">{blend.name}</div>
+                                                <div className="blend-details">{blend.roast_level} · {blend.grind_type}</div>
                                             </div>
-                                            {order.status === 'delivered' && !hasReviewedOrder(order.id) && (
-                                                <button
-                                                    className="review-btn"
-                                                    onClick={() => openReviewModal(order.id)}
-                                                >
-                                                    ⭐ Write a Review
-                                                </button>
-                                            )}
-                                            {order.status === 'delivered' && hasReviewedOrder(order.id) && (
-                                                <span className="review-done">✅ Review submitted</span>
-                                            )}
+                                            <span className="blend-reorder">Reorder →</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                            <button className="section-btn" onClick={() => navigate('/shop')}>
-                                Shop Now
-                            </button>
+                            <button className="section-btn" onClick={() => navigate('/shop')}>Create Blend</button>
+                        </div>
+
+                        {/* Addresses Section */}
+                        <div className="dash-card dash-card-full">
+                            <div className="dash-card-header">
+                                <h2>Saved Addresses</h2>
+                                <button className="toggle-btn" onClick={() => setShowAddrForm(!showAddrForm)}>
+                                    {showAddrForm ? 'Cancel' : '+ Add New'}
+                                </button>
+                            </div>
+                            {showAddrForm && (
+                                <div className="addr-form">
+                                    <div className="addr-form-grid">
+                                        <input placeholder="Label (e.g. Home, Office)" value={addrForm.label} onChange={e => setAddrForm(p => ({ ...p, label: e.target.value }))} />
+                                        <input placeholder="Full Name *" value={addrForm.full_name} onChange={e => setAddrForm(p => ({ ...p, full_name: e.target.value }))} />
+                                        <input placeholder="Phone *" type="tel" value={addrForm.phone} onChange={e => setAddrForm(p => ({ ...p, phone: e.target.value }))} />
+                                        <input placeholder="Address *" value={addrForm.address_line} onChange={e => setAddrForm(p => ({ ...p, address_line: e.target.value }))} style={{ gridColumn: '1 / -1' }} />
+                                        <input placeholder="City *" value={addrForm.city} onChange={e => setAddrForm(p => ({ ...p, city: e.target.value }))} />
+                                        <input placeholder="State *" value={addrForm.state} onChange={e => setAddrForm(p => ({ ...p, state: e.target.value }))} />
+                                        <input placeholder="Pincode *" value={addrForm.pincode} onChange={e => setAddrForm(p => ({ ...p, pincode: e.target.value }))} />
+                                    </div>
+                                    <button className="primary-btn addr-save-btn" onClick={handleSaveAddress} disabled={savingAddr}>
+                                        {savingAddr ? 'Saving...' : 'Save Address'}
+                                    </button>
+                                </div>
+                            )}
+                            {addresses.length === 0 && !showAddrForm ? (
+                                <p className="empty-state">No saved addresses. Add one to speed up checkout!</p>
+                            ) : (
+                                <div className="addr-list">
+                                    {addresses.map(a => (
+                                        <div key={a.id} className="addr-card">
+                                            <div className="addr-info">
+                                                <div className="addr-label">{a.label || a.full_name}{a.is_default && <span className="addr-default">Default</span>}</div>
+                                                <div className="addr-detail">{a.address_line}, {a.city}, {a.state} - {a.pincode}</div>
+                                                <div className="addr-phone">{a.phone}</div>
+                                            </div>
+                                            <button className="addr-delete" onClick={() => handleDeleteAddress(a.id)} title="Delete">×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <button className="logout-btn" onClick={handleLogout}>
-                        Sign Out
-                    </button>
+                    <button className="logout-btn" onClick={handleLogout}>Sign Out</button>
                 </div>
             </main>
 
@@ -234,48 +325,23 @@ export default function ProfilePage() {
                 <div className="review-modal-overlay" onClick={() => setReviewModalOpen(false)}>
                     <div className="review-modal" onClick={(e) => e.stopPropagation()}>
                         <h3>Write a Review</h3>
-                        <p className="review-modal-subtitle">
-                            Share your experience with your coffee order
-                        </p>
-
+                        <p className="review-modal-subtitle">Share your experience with your coffee order</p>
                         <div className="rating-picker">
                             <label>Rating</label>
                             <div className="stars">
                                 {[1, 2, 3, 4, 5].map(star => (
-                                    <button
-                                        key={star}
-                                        className={`star-btn ${star <= reviewRating ? 'active' : ''}`}
-                                        onClick={() => setReviewRating(star)}
-                                    >
-                                        ★
-                                    </button>
+                                    <button key={star} className={`star-btn ${star <= reviewRating ? 'active' : ''}`} onClick={() => setReviewRating(star)}>★</button>
                                 ))}
                             </div>
                         </div>
-
                         <div className="comment-field">
                             <label>Your Review</label>
-                            <textarea
-                                value={reviewComment}
-                                onChange={(e) => setReviewComment(e.target.value)}
-                                placeholder="Tell us about your experience with Shadow Bean Co. coffee..."
-                                rows={4}
-                            />
+                            <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Tell us about your experience..." rows={4} />
                         </div>
-
                         <div className="review-modal-actions">
-                            <button
-                                className="secondary-btn"
-                                onClick={() => setReviewModalOpen(false)}
-                                disabled={submittingReview}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="primary-btn"
-                                onClick={handleSubmitReview}
-                                disabled={submittingReview || !reviewComment.trim()}
-                            >
+                            <button className="secondary-btn" onClick={() => setReviewModalOpen(false)} disabled={submittingReview}>Cancel</button>
+                            <button className="primary-btn" onClick={handleSubmitReview} disabled={submittingReview || !reviewComment.trim()}>
                                 {submittingReview ? 'Submitting...' : 'Submit Review'}
                             </button>
                         </div>

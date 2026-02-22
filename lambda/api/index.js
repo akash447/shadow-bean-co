@@ -1249,6 +1249,36 @@ exports.handler = async (event) => {
 
         }
 
+        // ─── PUBLIC: List active offers (for dropdown) ───
+        if (method === 'GET' && path === '/offers') {
+            try {
+                await query(
+                    `CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )`
+                );
+            } catch (e) { /* table may already exist */ }
+
+            const rows = await query(
+                `SELECT code, description, type, value, min_order FROM offers
+                 WHERE is_active = true
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                   AND (max_uses = 0 OR used_count < max_uses)
+                 ORDER BY created_at DESC LIMIT 5`
+            );
+            return ok(rows.map(r => ({ code: r.code, description: r.description, type: r.type, value: Number(r.value), min_order: Number(r.min_order) })));
+        }
+
         // ─── PUBLIC: Validate offer code ───
         if (method === 'POST' && path === '/offers/validate') {
             const code = (body.code || '').toUpperCase().trim();

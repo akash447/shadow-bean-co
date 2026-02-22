@@ -346,6 +346,19 @@ export async function getAssetByKey(key: string): Promise<AppAsset | null> {
 // OFFERS / COUPONS
 // ==============================================
 
+export interface OfferSummary {
+    code: string;
+    description: string;
+    type: string;
+    value: number;
+    min_order: number;
+}
+
+export async function getActiveOffers(): Promise<OfferSummary[]> {
+    const { data } = await api.get('/offers');
+    return data;
+}
+
 export async function validateOffer(code: string, cartTotal: number): Promise<{ valid: boolean; type?: string; value?: number; reason?: string }> {
     const { data } = await api.post('/offers/validate', { code, cart_total: cartTotal });
     return data;

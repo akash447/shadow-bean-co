@@ -17,13 +17,23 @@ interface CartItem {
     quantity: number;
 }
 
+export interface AppliedDiscount {
+    code: string;
+    type: string;   // 'percentage' | 'flat'
+    value: number;
+}
+
 interface CartStore {
     items: CartItem[];
+    discount: AppliedDiscount | null;
     addItem: (profile: TasteProfile) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
     clearCart: () => void;
+    getSubtotal: () => number;
+    getDiscountAmount: () => number;
     getTotal: () => number;
+    setDiscount: (d: AppliedDiscount | null) => void;
 }
 
 // Check if two profiles are equivalent (same customization)
@@ -42,6 +52,7 @@ export const useCartStore = create<CartStore>()(
     persist(
         (set, get) => ({
             items: [],
+            discount: null,
 
             addItem: (profile) => {
                 set((state) => {
@@ -81,10 +92,24 @@ export const useCartStore = create<CartStore>()(
                 }));
             },
 
-            clearCart: () => set({ items: [] }),
+            clearCart: () => set({ items: [], discount: null }),
+
+            setDiscount: (d) => set({ discount: d }),
+
+            getSubtotal: () => {
+                return get().items.reduce((sum, item) => sum + (799 * item.quantity), 0);
+            },
+
+            getDiscountAmount: () => {
+                const { discount } = get();
+                const subtotal = get().getSubtotal();
+                if (!discount) return 0;
+                if (discount.type === 'percentage') return Math.round(subtotal * discount.value / 100);
+                return Math.min(discount.value, subtotal);
+            },
 
             getTotal: () => {
-                return get().items.reduce((sum, item) => sum + (799 * item.quantity), 0);
+                return get().getSubtotal() - get().getDiscountAmount();
             }
         }),
         {
