@@ -202,25 +202,32 @@ function getGmailClient() {
 }
 
 function parseHDFCEmail(subject, body) {
-    // HDFC bank credit alert format varies; extract amount, sender, UPI ref
+    // HDFC bank credit alert format:
+    // "Dear Customer, Rs. 8.00 is successfully credited to your account **2678
+    //  by VPA 8765280251@amazonpay AKASH KUMAR SINGH on 23-02-26.
+    //  Your UPI transaction reference number is 642002462897."
     const result = { amount: null, senderName: null, upiRef: null, receivedAt: null };
 
-    // Amount: "Rs.799.00" or "INR 799.00" or "Rs 799"
-    const amtMatch = body.match(/(?:Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/i);
+    // Amount: "Rs. 799.00" or "Rs.799" or "INR 799.00"
+    const amtMatch = body.match(/Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
     if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
 
-    // Sender / VPA: "from VPA xyz@upi" or "from Mr. JOHN DOE"
-    const senderMatch = body.match(/(?:from|by)\s+(?:VPA\s+)?(.+?)(?:\s+(?:on|has|credited|to))/i);
+    // Sender: "by VPA 8765280251@amazonpay AKASH KUMAR SINGH on"
+    const senderMatch = body.match(/by\s+(?:VPA\s+)?(.+?)\s+on\s+\d/i);
     if (senderMatch) result.senderName = senderMatch[1].trim();
 
-    // UPI Ref / UTR: "UPI Ref No. 412345678901" or "Ref No 412345678901"
-    const refMatch = body.match(/(?:UPI\s*)?Ref\.?\s*(?:No\.?\s*)?:?\s*(\d{10,})/i);
+    // UPI Ref: "reference number is 642002462897" or "Ref No. 642002462897"
+    const refMatch = body.match(/(?:reference\s+number\s+is|Ref\.?\s*(?:No\.?\s*)?:?)\s*(\d{10,})/i);
     if (refMatch) result.upiRef = refMatch[1];
 
-    // Date from email body: "on 23-02-26" or timestamp
-    const dateMatch = body.match(/on\s+(\d{2}-\d{2}-\d{2,4}\s*\d{2}:\d{2}:\d{2})/i);
+    // Date: "on 23-02-26" or "on 23-02-2026"
+    const dateMatch = body.match(/on\s+(\d{2}-\d{2}-\d{2,4})/i);
     if (dateMatch) {
-        try { result.receivedAt = new Date(dateMatch[1]).toISOString(); } catch { }
+        try {
+            const parts = dateMatch[1].split('-');
+            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+            result.receivedAt = new Date(`${year}-${parts[1]}-${parts[0]}`).toISOString();
+        } catch { }
     }
 
     return result;
@@ -232,8 +239,8 @@ async function processGmailMessage(gmail, messageId) {
     const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
     const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
 
-    // Only process HDFC bank alerts
-    if (!from.toLowerCase().includes('alerts@hdfcbank.net')) return null;
+    // Only process HDFC bank alerts (from any hdfcbank domain)
+    if (!from.toLowerCase().includes('hdfcbank')) return null;
 
     // Extract body text
     let bodyText = '';
@@ -245,19 +252,29 @@ async function processGmailMessage(gmail, messageId) {
         bodyText = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
     }
 
+    console.log(`Processing HDFC email: from="${from}" subject="${subject}" bodyLen=${bodyText.length}`);
+    console.log(`Body preview: ${bodyText.substring(0, 300)}`);
+
     const parsed = parseHDFCEmail(subject, bodyText);
-    if (!parsed.amount) return null;
+    console.log(`Parsed result: amount=${parsed.amount}, ref=${parsed.upiRef}, sender=${parsed.senderName}`);
+    if (!parsed.amount) {
+        // Try parsing amount from subject as fallback
+        const subjAmt = subject.match(/(?:Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/i);
+        if (subjAmt) parsed.amount = parseFloat(subjAmt[1].replace(/,/g, ''));
+        console.log(`Subject parse fallback: amount=${parsed.amount}`);
+        if (!parsed.amount) return null;
+    }
 
     // Check duplicate
     const existing = await query('SELECT id FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
     if (existing.length) return existing[0];
 
-    // Insert into upi_payments
+    // Insert into upi_payments (don't store raw email body for privacy)
     const rows = await query(
         `INSERT INTO upi_payments (gmail_message_id, sender_name, upi_ref, amount, received_at, raw_subject, raw_body)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [messageId, parsed.senderName, parsed.upiRef, parsed.amount,
-         parsed.receivedAt || new Date().toISOString(), subject, bodyText]
+         VALUES ($1, $2, $3, $4::NUMERIC, $5::TIMESTAMPTZ, $6, $7) RETURNING *`,
+        [messageId, parsed.senderName, parsed.upiRef, String(parsed.amount),
+         parsed.receivedAt || new Date().toISOString(), 'HDFC Credit Alert', null]
     );
 
     if (rows.length) {
@@ -269,7 +286,7 @@ async function processGmailMessage(gmail, messageId) {
 
 // Throttle: track last Gmail check time per Lambda instance
 let lastGmailCheckTime = 0;
-const GMAIL_CHECK_INTERVAL_MS = 15000; // check Gmail at most every 15 seconds
+const GMAIL_CHECK_INTERVAL_MS = 10000; // check Gmail at most every 10 seconds
 
 async function checkGmailForPendingPayments() {
     const now = Date.now();
@@ -281,21 +298,32 @@ async function checkGmailForPendingPayments() {
         return;
     }
 
+    // PRIVACY: Only hit Gmail API if there are actually pending UPI orders
+    const pendingOrders = await query(
+        `SELECT id FROM orders WHERE payment_method = 'upi' AND payment_status = 'pending'
+         AND created_at > NOW() - INTERVAL '2 hours' LIMIT 1`
+    );
+    if (!pendingOrders.length) {
+        console.log('No pending UPI orders, skipping Gmail check');
+        return;
+    }
+
     try {
         const gmail = getGmailClient();
 
-        // Search for recent HDFC credit alert emails (last 1 hour)
-        const res = await gmail.users.messages.list({
-            userId: 'me',
-            q: 'from:alerts@hdfcbank.net subject:credit newer_than:1h',
-            maxResults: 10,
-        });
+        // Search ONLY for HDFC bank credit alerts (not personal emails)
+        // Subject is always: "View: Account update for your HDFC Bank A/c"
+        const q = 'from:hdfcbank subject:"Account update" "credited" newer_than:2h';
 
-        const messages = res.data.messages || [];
-        console.log(`Gmail check: found ${messages.length} recent HDFC emails`);
-
-        for (const m of messages) {
-            await processGmailMessage(gmail, m.id);
+        try {
+            const res = await gmail.users.messages.list({ userId: 'me', q, maxResults: 10 });
+            const messages = res.data.messages || [];
+            console.log(`Gmail search: found ${messages.length} HDFC credit alerts`);
+            for (const m of messages) {
+                await processGmailMessage(gmail, m.id);
+            }
+        } catch (searchErr) {
+            console.error(`Gmail search error:`, searchErr.message);
         }
     } catch (err) {
         console.error('Gmail on-demand check error:', err.message);
@@ -304,26 +332,28 @@ async function checkGmailForPendingPayments() {
 
 async function autoMatchPayment(upiPaymentId, amount, upiRef) {
     // Find pending UPI orders with matching amount, created within last 24h
+    console.log(`Auto-matching: looking for pending UPI orders with amount=${amount}`);
     const candidates = await query(
         `SELECT id, total_amount FROM orders
          WHERE payment_method = 'upi' AND payment_status = 'pending'
-         AND total_amount = $1 AND created_at > NOW() - INTERVAL '24 hours'
+         AND total_amount = $1::NUMERIC AND created_at > NOW() - INTERVAL '24 hours'
          ORDER BY created_at DESC`,
-        [amount]
+        [String(amount)]
     );
+    console.log(`Auto-match candidates: ${candidates.length} orders found`);
 
     if (candidates.length === 1) {
         const orderId = candidates[0].id;
-        // Auto-match
+        // Auto-match and auto-place the order
         await query(
             `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
             [orderId, upiPaymentId]
         );
         await query(
-            `UPDATE orders SET payment_status = 'detected', upi_ref_number = $1 WHERE id = $2::uuid`,
+            `UPDATE orders SET payment_status = 'detected', status = 'confirmed', upi_ref_number = $1 WHERE id = $2::uuid`,
             [upiRef, orderId]
         );
-        console.log(`Auto-matched UPI payment ${upiPaymentId} to order ${orderId}`);
+        console.log(`Auto-matched UPI payment ${upiPaymentId} to order ${orderId} — order auto-confirmed`);
 
         // Send notifications
         try {
@@ -991,7 +1021,7 @@ exports.handler = async (event) => {
                     const hoursBack = parseInt(qs.hours || '2', 10);
                     const res = await gmail.users.messages.list({
                         userId: 'me',
-                        q: `from:alerts@hdfcbank.net subject:credit newer_than:${hoursBack}h`,
+                        q: `from:hdfcbank subject:"Account update" newer_than:${hoursBack}h`,
                         maxResults: 20,
                     });
                     const messages = res.data.messages || [];

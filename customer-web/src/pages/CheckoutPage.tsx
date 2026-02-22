@@ -101,7 +101,7 @@ export default function CheckoutPage() {
         setAddr(EMPTY_ADDR);
     };
 
-    // UPI payment polling
+    // UPI payment polling — treat both 'detected' and 'confirmed' as success
     useEffect(() => {
         if (!upiPolling || !ordId) return;
         let cancelled = false;
@@ -119,7 +119,8 @@ export default function CheckoutPage() {
                 const res = await getPaymentStatus(ordId);
                 if (cancelled) return;
                 setUpiStatus(res.payment_status);
-                if (res.payment_status === 'confirmed') {
+                // Payment verified — money received
+                if (res.payment_status === 'confirmed' || res.payment_status === 'detected') {
                     setUpiPolling(false);
                     setSuccess(true);
                 } else {
@@ -254,7 +255,13 @@ export default function CheckoutPage() {
         );
     }
 
-    /* ── Success ── */
+    /* ── Success — brief confirmation then redirect to profile ── */
+    useEffect(() => {
+        if (!success) return;
+        const timer = setTimeout(() => nav('/profile'), 4000);
+        return () => clearTimeout(timer);
+    }, [success, nav]);
+
     if (success) {
         return (
             <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
@@ -265,9 +272,10 @@ export default function CheckoutPage() {
                     <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 30, color: DARK, margin: '0 0 8px' }}>Order Placed Successfully!</h2>
                     <p style={{ color: '#666', fontSize: 14 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId}</strong></p>
                     <p style={{ color: MUTED, fontSize: 13, marginTop: 4, marginBottom: 32 }}>We'll contact you at <strong>{orderPhoneRef.current}</strong> for delivery updates.</p>
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => nav('/')}
+                    <p style={{ color: '#aaa', fontSize: 12, marginBottom: 16 }}>Redirecting to your orders...</p>
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={() => nav('/profile')}
                         style={{ padding: '14px 40px', background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(79,81,48,0.3)' }}
-                    >Back to Home</motion.button>
+                    >View My Orders</motion.button>
                 </motion.div>
             </div>
         );
