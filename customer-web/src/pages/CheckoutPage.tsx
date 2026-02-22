@@ -132,6 +132,13 @@ export default function CheckoutPage() {
         return () => { cancelled = true; };
     }, [upiPolling, ordId]);
 
+    /* ── Payment detected → wait 4s → redirect to profile/orders ── */
+    useEffect(() => {
+        if (upiStatus !== 'detected' && upiStatus !== 'confirmed') return;
+        const timer = setTimeout(() => nav('/profile'), 4000);
+        return () => clearTimeout(timer);
+    }, [upiStatus, nav]);
+
     const set = (e: React.ChangeEvent<HTMLInputElement>) => {
         setAddr(p => ({ ...p, [e.target.name]: e.target.value }));
     };
@@ -255,12 +262,6 @@ export default function CheckoutPage() {
         );
     }
 
-    /* ── Payment detected → wait 4s → redirect to profile/orders ── */
-    useEffect(() => {
-        if (upiStatus !== 'detected' && upiStatus !== 'confirmed') return;
-        const timer = setTimeout(() => nav('/profile'), 4000);
-        return () => clearTimeout(timer);
-    }, [upiStatus, nav]);
 
 
     /* ── Submit ── */
