@@ -522,6 +522,71 @@ exports.handler = async (event) => {
             return ok(rows[0] || null);
         }
 
+        // GET /offers (public - list active offers for dropdown)
+        if (method === 'GET' && path === '/offers') {
+            try {
+                await query(
+                    `CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )`
+                );
+            } catch (e) { /* table may already exist */ }
+
+            const rows = await query(
+                `SELECT code, description, type, value, min_order FROM offers
+                 WHERE is_active = true
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                   AND (max_uses = 0 OR used_count < max_uses)
+                 ORDER BY created_at DESC LIMIT 5`
+            );
+            return ok(rows.map(r => ({ code: r.code, description: r.description, type: r.type, value: Number(r.value), min_order: Number(r.min_order) })));
+        }
+
+        // POST /offers/validate (public - validate a coupon code)
+        if (method === 'POST' && path === '/offers/validate') {
+            const code = (body.code || '').toUpperCase().trim();
+            const cartTotal = Number(body.cart_total) || 0;
+            if (!code) return error(400, 'Code required');
+
+            try {
+                await query(
+                    `CREATE TABLE IF NOT EXISTS offers (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        code VARCHAR(50) UNIQUE NOT NULL,
+                        description TEXT,
+                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
+                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        min_order NUMERIC(10,2) DEFAULT 0,
+                        max_uses INTEGER DEFAULT 0,
+                        used_count INTEGER DEFAULT 0,
+                        is_active BOOLEAN DEFAULT true,
+                        expires_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT now()
+                    )`
+                );
+            } catch (e) { /* table may already exist */ }
+
+            const rows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [code]);
+            if (!rows.length) return ok({ valid: false, reason: 'Invalid or inactive code' });
+
+            const offer = rows[0];
+            if (offer.expires_at && new Date(offer.expires_at) < new Date()) return ok({ valid: false, reason: 'Expired' });
+            if (offer.max_uses > 0 && offer.used_count >= offer.max_uses) return ok({ valid: false, reason: 'Max uses reached' });
+            if (cartTotal < Number(offer.min_order)) return ok({ valid: false, reason: `Min order ₹${offer.min_order}` });
+
+            return ok({ valid: true, type: offer.type, value: Number(offer.value), description: offer.description });
+        }
+
         // --- AUTHENTICATED ROUTES ---
 
         const user = await verifyToken(event);
@@ -1247,71 +1312,6 @@ exports.handler = async (event) => {
                 return ok({ deleted: true });
             }
 
-        }
-
-        // ─── PUBLIC: List active offers (for dropdown) ───
-        if (method === 'GET' && path === '/offers') {
-            try {
-                await query(
-                    `CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )`
-                );
-            } catch (e) { /* table may already exist */ }
-
-            const rows = await query(
-                `SELECT code, description, type, value, min_order FROM offers
-                 WHERE is_active = true
-                   AND (expires_at IS NULL OR expires_at > NOW())
-                   AND (max_uses = 0 OR used_count < max_uses)
-                 ORDER BY created_at DESC LIMIT 5`
-            );
-            return ok(rows.map(r => ({ code: r.code, description: r.description, type: r.type, value: Number(r.value), min_order: Number(r.min_order) })));
-        }
-
-        // ─── PUBLIC: Validate offer code ───
-        if (method === 'POST' && path === '/offers/validate') {
-            const code = (body.code || '').toUpperCase().trim();
-            const cartTotal = Number(body.cart_total) || 0;
-            if (!code) return error(400, 'Code required');
-
-            try {
-                await query(
-                    `CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )`
-                );
-            } catch (e) { /* table may already exist */ }
-
-            const rows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [code]);
-            if (!rows.length) return ok({ valid: false, reason: 'Invalid or inactive code' });
-
-            const offer = rows[0];
-            if (offer.expires_at && new Date(offer.expires_at) < new Date()) return ok({ valid: false, reason: 'Expired' });
-            if (offer.max_uses > 0 && offer.used_count >= offer.max_uses) return ok({ valid: false, reason: 'Max uses reached' });
-            if (cartTotal < Number(offer.min_order)) return ok({ valid: false, reason: `Min order ₹${offer.min_order}` });
-
-            return ok({ valid: true, type: offer.type, value: Number(offer.value), description: offer.description });
         }
 
         return error(404, 'Not found');
