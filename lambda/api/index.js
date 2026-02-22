@@ -1,7 +1,7 @@
 /**
  * Shadow Bean Co - API Lambda Handler
  * ==============================================
- * Copyright (c) 2024-2026 Shadow Bean Co. All rights reserved.
+ * Copyright (c) 2024-2026 Akash Kumar Singh. All rights reserved.
  * This source code is proprietary and confidential.
  * Unauthorized copying or distribution is strictly prohibited.
  * ==============================================
