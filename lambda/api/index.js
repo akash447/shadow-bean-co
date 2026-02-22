@@ -311,18 +311,27 @@ async function checkGmailForPendingPayments() {
         const gmail = getGmailClient();
 
         // Search ONLY for HDFC bank credit alerts (not personal emails)
-        // Subject is always: "View: Account update for your HDFC Bank A/c"
-        const q = 'from:hdfcbank subject:"Account update" "credited" newer_than:2h';
+        // Two queries for better coverage — subject-based and body-based
+        const searches = [
+            'from:hdfcbank subject:"Account update" newer_than:2h',
+            'from:hdfcbank "credited" newer_than:2h',
+        ];
 
-        try {
-            const res = await gmail.users.messages.list({ userId: 'me', q, maxResults: 10 });
-            const messages = res.data.messages || [];
-            console.log(`Gmail search: found ${messages.length} HDFC credit alerts`);
-            for (const m of messages) {
-                await processGmailMessage(gmail, m.id);
+        const seenIds = new Set();
+        for (const q of searches) {
+            try {
+                const res = await gmail.users.messages.list({ userId: 'me', q, maxResults: 10 });
+                const messages = res.data.messages || [];
+                console.log(`Gmail search "${q}": found ${messages.length} emails`);
+                for (const m of messages) {
+                    if (!seenIds.has(m.id)) {
+                        seenIds.add(m.id);
+                        await processGmailMessage(gmail, m.id);
+                    }
+                }
+            } catch (searchErr) {
+                console.error(`Gmail search error:`, searchErr.message);
             }
-        } catch (searchErr) {
-            console.error(`Gmail search error:`, searchErr.message);
         }
     } catch (err) {
         console.error('Gmail on-demand check error:', err.message);
