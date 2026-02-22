@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
+import { getReviews } from '../services/api';
+import type { Review } from '../services/api';
 import './HomePage.css';
 
 import iconShadow from '../assets/icons/icon_shadow_grown.png';
@@ -21,10 +24,10 @@ const BREW_METHODS = [
     { iconKey: 'icon_chhani.png', title: 'BREW WITH A SIMPLE CHHANI', desc: 'No equipment? No problem. Use a strainer.' },
 ];
 
-const REVIEWS = [
-    { id: '1', comment: "Never tasted coffee this smooth!", author: 'Priya S.' },
-    { id: '2', comment: "Coffee that doesn't need sugar.", author: 'Arjun K.' },
-    { id: '3', comment: "Custom roast option is amazing.", author: 'Sarah J.' },
+const FALLBACK_REVIEWS = [
+    { id: '1', comment: "Never tasted coffee this smooth!", user_name: 'Priya S.', rating: 5 },
+    { id: '2', comment: "Coffee that doesn't need sugar.", user_name: 'Arjun K.', rating: 5 },
+    { id: '3', comment: "Custom roast option is amazing.", user_name: 'Sarah J.', rating: 5 },
 ];
 
 export default function HomePage() {
@@ -36,6 +39,16 @@ export default function HomePage() {
     const iconPourOverKit = useAsset('icon_pour_over_kit.png');
     const iconFrenchPress = useAsset('icon_french_press.png');
     const iconChhani = useAsset('icon_chhani.png');
+
+    const [reviews, setReviews] = useState<(Review | typeof FALLBACK_REVIEWS[0])[]>(FALLBACK_REVIEWS);
+
+    useEffect(() => {
+        getReviews(6)
+            .then((data) => {
+                if (data && data.length > 0) setReviews(data);
+            })
+            .catch(() => { /* keep fallback reviews */ });
+    }, []);
 
     const brewMethodIcons: Record<string, string> = {
         'icon_pour_over_kit.png': iconPourOverKit,
@@ -151,13 +164,13 @@ export default function HomePage() {
                         <span className="section-label">TESTIMONIALS</span>
                         <h2 className="testimonials-title">Loved By Coffee Lovers</h2>
                         <div className="reviews-grid">
-                            {REVIEWS.map((review) => (
+                            {reviews.map((review) => (
                                 <div key={review.id} className="review-card">
                                     <span className="review-quote">"</span>
                                     <p className="review-text">{review.comment}</p>
                                     <div className="review-footer">
-                                        <span className="review-author">{review.author}</span>
-                                        <span className="review-stars">★★★★★</span>
+                                        <span className="review-author">{review.user_name || 'Coffee Lover'}</span>
+                                        <span className="review-stars">{'★'.repeat(review.rating || 5)}{'☆'.repeat(5 - (review.rating || 5))}</span>
                                     </div>
                                 </div>
                             ))}
@@ -165,7 +178,7 @@ export default function HomePage() {
                     </div>
                     <footer className="home-footer">
                         <span className="footer-brand">SHADOW BEAN CO.</span>
-                        <span className="footer-copyright">© 2024 Shadow Bean Co.</span>
+                        <span className="footer-copyright">© 2026 Shadow Bean Co.</span>
                     </footer>
                 </section>
             </div>

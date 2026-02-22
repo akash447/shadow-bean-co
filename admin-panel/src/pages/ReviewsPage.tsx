@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getReviews, deleteReview } from '../lib/admin-api';
-import { Star, Trash2 } from 'lucide-react';
+import { getReviews, deleteReview, updateReview } from '../lib/admin-api';
+import { Star, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 export const ReviewsPage: React.FC = () => {
     const [reviews, setReviews] = useState<any[]>([]);
@@ -25,6 +25,11 @@ export const ReviewsPage: React.FC = () => {
         }
     };
 
+    const handleToggleApproval = async (id: string, currentlyApproved: boolean) => {
+        await updateReview(id, { is_approved: !currentlyApproved });
+        loadReviews();
+    };
+
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }).map((_, i) => (
             <Star
@@ -44,7 +49,9 @@ export const ReviewsPage: React.FC = () => {
         <div>
             <div className="page-header">
                 <h1 className="page-title">Reviews</h1>
-                <span style={{ color: '#8b7355' }}>{reviews.length} total reviews</span>
+                <span style={{ color: '#8b7355' }}>
+                    {reviews.length} total &middot; {reviews.filter(r => r.is_approved).length} approved
+                </span>
             </div>
 
             {reviews.length === 0 ? (
@@ -55,30 +62,53 @@ export const ReviewsPage: React.FC = () => {
             ) : (
                 <div style={{ display: 'grid', gap: '16px' }}>
                     {reviews.map((review) => (
-                        <div key={review.id} className="card" style={{ marginBottom: 0 }}>
+                        <div key={review.id} className="card" style={{
+                            marginBottom: 0,
+                            borderLeft: `4px solid ${review.is_approved ? '#16a34a' : '#f59e0b'}`,
+                        }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
                                         <strong>{review.user_name || 'Anonymous'}</strong>
-                                        <span style={{ color: '#6B8E23', fontSize: '12px' }}>{review.product_name}</span>
                                         <div style={{ display: 'flex', gap: '2px' }}>
                                             {renderStars(review.rating)}
                                         </div>
-                                        <span style={{ color: '#8b7355', fontSize: '14px' }}>
-                                            {new Date(review.created_at).toLocaleDateString()}
+                                        <span style={{
+                                            padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                                            background: review.is_approved ? '#dcfce7' : '#fef3c7',
+                                            color: review.is_approved ? '#16a34a' : '#d97706',
+                                        }}>
+                                            {review.is_approved ? 'Approved' : 'Pending'}
+                                        </span>
+                                        <span style={{ color: '#8b7355', fontSize: '13px' }}>
+                                            {new Date(review.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </span>
                                     </div>
-                                    <p style={{ color: '#555', lineHeight: '1.6' }}>
+                                    <p style={{ color: '#555', lineHeight: '1.6', margin: 0 }}>
                                         {review.comment || 'No comment provided'}
                                     </p>
                                 </div>
-                                <button
-                                    className="btn btn-sm btn-danger"
-                                    onClick={() => handleDelete(review.id)}
-                                    style={{ marginLeft: '16px' }}
-                                >
-                                    <Trash2 size={14} />
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px', marginLeft: '16px', flexShrink: 0 }}>
+                                    <button
+                                        className={`btn btn-sm ${review.is_approved ? 'btn-outline' : 'btn-secondary'}`}
+                                        onClick={() => handleToggleApproval(review.id, review.is_approved)}
+                                        title={review.is_approved ? 'Unapprove — hide from website' : 'Approve — show on website'}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '4px',
+                                            color: review.is_approved ? '#d97706' : '#16a34a',
+                                            borderColor: review.is_approved ? '#fbbf24' : '#86efac',
+                                        }}
+                                    >
+                                        {review.is_approved ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                                        {review.is_approved ? 'Unapprove' : 'Approve'}
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-danger"
+                                        onClick={() => handleDelete(review.id)}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

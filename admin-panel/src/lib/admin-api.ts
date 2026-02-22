@@ -395,6 +395,15 @@ export const getReviews = async () => {
     }
 };
 
+export const updateReview = async (id: string, updates: { is_approved?: boolean }) => {
+    try {
+        const { data } = await api.put(`/admin/reviews/${id}`, updates);
+        return { data, error: null };
+    } catch (err: any) {
+        return { data: null, error: { message: err.message } };
+    }
+};
+
 export const deleteReview = async (id: string) => {
     try {
         await api.delete(`/admin/reviews/${id}`);

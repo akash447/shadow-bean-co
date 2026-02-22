@@ -40,8 +40,9 @@ const verifier = CognitoJwtVerifier.create({
 async function query(sql, parameters = []) {
     const params = parameters.map((p, i) => {
         if (p === null || p === undefined) return { name: `p${i}`, value: { isNull: true } };
-        if (typeof p === 'number') return { name: `p${i}`, value: { longValue: Math.floor(p) === p ? p : undefined, doubleValue: Math.floor(p) !== p ? p : undefined } };
         if (typeof p === 'boolean') return { name: `p${i}`, value: { booleanValue: p } };
+        // Send all numbers as strings to avoid RDS Data API type-casting issues with NUMERIC/DECIMAL
+        if (typeof p === 'number') return { name: `p${i}`, value: { stringValue: String(p) } };
         return { name: `p${i}`, value: { stringValue: String(p) } };
     });
 
@@ -181,8 +182,15 @@ exports.handler = async (event) => {
 
     const method = event.httpMethod;
     const path = event.path || event.rawPath || '';
-    const body = event.body ? JSON.parse(event.body) : {};
     const qs = event.queryStringParameters || {};
+
+    let body = {};
+    try {
+        body = event.body ? (typeof event.body === 'string' ? JSON.parse(event.body) : event.body) : {};
+    } catch (parseErr) {
+        console.error('Body parse error:', parseErr);
+        return error(400, 'Invalid request body');
+    }
 
     console.log(`${method} ${path}`, JSON.stringify({ qs, bodyKeys: Object.keys(body) }));
 
@@ -748,7 +756,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
+                        expires_at TEXT,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
@@ -768,7 +776,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
+                        expires_at TEXT,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
@@ -839,7 +847,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
+                        expires_at TEXT,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )`
                 );
@@ -859,6 +867,7 @@ exports.handler = async (event) => {
         return error(404, 'Not found');
     } catch (err) {
         console.error('API Error:', err);
-        return error(500, 'Internal server error');
+        const msg = err?.message || 'Internal server error';
+        return error(500, msg);
     }
 };
