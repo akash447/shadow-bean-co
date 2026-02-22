@@ -39,6 +39,7 @@ export default function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState<'cod' | 'upi'>('cod');
     const [upiPolling, setUpiPolling] = useState(false);
     const [upiStatus, setUpiStatus] = useState<string>('pending');
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     const init = (): ShippingAddress => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || ''); } catch { return { fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' }; }
@@ -213,6 +214,7 @@ export default function CheckoutPage() {
         e.preventDefault();
         setError(null);
         if (loading) return;
+        if (!agreedToTerms) { setError('Please accept the Terms & Conditions to place your order.'); return; }
         if (!user || !user.id?.trim()) { nav('/login?redirect=/checkout&message=login_required'); return; }
         setSubmitting(true);
         try {
@@ -431,15 +433,31 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
 
+                                {/* T&C Checkbox */}
+                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 18, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                        style={{ marginTop: 3, width: 16, height: 16, accentColor: OLIVE, cursor: 'pointer', flexShrink: 0 }}
+                                    />
+                                    <span>
+                                        I agree to the{' '}
+                                        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: OLIVE, fontWeight: 600, textDecoration: 'underline' }}>
+                                            Terms & Conditions
+                                        </a>
+                                    </span>
+                                </label>
+
                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                    type="submit" disabled={submitting}
+                                    type="submit" disabled={submitting || !agreedToTerms}
                                     style={{
-                                        width: '100%', marginTop: 22, padding: '16px 0',
-                                        background: submitting ? '#aaa' : `linear-gradient(135deg, ${DARK}, #3a1a08)`,
+                                        width: '100%', marginTop: 14, padding: '16px 0',
+                                        background: (submitting || !agreedToTerms) ? '#aaa' : `linear-gradient(135deg, ${DARK}, #3a1a08)`,
                                         color: '#fff', border: 'none', borderRadius: 14,
-                                        fontWeight: 800, fontSize: 15, cursor: submitting ? 'not-allowed' : 'pointer',
+                                        fontWeight: 800, fontSize: 15, cursor: (submitting || !agreedToTerms) ? 'not-allowed' : 'pointer',
                                         letterSpacing: '0.06em', textTransform: 'uppercase',
-                                        boxShadow: submitting ? 'none' : '0 6px 20px rgba(28,13,2,0.25)',
+                                        boxShadow: (submitting || !agreedToTerms) ? 'none' : '0 6px 20px rgba(28,13,2,0.25)',
                                     }}
                                 >{submitting ? '⏳ Placing Order...' : paymentMethod === 'upi' ? 'Place Order & Pay via UPI →' : 'Place Order →'}</motion.button>
 

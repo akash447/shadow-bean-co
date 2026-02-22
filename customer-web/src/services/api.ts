@@ -1,6 +1,10 @@
 /**
  * Shadow Bean Co - API Client
  * ==============================================
+ * Copyright (c) 2024-2026 Shadow Bean Co. All rights reserved.
+ * This source code is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * ==============================================
  * Unified data layer backed by AWS Lambda + RDS PostgreSQL.
  * All data flows through API Gateway -> Lambda -> RDS PostgreSQL.
  *

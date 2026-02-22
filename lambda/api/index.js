@@ -1,6 +1,10 @@
 /**
  * Shadow Bean Co - API Lambda Handler
  * ==============================================
+ * Copyright (c) 2024-2026 Shadow Bean Co. All rights reserved.
+ * This source code is proprietary and confidential.
+ * Unauthorized copying or distribution is strictly prohibited.
+ * ==============================================
  * Serverless API backed by Aurora PostgreSQL (Data API).
  * Deployed behind API Gateway.
  * Authenticates via Cognito JWT tokens.
@@ -1172,7 +1176,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TEXT,
+                        expires_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
@@ -1192,7 +1196,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TEXT,
+                        expires_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
@@ -1214,12 +1218,12 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TEXT,
+                        expires_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )
                 `);
                 const rows = await query(
-                    'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                    'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4::NUMERIC, $5::NUMERIC, $6, $7, $8::TIMESTAMPTZ) RETURNING *',
                     [body.code?.toUpperCase(), body.description || '', body.type || 'percentage', String(body.value || 0), String(body.min_order || 0), body.max_uses || 0, body.is_active !== false, body.expires_at || null]
                 );
                 console.log('Offer created:', rows[0]?.id);
@@ -1230,7 +1234,7 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/offers\/[\w-]+$/)) {
                 const id = path.split('/')[3];
                 const rows = await query(
-                    'UPDATE offers SET code = COALESCE($1, code), description = COALESCE($2, description), type = COALESCE($3, type), value = COALESCE($4, value), min_order = COALESCE($5, min_order), max_uses = COALESCE($6, max_uses), is_active = COALESCE($7, is_active), expires_at = $8 WHERE id = $9::uuid RETURNING *',
+                    'UPDATE offers SET code = COALESCE($1, code), description = COALESCE($2, description), type = COALESCE($3, type), value = COALESCE($4::NUMERIC, value), min_order = COALESCE($5::NUMERIC, min_order), max_uses = COALESCE($6, max_uses), is_active = COALESCE($7, is_active), expires_at = $8::TIMESTAMPTZ WHERE id = $9::uuid RETURNING *',
                     [body.code?.toUpperCase(), body.description, body.type, body.value != null ? String(body.value) : null, body.min_order != null ? String(body.min_order) : null, body.max_uses, body.is_active, body.expires_at || null, id]
                 );
                 return ok(rows[0]);
@@ -1263,7 +1267,7 @@ exports.handler = async (event) => {
                         max_uses INTEGER DEFAULT 0,
                         used_count INTEGER DEFAULT 0,
                         is_active BOOLEAN DEFAULT true,
-                        expires_at TEXT,
+                        expires_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ DEFAULT now()
                     )`
                 );
