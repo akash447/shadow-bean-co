@@ -22,7 +22,10 @@ interface ShippingAddress {
 }
 
 const STORAGE_KEY = 'shadow_bean_shipping_address';
-const UPI_ID = 'shadowbeanco@hdfcbank';
+const UPI_ID = '8765280251@ybl';
+const UPI_NAME = encodeURIComponent('Shadow Bean Co');
+const upiUri = (amount: number) =>
+    `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Shadow Bean Co Order')}`;
 
 export default function CheckoutPage() {
     const nav = useNavigate();
@@ -152,7 +155,7 @@ export default function CheckoutPage() {
                             {upiStatus === 'pending' && (
                                 <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
                                     <QRCodeSVG
-                                        value={`upi://pay?pa=${UPI_ID}&pn=Shadow Bean Co&am=${getTotal()}&cu=INR`}
+                                        value={upiUri(getTotal())}
                                         size={160}
                                         level="M"
                                         bgColor="#ffffff"
@@ -358,7 +361,7 @@ export default function CheckoutPage() {
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
                                                 <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
                                                     <QRCodeSVG
-                                                        value={`upi://pay?pa=${UPI_ID}&pn=Shadow Bean Co&am=${getTotal()}&cu=INR`}
+                                                        value={upiUri(getTotal())}
                                                         size={180}
                                                         level="M"
                                                         bgColor="#ffffff"
