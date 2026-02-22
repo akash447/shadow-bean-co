@@ -252,8 +252,7 @@ async function processGmailMessage(gmail, messageId) {
         bodyText = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
     }
 
-    console.log(`Processing HDFC email: from="${from}" subject="${subject}" bodyLen=${bodyText.length}`);
-    console.log(`Body preview: ${bodyText.substring(0, 300)}`);
+    console.log(`Processing HDFC credit alert: amount parsing from bodyLen=${bodyText.length}`);
 
     const parsed = parseHDFCEmail(subject, bodyText);
     console.log(`Parsed result: amount=${parsed.amount}, ref=${parsed.upiRef}, sender=${parsed.senderName}`);
