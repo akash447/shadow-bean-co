@@ -10,6 +10,7 @@ import AboutPage from './pages/AboutPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ChatWidget from './components/ChatWidget'
 import './App.css'
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
@@ -63,6 +64,7 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
               </Routes>
+              <ChatWidget />
             </BrowserRouter>
           </YetiProvider>
         </AuthProvider>
