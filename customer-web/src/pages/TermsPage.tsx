@@ -21,11 +21,20 @@ export default function TermsPage() {
             .finally(() => setLoading(false));
     }, []);
 
+    const goBack = () => {
+        // If opened in new tab (no history), close it; otherwise go back
+        if (window.history.length <= 1) {
+            window.close();
+        } else {
+            nav(-1);
+        }
+    };
+
     return (
         <div style={{ minHeight: '100dvh', background: BG, fontFamily: "'Montserrat', sans-serif" }}>
             <header style={{ background: CARD, borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, zIndex: 20 }}>
                 <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <button onClick={() => nav(-1)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: OLIVE, fontWeight: 600, fontSize: 14, background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <button onClick={goBack} style={{ display: 'flex', alignItems: 'center', gap: 6, color: OLIVE, fontWeight: 600, fontSize: 14, background: 'none', border: 'none', cursor: 'pointer' }}>
                         ← Back
                     </button>
                     <div style={{ width: 1, height: 22, background: BORDER }} />
