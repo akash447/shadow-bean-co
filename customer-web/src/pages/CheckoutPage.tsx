@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import { useCartStore } from '../stores/cartStore';
 import { createOrder, ensureProfile, getPaymentStatus } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -145,10 +146,32 @@ export default function CheckoutPage() {
                             <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>
                                 {upiStatus === 'detected' ? 'Payment Detected!' : 'Waiting for Payment...'}
                             </h2>
-                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 8 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
+                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
+
+                            {/* QR Code on polling screen */}
+                            {upiStatus === 'pending' && (
+                                <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                                    <QRCodeSVG
+                                        value={`upi://pay?pa=${UPI_ID}&pn=Shadow Bean Co&am=${getTotal()}&cu=INR`}
+                                        size={160}
+                                        level="M"
+                                        bgColor="#ffffff"
+                                        fgColor="#1c0d02"
+                                    />
+                                </div>
+                            )}
+
                             <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 24, textAlign: 'left' }}>
-                                <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Pay to UPI ID</div>
-                                <div style={{ fontSize: 18, fontWeight: 700, color: DARK, marginBottom: 12, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: MUTED, marginBottom: 2 }}>Pay to UPI ID</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
+                                    </div>
+                                    <button onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
+                                        style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                        Copy
+                                    </button>
+                                </div>
                                 <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
                                 <div style={{ fontSize: 22, fontWeight: 800, color: DARK }}>₹{getTotal()}</div>
                             </div>
@@ -326,16 +349,42 @@ export default function CheckoutPage() {
                                         )}
                                     </div>
 
-                                    {/* UPI Details (shown when UPI selected) */}
+                                    {/* UPI Details with QR Code (shown when UPI selected) */}
                                     {paymentMethod === 'upi' && (
                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.2 }}
-                                            style={{ background: '#faf7f3', border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: '18px 20px' }}>
-                                            <div style={{ fontSize: 12, color: MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pay to UPI ID</div>
-                                            <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', marginBottom: 14, wordBreak: 'break-all' }}>{UPI_ID}</div>
-                                            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
-                                                1. Open any UPI app (GPay, PhonePe, Paytm, etc.)<br />
-                                                2. Send ₹{getTotal()} to the UPI ID above<br />
-                                                3. Place the order - we'll auto-detect your payment
+                                            style={{ background: '#faf7f3', border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: '20px' }}>
+
+                                            {/* QR Code */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
+                                                <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                                                    <QRCodeSVG
+                                                        value={`upi://pay?pa=${UPI_ID}&pn=Shadow Bean Co&am=${getTotal()}&cu=INR`}
+                                                        size={180}
+                                                        level="M"
+                                                        bgColor="#ffffff"
+                                                        fgColor="#1c0d02"
+                                                    />
+                                                </div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: DARK, marginTop: 12 }}>Scan & Pay ₹{getTotal()}</div>
+                                                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>Works with GPay, PhonePe, Paytm & all UPI apps</div>
+                                            </div>
+
+                                            {/* UPI ID for manual payment */}
+                                            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 14 }}>
+                                                <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Or pay manually to UPI ID</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div style={{ fontSize: 15, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
+                                                    <button type="button" onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
+                                                        style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                                        Copy
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.7, marginTop: 14, background: '#fff', borderRadius: 10, padding: '10px 14px', border: `1px solid ${BORDER}` }}>
+                                                1. Scan the QR code above or copy the UPI ID<br />
+                                                2. Pay <strong style={{ color: DARK }}>₹{getTotal()}</strong> from any UPI app<br />
+                                                3. Click "Place Order" below — we'll auto-detect your payment
                                             </div>
                                         </motion.div>
                                     )}
@@ -389,7 +438,7 @@ export default function CheckoutPage() {
                                         letterSpacing: '0.06em', textTransform: 'uppercase',
                                         boxShadow: submitting ? 'none' : '0 6px 20px rgba(28,13,2,0.25)',
                                     }}
-                                >{submitting ? '⏳ Placing Order...' : 'Place Order →'}</motion.button>
+                                >{submitting ? '⏳ Placing Order...' : paymentMethod === 'upi' ? 'Place Order & Pay via UPI →' : 'Place Order →'}</motion.button>
 
                                 <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 14 }}>🔒 Secure & encrypted checkout</p>
                             </motion.div>
