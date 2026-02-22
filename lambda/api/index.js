@@ -41,8 +41,12 @@ async function query(sql, parameters = []) {
     const params = parameters.map((p, i) => {
         if (p === null || p === undefined) return { name: `p${i}`, value: { isNull: true } };
         if (typeof p === 'boolean') return { name: `p${i}`, value: { booleanValue: p } };
-        // Send all numbers as strings to avoid RDS Data API type-casting issues with NUMERIC/DECIMAL
-        if (typeof p === 'number') return { name: `p${i}`, value: { stringValue: String(p) } };
+        if (typeof p === 'number') {
+            // Integers → longValue (works for INTEGER, BIGINT, LIMIT etc.)
+            // Decimals → stringValue (avoids NUMERIC/DECIMAL type-casting issues)
+            if (Number.isInteger(p)) return { name: `p${i}`, value: { longValue: p } };
+            return { name: `p${i}`, value: { stringValue: String(p) } };
+        }
         return { name: `p${i}`, value: { stringValue: String(p) } };
     });
 
