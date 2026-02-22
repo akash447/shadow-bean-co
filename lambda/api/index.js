@@ -218,6 +218,41 @@ async function processGmailMessage(gmail, messageId) {
     return rows[0] || null;
 }
 
+// Throttle: track last Gmail check time per Lambda instance
+let lastGmailCheckTime = 0;
+const GMAIL_CHECK_INTERVAL_MS = 15000; // check Gmail at most every 15 seconds
+
+async function checkGmailForPendingPayments() {
+    const now = Date.now();
+    if (now - lastGmailCheckTime < GMAIL_CHECK_INTERVAL_MS) return; // throttled
+    lastGmailCheckTime = now;
+
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
+        console.log('Gmail OAuth not configured, skipping check');
+        return;
+    }
+
+    try {
+        const gmail = getGmailClient();
+
+        // Search for recent HDFC credit alert emails (last 1 hour)
+        const res = await gmail.users.messages.list({
+            userId: 'me',
+            q: 'from:alerts@hdfcbank.net subject:credit newer_than:1h',
+            maxResults: 10,
+        });
+
+        const messages = res.data.messages || [];
+        console.log(`Gmail check: found ${messages.length} recent HDFC emails`);
+
+        for (const m of messages) {
+            await processGmailMessage(gmail, m.id);
+        }
+    } catch (err) {
+        console.error('Gmail on-demand check error:', err.message);
+    }
+}
+
 async function autoMatchPayment(upiPaymentId, amount, upiRef) {
     // Find pending UPI orders with matching amount, created within last 24h
     const candidates = await query(
@@ -303,10 +338,6 @@ async function ensureUpiTables() {
         received_at TIMESTAMPTZ, status VARCHAR(20) DEFAULT 'unmatched',
         matched_order_id UUID, raw_subject TEXT, raw_body TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
-    )`).catch(() => {});
-    await query(`CREATE TABLE IF NOT EXISTS gmail_sync (
-        id SERIAL PRIMARY KEY, history_id BIGINT,
-        watch_expiry TIMESTAMPTZ, last_synced TIMESTAMPTZ
     )`).catch(() => {});
 }
 
@@ -431,60 +462,6 @@ exports.handler = async (event) => {
             const key = path.split('/')[2];
             const rows = await query('SELECT * FROM app_assets WHERE key = $1', [key]);
             return ok(rows[0] || null);
-        }
-
-        // --- GMAIL WEBHOOK (no auth - called by Google Pub/Sub) ---
-
-        if (method === 'POST' && path === '/webhooks/gmail') {
-            try {
-                await ensureUpiTables();
-                const pubsubMessage = body.message;
-                if (!pubsubMessage?.data) return ok({ status: 'no data' });
-
-                const decoded = Buffer.from(pubsubMessage.data, 'base64').toString('utf-8');
-                let historyData;
-                try { historyData = JSON.parse(decoded); } catch { historyData = { historyId: decoded }; }
-
-                const gmail = getGmailClient();
-                const syncRows = await query('SELECT * FROM gmail_sync ORDER BY id DESC LIMIT 1');
-                const lastHistoryId = syncRows.length ? syncRows[0].history_id : null;
-
-                if (!lastHistoryId) {
-                    // First time: just save the historyId
-                    await query('INSERT INTO gmail_sync (history_id, last_synced) VALUES ($1, NOW())', [historyData.historyId || 0]);
-                    return ok({ status: 'initialized' });
-                }
-
-                // Fetch history since last known
-                const history = await gmail.users.history.list({
-                    userId: 'me',
-                    startHistoryId: String(lastHistoryId),
-                    historyTypes: ['messageAdded'],
-                });
-
-                const messages = [];
-                for (const h of (history.data.history || [])) {
-                    for (const m of (h.messagesAdded || [])) {
-                        messages.push(m.message.id);
-                    }
-                }
-
-                // Process each new message
-                let processed = 0;
-                for (const msgId of messages) {
-                    const result = await processGmailMessage(gmail, msgId);
-                    if (result) processed++;
-                }
-
-                // Update sync state
-                const newHistoryId = history.data.historyId || historyData.historyId;
-                await query('UPDATE gmail_sync SET history_id = $1, last_synced = NOW() WHERE id = (SELECT id FROM gmail_sync ORDER BY id DESC LIMIT 1)', [newHistoryId]);
-
-                return ok({ status: 'ok', processed, totalMessages: messages.length });
-            } catch (webhookErr) {
-                console.error('Gmail webhook error:', webhookErr);
-                return ok({ status: 'error', message: webhookErr.message });
-            }
         }
 
         // --- AUTHENTICATED ROUTES ---
@@ -647,11 +624,24 @@ exports.handler = async (event) => {
         // GET /orders/:id/payment-status
         if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/payment-status$/)) {
             const id = path.split('/')[2];
+            await ensureUpiTables();
             const rows = await query(
                 'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1',
                 [id]
             );
             if (!rows.length) return error(404, 'Order not found');
+
+            // If UPI and still pending, check Gmail for new HDFC emails
+            if (rows[0].payment_method === 'upi' && rows[0].payment_status === 'pending') {
+                await checkGmailForPendingPayments();
+                // Re-fetch in case it was just matched
+                const updated = await query(
+                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1',
+                    [id]
+                );
+                if (updated.length) return ok(updated[0]);
+            }
+
             return ok(rows[0]);
         }
 
@@ -859,50 +849,31 @@ exports.handler = async (event) => {
                 return ok({ ignored: true });
             }
 
-            // POST /admin/gmail/watch
-            if (method === 'POST' && path === '/admin/gmail/watch') {
+            // POST /admin/upi-payments/check-gmail - manually trigger Gmail check
+            if (method === 'POST' && path === '/admin/upi-payments/check-gmail') {
                 await ensureUpiTables();
-                const gmail = getGmailClient();
-                const topicName = body.topic || process.env.GMAIL_PUBSUB_TOPIC;
-                if (!topicName) return error(400, 'Pub/Sub topic name required (body.topic or GMAIL_PUBSUB_TOPIC env var)');
-
-                const watchRes = await gmail.users.watch({
-                    userId: 'me',
-                    requestBody: {
-                        topicName,
-                        labelIds: ['INBOX'],
-                    },
-                });
-
-                const expiry = new Date(parseInt(watchRes.data.expiration));
-                const historyId = watchRes.data.historyId;
-
-                // Upsert gmail_sync
-                const existing = await query('SELECT id FROM gmail_sync LIMIT 1');
-                if (existing.length) {
-                    await query('UPDATE gmail_sync SET history_id = $1, watch_expiry = $2, last_synced = NOW() WHERE id = $3', [historyId, expiry.toISOString(), existing[0].id]);
-                } else {
-                    await query('INSERT INTO gmail_sync (history_id, watch_expiry, last_synced) VALUES ($1, $2, NOW())', [historyId, expiry.toISOString()]);
+                if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
+                    return error(400, 'Gmail OAuth not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN env vars.');
                 }
-
-                return ok({ historyId, expiry: expiry.toISOString(), status: 'watching' });
-            }
-
-            // GET /admin/gmail/status
-            if (method === 'GET' && path === '/admin/gmail/status') {
-                await ensureUpiTables();
-                const rows = await query('SELECT * FROM gmail_sync ORDER BY id DESC LIMIT 1');
-                if (!rows.length) return ok({ status: 'not_initialized', watching: false });
-
-                const sync = rows[0];
-                const isExpired = sync.watch_expiry ? new Date(sync.watch_expiry) < new Date() : true;
-                return ok({
-                    status: isExpired ? 'expired' : 'active',
-                    watching: !isExpired,
-                    historyId: sync.history_id,
-                    watchExpiry: sync.watch_expiry,
-                    lastSynced: sync.last_synced,
-                });
+                try {
+                    const gmail = getGmailClient();
+                    const hoursBack = parseInt(qs.hours || '2', 10);
+                    const res = await gmail.users.messages.list({
+                        userId: 'me',
+                        q: `from:alerts@hdfcbank.net subject:credit newer_than:${hoursBack}h`,
+                        maxResults: 20,
+                    });
+                    const messages = res.data.messages || [];
+                    let processed = 0;
+                    for (const m of messages) {
+                        const result = await processGmailMessage(gmail, m.id);
+                        if (result) processed++;
+                    }
+                    return ok({ checked: messages.length, processed });
+                } catch (err) {
+                    console.error('Admin Gmail check error:', err);
+                    return error(500, 'Gmail check failed: ' + err.message);
+                }
             }
 
             // GET /admin/profiles

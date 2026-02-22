@@ -281,14 +281,6 @@ CREATE TABLE IF NOT EXISTS upi_payments (
 CREATE INDEX IF NOT EXISTS idx_upi_payments_status ON upi_payments(status);
 CREATE INDEX IF NOT EXISTS idx_upi_payments_amount ON upi_payments(amount);
 
--- Gmail watch state tracker
-CREATE TABLE IF NOT EXISTS gmail_sync (
-    id              SERIAL PRIMARY KEY,
-    history_id      BIGINT,
-    watch_expiry    TIMESTAMPTZ,
-    last_synced     TIMESTAMPTZ
-);
-
 -- ==============================================
 -- VERIFICATION
 -- ==============================================

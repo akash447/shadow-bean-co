@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
     getUPIPayments, matchUPIPayment, confirmUPIPayment, ignoreUPIPayment,
-    startGmailWatch, getGmailStatus, getOrders
+    checkGmailNow, getOrders
 } from '../lib/admin-api';
-import { CheckCircle, XCircle, Link, Eye, Wifi, WifiOff, RefreshCw, X } from 'lucide-react';
+import { CheckCircle, XCircle, Link, RefreshCw, X, Mail } from 'lucide-react';
 
 const statusColors: Record<string, { color: string; bg: string }> = {
     unmatched: { color: '#f59e0b', bg: '#fef3c7' },
@@ -16,7 +16,8 @@ export const UPIPaymentsPage: React.FC = () => {
     const [payments, setPayments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
-    const [gmailStatus, setGmailStatus] = useState<any>(null);
+    const [checking, setChecking] = useState(false);
+    const [lastCheck, setLastCheck] = useState<string | null>(null);
 
     // Match modal
     const [matchModal, setMatchModal] = useState<any>(null);
@@ -24,24 +25,21 @@ export const UPIPaymentsPage: React.FC = () => {
     const [selectedOrderId, setSelectedOrderId] = useState('');
     const [matching, setMatching] = useState(false);
 
-    useEffect(() => { loadData(); }, [filter]);
+    useEffect(() => { loadPayments(); }, [filter]);
 
-    const loadData = async () => {
-        const [paymentsRes, gmailRes] = await Promise.all([
-            getUPIPayments(filter),
-            getGmailStatus(),
-        ]);
-        if (paymentsRes.data) setPayments(paymentsRes.data);
-        if (gmailRes.data) setGmailStatus(gmailRes.data);
+    const loadPayments = async () => {
+        const { data } = await getUPIPayments(filter);
+        if (data) setPayments(data);
         setLoading(false);
     };
 
-    const handleStartWatch = async () => {
-        const topic = prompt('Enter Google Cloud Pub/Sub topic name:', 'projects/YOUR_PROJECT/topics/gmail-notifications');
-        if (!topic) return;
-        const { error } = await startGmailWatch(topic);
-        if (error) { alert('Failed to start watch: ' + error.message); return; }
-        loadData();
+    const handleCheckGmail = async () => {
+        setChecking(true);
+        const { data, error } = await checkGmailNow();
+        if (error) { alert('Gmail check failed: ' + error.message); setChecking(false); return; }
+        setLastCheck(`Checked ${data?.checked || 0} emails, ${data?.processed || 0} new payments found`);
+        setChecking(false);
+        loadPayments();
     };
 
     const openMatchModal = async (payment: any) => {
@@ -49,7 +47,6 @@ export const UPIPaymentsPage: React.FC = () => {
         setSelectedOrderId('');
         const { data } = await getOrders();
         if (data) {
-            // Show UPI orders with pending payment status, matching amount preferred
             const upiPending = data.filter((o: any) =>
                 o.payment_method === 'upi' && (!o.payment_status || o.payment_status === 'pending')
             );
@@ -64,21 +61,21 @@ export const UPIPaymentsPage: React.FC = () => {
         if (error) { alert('Failed to match: ' + error.message); setMatching(false); return; }
         setMatchModal(null);
         setMatching(false);
-        loadData();
+        loadPayments();
     };
 
     const handleConfirm = async (id: string) => {
         if (!confirm('Confirm this payment?')) return;
         const { error } = await confirmUPIPayment(id);
         if (error) { alert('Failed: ' + error.message); return; }
-        loadData();
+        loadPayments();
     };
 
     const handleIgnore = async (id: string) => {
         if (!confirm('Mark this payment as ignored?')) return;
         const { error } = await ignoreUPIPayment(id);
         if (error) { alert('Failed: ' + error.message); return; }
-        loadData();
+        loadPayments();
     };
 
     const formatDate = (d: string) => {
@@ -107,23 +104,21 @@ export const UPIPaymentsPage: React.FC = () => {
             <div className="page-header">
                 <h1 className="page-title">UPI Payments</h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {/* Gmail Watch Status */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
-                        background: gmailStatus?.watching ? '#d1fae5' : '#fee2e2',
-                        borderRadius: 8, fontSize: 13, fontWeight: 600,
-                        color: gmailStatus?.watching ? '#059669' : '#dc2626',
-                    }}>
-                        {gmailStatus?.watching ? <Wifi size={16} /> : <WifiOff size={16} />}
-                        Gmail: {gmailStatus?.watching ? 'Active' : gmailStatus?.status || 'Not set up'}
-                    </div>
                     <button
-                        onClick={handleStartWatch}
+                        onClick={handleCheckGmail}
+                        disabled={checking}
                         className="btn btn-primary"
-                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: checking ? 0.7 : 1 }}
                     >
-                        <RefreshCw size={16} />
-                        {gmailStatus?.watching ? 'Renew Watch' : 'Start Watch'}
+                        {checking ? <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={16} />}
+                        {checking ? 'Checking...' : 'Check Gmail'}
+                    </button>
+                    <button
+                        onClick={loadPayments}
+                        className="btn"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e5e0d8', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer' }}
+                    >
+                        <RefreshCw size={16} /> Refresh
                     </button>
                     <select
                         className="form-input"
@@ -140,12 +135,15 @@ export const UPIPaymentsPage: React.FC = () => {
                 </div>
             </div>
 
-            {gmailStatus?.lastSynced && (
-                <div style={{ fontSize: 12, color: '#8b7355', marginBottom: 16 }}>
-                    Last synced: {formatDate(gmailStatus.lastSynced)}
-                    {gmailStatus.watchExpiry && ` | Watch expires: ${formatDate(gmailStatus.watchExpiry)}`}
+            {lastCheck && (
+                <div style={{ fontSize: 12, color: '#059669', marginBottom: 16, background: '#d1fae5', padding: '8px 14px', borderRadius: 8, display: 'inline-block' }}>
+                    {lastCheck}
                 </div>
             )}
+
+            <div style={{ fontSize: 12, color: '#8b7355', marginBottom: 16 }}>
+                Gmail is checked automatically when customers poll for payment status. Use "Check Gmail" to manually scan for payments.
+            </div>
 
             <div className="card">
                 <div className="table-container">
@@ -282,6 +280,8 @@ export const UPIPaymentsPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 };

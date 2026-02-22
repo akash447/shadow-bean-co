@@ -625,18 +625,9 @@ export const ignoreUPIPayment = async (id: string) => {
     }
 };
 
-export const startGmailWatch = async (topic?: string) => {
+export const checkGmailNow = async () => {
     try {
-        const { data } = await api.post('/admin/gmail/watch', topic ? { topic } : {});
-        return { data, error: null };
-    } catch (err: any) {
-        return { data: null, error: { message: err.message } };
-    }
-};
-
-export const getGmailStatus = async () => {
-    try {
-        const { data } = await api.get('/admin/gmail/status');
+        const { data } = await api.post('/admin/upi-payments/check-gmail');
         return { data, error: null };
     } catch (err: any) {
         return { data: null, error: { message: err.message } };
