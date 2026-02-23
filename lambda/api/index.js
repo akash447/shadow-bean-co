@@ -359,9 +359,10 @@ async function autoMatchPayment(upiPaymentId, amount, upiRef) {
     );
     console.log(`Auto-match candidates: ${candidates.length} orders found`);
 
-    if (candidates.length === 1) {
+    if (candidates.length >= 1) {
+        // Match to the most recent pending order (sorted by created_at DESC)
         const orderId = candidates[0].id;
-        // Auto-match and auto-place the order
+        console.log(`Matching to most recent pending order: ${orderId} (out of ${candidates.length} candidates)`);
         await query(
             `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
             [orderId, upiPaymentId]
