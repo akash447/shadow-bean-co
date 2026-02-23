@@ -175,10 +175,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //   2. If Amplify fails, try our local auth cache (for OAuth sessions where Amplify lost track)
     //   3. If cached token expired, attempt manual refresh via stored refresh_token
     const fetchCurrentUser = useCallback(async () => {
+        // FAST PATH: Show user from cache instantly while Cognito loads
+        const cached = getCachedAuth();
+        if (cached && cached.expiresAt > Date.now()) {
+            const decoded = decodeJwtPayload(cached.idToken);
+            setUser({
+                id: decoded.sub,
+                email: decoded.email || cached.email,
+                fullName: decoded.name || cached.fullName,
+            });
+            setProfile({
+                id: decoded.sub,
+                email: decoded.email || cached.email,
+                full_name: decoded.name || cached.fullName,
+            });
+            setLoading(false); // Unblock UI immediately
+        }
+
         try {
             const cognitoUser = await getCurrentUser();
-            const attributes = await fetchUserAttributes();
-            const session = await fetchAuthSession();
+            const [attributes, session] = await Promise.all([
+                fetchUserAttributes(),
+                fetchAuthSession(),
+            ]);
 
             const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
             const isAdmin = groups.includes('Admin');
@@ -192,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(authUser);
 
-            // Cache auth data as backup for when Amplify fails later
+            // Cache auth data as backup
             const idTokenStr = session.tokens?.idToken?.toString();
             const accessTokenStr = session.tokens?.accessToken?.toString();
             if (idTokenStr) {
@@ -211,30 +230,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 });
             }
 
-            // Persist profile to database (creates if missing — ensures all users have a DB profile)
-            try {
-                const dbProfile = await ensureProfile(cognitoUser.userId, attributes.email || '', attributes.name || '');
-                setProfile({
-                    id: dbProfile.id || cognitoUser.userId,
-                    email: dbProfile.email || attributes.email || '',
-                    full_name: dbProfile.full_name || attributes.name || '',
-                    phone: dbProfile.phone || attributes.phone_number,
-                    avatar_url: dbProfile.avatar_url,
+            // Profile sync — non-blocking (don't await if we already have cached user)
+            ensureProfile(cognitoUser.userId, attributes.email || '', attributes.name || '')
+                .then(dbProfile => {
+                    setProfile({
+                        id: dbProfile.id || cognitoUser.userId,
+                        email: dbProfile.email || attributes.email || '',
+                        full_name: dbProfile.full_name || attributes.name || '',
+                        phone: dbProfile.phone || attributes.phone_number,
+                        avatar_url: dbProfile.avatar_url,
+                    });
+                })
+                .catch(() => {
+                    setProfile({
+                        id: cognitoUser.userId,
+                        email: attributes.email || '',
+                        full_name: attributes.name || '',
+                        phone: attributes.phone_number,
+                    });
                 });
-            } catch {
-                setProfile({
-                    id: cognitoUser.userId,
-                    email: attributes.email || '',
-                    full_name: attributes.name || '',
-                    phone: attributes.phone_number,
-                });
-            }
 
             return authUser;
         } catch {
             // Amplify failed — try our local auth cache
-            console.warn('Amplify auth check failed, trying cached auth');
-            const cached = getCachedAuth();
             if (!cached) {
                 setUser(null);
                 setProfile(null);
@@ -246,16 +264,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // If token expired, try manual refresh
             if (cached.expiresAt <= Date.now()) {
                 if (!cached.refreshToken) {
-                    console.warn('Token expired and no refresh token — clearing session');
                     clearCachedAuth();
                     setUser(null);
                     setProfile(null);
                     return null;
                 }
                 try {
-                    console.log('Token expired, refreshing manually via Cognito');
                     const newTokens = await manualTokenRefresh(cached.refreshToken);
-                    // Update both Amplify storage and our cache
                     storeTokensForAmplify(newTokens);
                     const decoded = decodeJwtPayload(newTokens.id_token);
                     activeToken = newTokens.id_token;
@@ -269,7 +284,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         expiresAt: decoded.exp * 1000,
                     });
                 } catch {
-                    console.error('Manual token refresh failed — clearing session');
                     clearCachedAuth();
                     setUser(null);
                     setProfile(null);
@@ -277,7 +291,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
 
-            // Set user from cached/refreshed token
             const decoded = decodeJwtPayload(activeToken);
             const authUser: AuthUser = {
                 id: decoded.sub,
@@ -286,23 +299,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             };
             setUser(authUser);
 
-            // Ensure profile exists in DB
-            try {
-                const dbProfile = await ensureProfile(authUser.id, authUser.email, authUser.fullName || '');
-                setProfile({
-                    id: dbProfile.id || authUser.id,
-                    email: dbProfile.email || authUser.email,
-                    full_name: dbProfile.full_name || authUser.fullName || '',
-                    phone: dbProfile.phone,
-                    avatar_url: dbProfile.avatar_url,
+            // Profile sync — non-blocking
+            ensureProfile(authUser.id, authUser.email, authUser.fullName || '')
+                .then(dbProfile => {
+                    setProfile({
+                        id: dbProfile.id || authUser.id,
+                        email: dbProfile.email || authUser.email,
+                        full_name: dbProfile.full_name || authUser.fullName || '',
+                        phone: dbProfile.phone,
+                        avatar_url: dbProfile.avatar_url,
+                    });
+                })
+                .catch(() => {
+                    setProfile({
+                        id: authUser.id,
+                        email: authUser.email,
+                        full_name: authUser.fullName || '',
+                    });
                 });
-            } catch {
-                setProfile({
-                    id: authUser.id,
-                    email: authUser.email,
-                    full_name: authUser.fullName || '',
-                });
-            }
 
             return authUser;
         } finally {

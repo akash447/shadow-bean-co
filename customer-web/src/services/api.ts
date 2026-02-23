@@ -27,14 +27,29 @@ const api = axios.create({
     },
 });
 
+// In-memory token cache to avoid refetching on every request
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
 // Attach Cognito JWT token to every request
-// Strategy: try Amplify first, fall back to our local auth cache
 api.interceptors.request.use(async (config) => {
-    // 1. Try Amplify's session (works for email/password + fresh OAuth)
+    // Fast path: use in-memory cached token if still valid (5 min buffer)
+    if (cachedToken && Date.now() < tokenExpiry - 300000) {
+        config.headers.Authorization = `Bearer ${cachedToken}`;
+        return config;
+    }
+
+    // 1. Try Amplify's session
     try {
         const session = await fetchAuthSession();
         const token = session.tokens?.idToken?.toString();
         if (token) {
+            cachedToken = token;
+            // Parse expiry from JWT
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                tokenExpiry = payload.exp * 1000;
+            } catch { tokenExpiry = Date.now() + 3600000; }
             config.headers.Authorization = `Bearer ${token}`;
             return config;
         }
@@ -42,15 +57,15 @@ api.interceptors.request.use(async (config) => {
         // Amplify session failed — try fallback
     }
 
-    // 2. Fallback: read from our local auth cache (for OAuth sessions where Amplify lost track)
+    // 2. Fallback: local auth cache
     try {
         const cached = JSON.parse(localStorage.getItem('shadow_bean_auth_cache') || '');
         if (cached?.idToken) {
+            cachedToken = cached.idToken;
+            tokenExpiry = cached.expiresAt || Date.now() + 3600000;
             config.headers.Authorization = `Bearer ${cached.idToken}`;
         }
-    } catch {
-        // No cached token available
-    }
+    } catch {}
 
     return config;
 });

@@ -74,17 +74,73 @@ export default function CartPage() {
   /* ───────── Empty state ───────── */
   if (items.length === 0) {
     return (
-      <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ textAlign: 'center' }}>
-          <div style={{ width: 100, height: 100, borderRadius: 24, background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, margin: '0 auto 24px' }}>🛒</div>
-          <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 28, color: DARK, margin: '0 0 8px' }}>Your cart is empty</h2>
-          <p style={{ color: MUTED, fontSize: 15, marginBottom: 32, maxWidth: 320 }}>
-            Head to the shop and craft your perfect coffee blend!
-          </p>
-          <button onClick={() => nav('/shop')} style={{ padding: '14px 40px', background: OLIVE, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 15, cursor: 'pointer', letterSpacing: '0.04em' }}>
-            Browse Blends
-          </button>
-        </motion.div>
+      <div style={{ minHeight: '100dvh', background: BG, fontFamily: "'Montserrat', sans-serif" }}>
+        {/* Header — same as filled cart */}
+        <header style={{ background: CARD, borderBottom: `1px solid ${BORDER}`, position: 'sticky', top: 0, zIndex: 20 }}>
+          <div style={{ maxWidth: 1140, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button onClick={() => nav('/shop')} style={{ display: 'flex', alignItems: 'center', gap: 6, color: OLIVE, fontWeight: 600, fontSize: 14, background: 'none', border: 'none', cursor: 'pointer' }}>
+              ← Shop
+            </button>
+            <div style={{ width: 1, height: 22, background: BORDER }} />
+            <h1 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 24, fontWeight: 700, color: DARK, margin: 0 }}>
+              Your Cart
+            </h1>
+          </div>
+        </header>
+
+        {/* Centered empty content */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100dvh - 64px)', padding: '24px 24px 80px' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ textAlign: 'center', maxWidth: 400 }}
+          >
+            {/* Product bag image */}
+            <div style={{
+              width: 140, height: 140, borderRadius: 28, background: `linear-gradient(145deg, ${ACCENT}, #ede5d8)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 28px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(28,13,2,0.08)',
+            }}>
+              <img src={productBag} alt="Coffee bag" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+            </div>
+
+            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 32, color: DARK, margin: '0 0 8px', letterSpacing: '0.02em' }}>
+              Your cart is empty
+            </h2>
+            <p style={{ color: MUTED, fontSize: 14, lineHeight: 1.6, margin: '0 0 32px', maxWidth: 300, marginInline: 'auto' }}>
+              Craft your perfect custom blend — choose bitterness, flavour, roast &amp; grind, and we'll make it just for you.
+            </p>
+
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => nav('/shop')}
+              style={{
+                padding: '15px 48px', background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,
+                color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: 15,
+                cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
+                boxShadow: '0 6px 20px rgba(79,81,48,0.3)',
+              }}
+            >
+              Start Blending
+            </motion.button>
+
+            {/* Trust badges */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
+              {[
+                { icon: '🚚', text: 'Free Shipping' },
+                { icon: '☕', text: 'Custom Blends' },
+                { icon: '🔒', text: 'Secure Payments' },
+              ].map(b => (
+                <div key={b.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: MUTED, fontWeight: 500 }}>
+                  <span style={{ fontSize: 16 }}>{b.icon}</span>
+                  {b.text}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }

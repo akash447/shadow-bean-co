@@ -16,19 +16,30 @@ interface AssetContextType {
 
 const MEDIA_CDN = 'https://media.shadowbeanco.net';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.shadowbeanco.net';
+const ASSET_CACHE_KEY = 'sbc_asset_cache';
+
+// Load from localStorage cache instantly (no network wait)
+function getCachedAssetMap(): Record<string, string> {
+  try {
+    const cached = localStorage.getItem(ASSET_CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch { return {}; }
+}
 
 const AssetContext = createContext<AssetContextType>({
   getAssetUrl: (key) => `${MEDIA_CDN}/${key}`,
   assets: [],
-  loading: true,
+  loading: false,
 });
 
 export const AssetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [assetMap, setAssetMap] = useState<Record<string, string>>({});
+  const [assetMap, setAssetMap] = useState<Record<string, string>>(getCachedAssetMap);
+  // Start as false — cached assets are available immediately
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Refresh from API in background (non-blocking)
     fetch(`${API_URL}/assets`)
       .then(r => r.json())
       .then(data => {
@@ -36,6 +47,8 @@ export const AssetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const map: Record<string, string> = {};
         data.forEach((a: Asset) => { map[a.key] = a.url; });
         setAssetMap(map);
+        // Persist to cache for next visit
+        try { localStorage.setItem(ASSET_CACHE_KEY, JSON.stringify(map)); } catch {}
       })
       .catch(() => {})
       .finally(() => setLoading(false));
