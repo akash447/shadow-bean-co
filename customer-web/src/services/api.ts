@@ -271,6 +271,11 @@ export async function getReviews(limit = 10): Promise<Review[]> {
     return data;
 }
 
+export async function getMyReviews(): Promise<Review[]> {
+    const { data } = await api.get('/reviews/mine');
+    return data;
+}
+
 export async function createReview(review: {
     user_id: string;
     order_id?: string;

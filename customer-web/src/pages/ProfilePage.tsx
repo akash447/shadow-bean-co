@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import { getOrders, getTasteProfiles, getReviews, createReview, getAddresses, createAddress, deleteAddress } from '../services/api';
+import { getOrders, getTasteProfiles, getMyReviews, createReview, getAddresses, createAddress, deleteAddress } from '../services/api';
 import type { Order, TasteProfile as ApiTasteProfile, Review, Address } from '../services/api';
 import { useShopStore } from '../stores/shopStore';
 import Header from '../components/Header';
@@ -49,12 +49,12 @@ export default function ProfilePage() {
         Promise.all([
             getOrders(dbUserId).catch(() => []),
             getTasteProfiles(dbUserId).catch(() => []),
-            getReviews(50).catch(() => []),
+            getMyReviews().catch(() => []),
             getAddresses(dbUserId).catch(() => []),
         ]).then(([ordersData, blendsData, reviewsData, addrsData]) => {
             setOrders(ordersData);
             setSavedBlends(blendsData);
-            setReviews(reviewsData.filter(r => r.user_id === dbUserId));
+            setReviews(reviewsData);
             setAddresses(addrsData);
         }).finally(() => setDataLoading(false));
     };

@@ -354,7 +354,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 100px 20px 40px;
+    padding: 80px 20px 20px;
 }
 
 .testimonials-title {
@@ -362,58 +362,111 @@
     font-size: 32px;
     font-weight: 700;
     color: #1c0d02;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
     letter-spacing: 2px;
 }
 
-.reviews-grid {
+/* ── Reviews Wall ── */
+.reviews-wall {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    max-width: 1100px;
+    width: 100%;
+    transition: opacity 0.4s ease;
+}
+
+.reviews-wall.fade-in {
+    opacity: 1;
+}
+
+.reviews-wall.fade-out {
+    opacity: 0;
+}
+
+.rw-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #ebe6df;
     display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.review-card {
-    background-color: #fff;
-    padding: 24px;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    width: 280px;
-    text-align: left;
-}
-
-.review-quote {
-    font-family: 'Agdasima', sans-serif;
-    font-size: 36px;
-    color: #4f5130;
-    line-height: 1;
-}
-
-.review-text {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #444;
-    margin: 8px 0 16px;
-    min-height: 60px;
-}
-
-.review-footer {
+.rw-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 10px;
 }
 
-.review-author {
-    font-family: 'Montserrat', sans-serif;
+.rw-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.rw-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.rw-name {
     font-size: 12px;
     font-weight: 700;
     color: #1c0d02;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.review-stars {
-    color: #4f5130;
+.rw-stars {
+    font-size: 11px;
+    color: #f59e0b;
+    letter-spacing: 1px;
+}
+
+.rw-text {
     font-size: 12px;
+    line-height: 1.5;
+    color: #555;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Pagination dots */
+.rw-dots {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.rw-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d4cec6;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.rw-dot.active {
+    background: #4f5130;
+    transform: scale(1.3);
 }
 
 /* Footer */
@@ -595,37 +648,42 @@
         font-size: 13px;
     }
 
-    /* Testimonials - Horizontal Swipe */
+    /* Testimonials */
     .testimonials-content {
-        padding: 80px 16px 30px;
+        padding: 70px 12px 16px;
     }
 
     .testimonials-title {
-        font-size: 24px;
+        font-size: 22px;
+        margin-bottom: 16px;
     }
 
-    .reviews-grid {
-        display: flex;
-        flex-direction: row;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-        gap: 16px;
-        padding-bottom: 16px;
-        width: 100%;
-        max-width: 100vw;
+    .reviews-wall {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
 
-    .reviews-grid::-webkit-scrollbar {
-        display: none;
+    .rw-card {
+        padding: 10px 12px;
     }
 
-    .review-card {
-        flex: 0 0 280px;
-        scroll-snap-align: start;
-        min-width: 280px;
-        width: 280px;
-        max-width: 280px;
+    .rw-avatar {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+
+    .rw-name {
+        font-size: 11px;
+    }
+
+    .rw-stars {
+        font-size: 10px;
+    }
+
+    .rw-text {
+        font-size: 11px;
+        -webkit-line-clamp: 2;
     }
 
     /* Hide footer on mobile */

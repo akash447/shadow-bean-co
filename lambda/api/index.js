@@ -13,6 +13,7 @@
 
 const { RDSDataClient, ExecuteStatementCommand } = require('@aws-sdk/client-rds-data');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
 const { google } = require('googleapis');
@@ -31,6 +32,8 @@ const MASTER_ADMIN_EMAIL = 'akasingh.singh6@gmail.com';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
 const rds = new RDSDataClient({ region: REGION });
 const s3 = new S3Client({ region: REGION });
+const lambdaClient = new LambdaClient({ region: REGION });
+const FUNCTION_NAME = process.env.AWS_LAMBDA_FUNCTION_NAME || 'shadowbeanco-api';
 
 // UPI / Gmail configuration
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -477,6 +480,13 @@ function error(statusCode, message) {
 // ==============================================
 
 exports.handler = async (event) => {
+    // Internal async event: Gmail check (fired by self-invocation)
+    if (event.__internal === 'check-gmail') {
+        console.log('Async Gmail check triggered');
+        await checkGmailForPendingPayments();
+        return { statusCode: 200, body: 'done' };
+    }
+
     // Set CORS headers per-request
     CORS_HEADERS = getCorsHeaders(event);
 
@@ -521,18 +531,20 @@ exports.handler = async (event) => {
             return rows.length ? ok(rows[0]) : error(404, 'Product not found');
         }
 
-        // GET /reviews
+        // GET /reviews — public: one approved review per user (highest rated), for homepage
         if (method === 'GET' && path === '/reviews') {
             const limit = parseInt(qs.limit || '10', 10);
             const rows = await query(
-                `SELECT r.*, p.full_name as user_name
+                `SELECT DISTINCT ON (r.user_id) r.*, p.full_name as user_name
                  FROM reviews r
                  LEFT JOIN profiles p ON r.user_id = p.id
                  WHERE r.is_approved = true
-                 ORDER BY r.rating DESC LIMIT $1`,
-                [limit]
+                 ORDER BY r.user_id, r.rating DESC, r.created_at DESC`,
+                []
             );
-            return ok(rows);
+            // Shuffle and limit for variety
+            const shuffled = rows.sort(() => Math.random() - 0.5).slice(0, limit);
+            return ok(shuffled);
         }
 
         // GET /pricing/active
@@ -799,15 +811,20 @@ exports.handler = async (event) => {
             );
             if (!rows.length) return error(404, 'Order not found');
 
-            // If UPI and still pending, check Gmail for new HDFC emails
+            // If UPI and still pending, trigger async Gmail check (non-blocking)
+            // API Gateway has 29s hard timeout; Gmail API can take 30s+ on cold start
+            // So we fire-and-forget a background Lambda invocation and return DB status instantly
             if (rows[0].payment_method === 'upi' && rows[0].payment_status === 'pending') {
-                await checkGmailForPendingPayments();
-                // Re-fetch in case it was just matched
-                const updated = await query(
-                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
-                    [id, ownProfileId]
-                );
-                if (updated.length) return ok(updated[0]);
+                try {
+                    await lambdaClient.send(new InvokeCommand({
+                        FunctionName: FUNCTION_NAME,
+                        InvocationType: 'Event', // async — returns immediately
+                        Payload: JSON.stringify({ __internal: 'check-gmail' }),
+                    }));
+                    console.log('Async Gmail check triggered for pending UPI order');
+                } catch (invokeErr) {
+                    console.error('Failed to trigger async Gmail check:', invokeErr.message);
+                }
             }
 
             return ok(rows[0]);
@@ -839,6 +856,17 @@ exports.handler = async (event) => {
                 [profileId, body.order_id, body.rating, body.comment, userName]
             );
             return created(rows[0]);
+        }
+
+        // GET /reviews/mine — user's own reviews (for dashboard)
+        if (method === 'GET' && path === '/reviews/mine') {
+            const profileId = await resolveOwnProfileId(user);
+            if (!profileId) return ok([]);
+            const rows = await query(
+                'SELECT * FROM reviews WHERE user_id = $1::uuid ORDER BY created_at DESC',
+                [profileId]
+            );
+            return ok(rows);
         }
 
         // --- ADMIN ROUTES ---

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
@@ -40,15 +40,38 @@ export default function HomePage() {
     const iconFrenchPress = useAsset('icon_french_press.png');
     const iconChhani = useAsset('icon_chhani.png');
 
-    const [reviews, setReviews] = useState<(Review | typeof FALLBACK_REVIEWS[0])[]>(FALLBACK_REVIEWS);
+    const [allReviews, setAllReviews] = useState<(Review | typeof FALLBACK_REVIEWS[0])[]>(FALLBACK_REVIEWS);
+    const [page, setPage] = useState(0);
+    const [fade, setFade] = useState(true);
+    const PER_PAGE = 10;
 
     useEffect(() => {
-        getReviews(6)
+        getReviews(50)
             .then((data) => {
-                if (data && data.length > 0) setReviews(data);
+                if (data && data.length > 0) setAllReviews(data);
             })
             .catch(() => { /* keep fallback reviews */ });
     }, []);
+
+    const totalPages = Math.ceil(allReviews.length / PER_PAGE);
+
+    // Auto-rotate reviews every 8 seconds if we have more than one page
+    const nextPage = useCallback(() => {
+        if (totalPages <= 1) return;
+        setFade(false);
+        setTimeout(() => {
+            setPage(p => (p + 1) % totalPages);
+            setFade(true);
+        }, 400);
+    }, [totalPages]);
+
+    useEffect(() => {
+        if (totalPages <= 1) return;
+        const timer = setInterval(nextPage, 8000);
+        return () => clearInterval(timer);
+    }, [nextPage, totalPages]);
+
+    const visibleReviews = allReviews.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
 
     const brewMethodIcons: Record<string, string> = {
         'icon_pour_over_kit.png': iconPourOverKit,
@@ -163,18 +186,39 @@ export default function HomePage() {
                     <div className="testimonials-content">
                         <span className="section-label">TESTIMONIALS</span>
                         <h2 className="testimonials-title">Loved By Coffee Lovers</h2>
-                        <div className="reviews-grid">
-                            {reviews.map((review) => (
-                                <div key={review.id} className="review-card">
-                                    <span className="review-quote">"</span>
-                                    <p className="review-text">{review.comment}</p>
-                                    <div className="review-footer">
-                                        <span className="review-author">{review.user_name || 'Coffee Lover'}</span>
-                                        <span className="review-stars">{'★'.repeat(review.rating || 5)}{'☆'.repeat(5 - (review.rating || 5))}</span>
+
+                        <div className={`reviews-wall ${fade ? 'fade-in' : 'fade-out'}`}>
+                            {visibleReviews.map((review, idx) => {
+                                const name = ('user_name' in review ? review.user_name : '') || 'Coffee Lover';
+                                const initial = name.charAt(0).toUpperCase();
+                                const colors = ['#4f5130', '#6b6d3e', '#8b5c3e', '#5a6650', '#7a6b5a'];
+                                const bg = colors[idx % colors.length];
+                                return (
+                                    <div key={review.id + '-' + page} className="rw-card">
+                                        <div className="rw-header">
+                                            <div className="rw-avatar" style={{ background: bg }}>{initial}</div>
+                                            <div className="rw-meta">
+                                                <span className="rw-name">{name}</span>
+                                                <span className="rw-stars">{'★'.repeat(review.rating || 5)}{'☆'.repeat(5 - (review.rating || 5))}</span>
+                                            </div>
+                                        </div>
+                                        <p className="rw-text">{review.comment}</p>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
+
+                        {totalPages > 1 && (
+                            <div className="rw-dots">
+                                {Array.from({ length: totalPages }).map((_, i) => (
+                                    <button
+                                        key={i}
+                                        className={`rw-dot ${i === page ? 'active' : ''}`}
+                                        onClick={() => { setFade(false); setTimeout(() => { setPage(i); setFade(true); }, 300); }}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <footer className="home-footer">
                         <span className="footer-brand">SHADOW BEAN CO.</span>
