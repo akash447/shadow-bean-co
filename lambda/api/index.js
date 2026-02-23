@@ -13,11 +13,13 @@
 
 const { RDSDataClient, ExecuteStatementCommand } = require('@aws-sdk/client-rds-data');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
 const { google } = require('googleapis');
 const nodemailer = require('nodemailer');
+
+// NOTE: LambdaClient removed — was unused. Google OAuth secrets moved to Secrets Manager.
 
 // Configuration from environment
 const DB_CLUSTER_ARN = process.env.DB_CLUSTER_ARN;
@@ -32,13 +34,24 @@ const MASTER_ADMIN_EMAIL = 'akasingh.singh6@gmail.com';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
 const rds = new RDSDataClient({ region: REGION });
 const s3 = new S3Client({ region: REGION });
-const lambdaClient = new LambdaClient({ region: REGION });
-const FUNCTION_NAME = process.env.AWS_LAMBDA_FUNCTION_NAME || 'shadowbeanco-api';
+const secretsManager = new SecretsManagerClient({ region: REGION });
 
-// UPI / Gmail configuration
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
+// Google OAuth secrets — loaded from Secrets Manager at runtime (cached per Lambda instance)
+const GOOGLE_OAUTH_SECRET_ARN = process.env.GOOGLE_OAUTH_SECRET_ARN || 'shadowbeanco/google-oauth';
+let _googleSecrets = null;
+async function getGoogleSecrets() {
+    if (_googleSecrets) return _googleSecrets;
+    try {
+        const resp = await secretsManager.send(new GetSecretValueCommand({ SecretId: GOOGLE_OAUTH_SECRET_ARN }));
+        _googleSecrets = JSON.parse(resp.SecretString);
+        return _googleSecrets;
+    } catch (err) {
+        console.error('Failed to load Google OAuth secrets from Secrets Manager:', err.message);
+        return {};
+    }
+}
+
+// Other config
 const UPI_ID = process.env.UPI_ID || '8765280251@ybl';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'akasingh.singh6@gmail.com';
 const SMTP_HOST = process.env.SMTP_HOST;
@@ -198,9 +211,10 @@ async function isAdmin(user) {
 // UPI / GMAIL HELPERS
 // ==============================================
 
-function getGmailClient() {
-    const oauth2 = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
-    oauth2.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+async function getGmailClient() {
+    const secrets = await getGoogleSecrets();
+    const oauth2 = new google.auth.OAuth2(secrets.GOOGLE_CLIENT_ID, secrets.GOOGLE_CLIENT_SECRET);
+    oauth2.setCredentials({ refresh_token: secrets.GOOGLE_REFRESH_TOKEN });
     return google.gmail({ version: 'v1', auth: oauth2 });
 }
 
@@ -307,8 +321,9 @@ async function checkGmailForPendingPayments() {
     if (now - lastGmailCheckTime < GMAIL_CHECK_INTERVAL_MS) return; // throttled
     lastGmailCheckTime = now;
 
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
-        console.log('Gmail OAuth not configured, skipping check');
+    const secrets = await getGoogleSecrets();
+    if (!secrets.GOOGLE_CLIENT_ID || !secrets.GOOGLE_CLIENT_SECRET || !secrets.GOOGLE_REFRESH_TOKEN) {
+        console.log('Gmail OAuth not configured in Secrets Manager, skipping check');
         return;
     }
 
@@ -323,7 +338,7 @@ async function checkGmailForPendingPayments() {
     }
 
     try {
-        const gmail = getGmailClient();
+        const gmail = await getGmailClient();
 
         // Search ONLY for HDFC bank credit alerts (not personal emails)
         // Two queries for better coverage — subject-based and body-based
@@ -495,8 +510,14 @@ function error(statusCode, message) {
 exports.handler = async (event) => {
     // Internal async event: Gmail check (fired by self-invocation)
     // Only allow internal events from Lambda self-invocation (no httpMethod = not from API Gateway)
+    // Also verify webhook token from Secrets Manager
     if (event.__internal === 'check-gmail' && !event.httpMethod && !event.requestContext?.http) {
-        console.log('Async Gmail check triggered');
+        const secrets = await getGoogleSecrets();
+        if (event.__token !== secrets.WEBHOOK_TOKEN) {
+            console.warn('Internal event rejected: invalid token');
+            return { statusCode: 403, body: 'forbidden' };
+        }
+        console.log('Async Gmail check triggered (token verified)');
         await checkGmailForPendingPayments();
         return { statusCode: 200, body: 'done' };
     }
@@ -1059,11 +1080,12 @@ exports.handler = async (event) => {
             // POST /admin/upi-payments/check-gmail - manually trigger Gmail check
             if (method === 'POST' && path === '/admin/upi-payments/check-gmail') {
                 await ensureUpiTables();
-                if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
-                    return error(400, 'Gmail OAuth not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN env vars.');
+                const secrets = await getGoogleSecrets();
+                if (!secrets.GOOGLE_CLIENT_ID || !secrets.GOOGLE_CLIENT_SECRET || !secrets.GOOGLE_REFRESH_TOKEN) {
+                    return error(400, 'Gmail OAuth not configured in Secrets Manager');
                 }
                 try {
-                    const gmail = getGmailClient();
+                    const gmail = await getGmailClient();
                     const hoursBack = parseInt(qs.hours || '2', 10);
                     const res = await gmail.users.messages.list({
                         userId: 'me',
