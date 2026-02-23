@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getOrders, getOrderDetail, updateOrderStatus, cancelOrder, subscribeToOrders } from '../lib/admin-api';
-import { Search, XCircle, AlertTriangle, ChevronRight, Package, MapPin, Phone, Mail, User, Clock, CreditCard, X } from 'lucide-react';
+import { Search, XCircle, AlertTriangle, ChevronRight, ChevronLeft, Package, MapPin, Phone, Mail, User, Clock, CreditCard, X } from 'lucide-react';
+
+const PAGE_SIZE = 15;
 
 const statusOptions = [
     { value: 'pending', label: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
@@ -27,6 +29,7 @@ export const OrdersPage: React.FC = () => {
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [cancelReason, setCancelReason] = useState('');
     const [cancelling, setCancelling] = useState(false);
+    const [page, setPage] = useState(1);
 
     useEffect(() => {
         loadOrders();
@@ -115,6 +118,12 @@ export const OrdersPage: React.FC = () => {
         return matchesSearch && matchesFilter;
     });
 
+    const totalPages = Math.ceil(filteredOrders.length / PAGE_SIZE);
+    const pagedOrders = filteredOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    // Reset page when filter/search changes
+    useEffect(() => { setPage(1); }, [filter, search]);
+
     const getStatusBadge = (status: string) => {
         const opt = statusOptions.find(s => s.value === status);
         return (
@@ -190,7 +199,7 @@ export const OrdersPage: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredOrders.map((order) => (
+                                {pagedOrders.map((order) => (
                                     <tr
                                         key={order.id}
                                         onClick={() => loadOrderDetail(order.id)}
@@ -264,6 +273,63 @@ export const OrdersPage: React.FC = () => {
                     {filteredOrders.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '40px', color: '#8b7355' }}>
                             No orders found
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '14px 16px', borderTop: '1px solid #e5e0d8',
+                        }}>
+                            <span style={{ fontSize: 13, color: '#8b7355' }}>
+                                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredOrders.length)} of {filteredOrders.length}
+                            </span>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                        background: page === 1 ? '#f0f0f0' : '#fff', border: '1px solid #e5e0d8',
+                                        borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer',
+                                        color: page === 1 ? '#ccc' : '#2c1810', fontSize: 13,
+                                    }}
+                                >
+                                    <ChevronLeft size={14} /> Prev
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                                    .map((p, idx, arr) => (
+                                        <React.Fragment key={p}>
+                                            {idx > 0 && arr[idx - 1] < p - 1 && (
+                                                <span style={{ padding: '6px 4px', color: '#999' }}>...</span>
+                                            )}
+                                            <button
+                                                onClick={() => setPage(p)}
+                                                style={{
+                                                    padding: '6px 10px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+                                                    background: p === page ? '#4f5130' : '#fff',
+                                                    color: p === page ? '#fff' : '#2c1810',
+                                                    border: `1px solid ${p === page ? '#4f5130' : '#e5e0d8'}`,
+                                                    fontWeight: p === page ? 700 : 400,
+                                                }}
+                                            >{p}</button>
+                                        </React.Fragment>
+                                    ))}
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page === totalPages}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                        background: page === totalPages ? '#f0f0f0' : '#fff', border: '1px solid #e5e0d8',
+                                        borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer',
+                                        color: page === totalPages ? '#ccc' : '#2c1810', fontSize: 13,
+                                    }}
+                                >
+                                    Next <ChevronRight size={14} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

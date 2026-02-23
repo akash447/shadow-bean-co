@@ -126,19 +126,6 @@ export default function CartPage() {
               Start Blending
             </motion.button>
 
-            {/* Trust badges */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
-              {[
-                { icon: '🚚', text: 'Free Shipping' },
-                { icon: '☕', text: 'Custom Blends' },
-                { icon: '🔒', text: 'Secure Payments' },
-              ].map(b => (
-                <div key={b.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: MUTED, fontWeight: 500 }}>
-                  <span style={{ fontSize: 16 }}>{b.icon}</span>
-                  {b.text}
-                </div>
-              ))}
-            </div>
           </motion.div>
         </div>
       </div>

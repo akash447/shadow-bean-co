@@ -3,7 +3,9 @@ import {
     getUPIPayments, matchUPIPayment, confirmUPIPayment, ignoreUPIPayment,
     checkGmailNow, getOrders
 } from '../lib/admin-api';
-import { CheckCircle, XCircle, Link, RefreshCw, X, Mail } from 'lucide-react';
+import { CheckCircle, XCircle, Link, RefreshCw, X, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 15;
 
 const statusColors: Record<string, { color: string; bg: string }> = {
     unmatched: { color: '#f59e0b', bg: '#fef3c7' },
@@ -18,6 +20,7 @@ export const UPIPaymentsPage: React.FC = () => {
     const [filter, setFilter] = useState('all');
     const [checking, setChecking] = useState(false);
     const [lastCheck, setLastCheck] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
 
     // Match modal
     const [matchModal, setMatchModal] = useState<any>(null);
@@ -31,7 +34,11 @@ export const UPIPaymentsPage: React.FC = () => {
         const { data } = await getUPIPayments(filter);
         if (data) setPayments(data);
         setLoading(false);
+        setPage(1);
     };
+
+    const totalPages = Math.ceil(payments.length / PAGE_SIZE);
+    const pagedPayments = payments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     const handleCheckGmail = async () => {
         setChecking(true);
@@ -143,6 +150,7 @@ export const UPIPaymentsPage: React.FC = () => {
 
             <div style={{ fontSize: 12, color: '#8b7355', marginBottom: 16 }}>
                 Gmail is checked automatically when customers poll for payment status. Use "Check Gmail" to manually scan for payments.
+                Transactions above ₹2,000 are automatically ignored.
             </div>
 
             <div className="card">
@@ -160,7 +168,7 @@ export const UPIPaymentsPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {payments.map((p) => (
+                            {pagedPayments.map((p) => (
                                 <tr key={p.id}>
                                     <td style={{ fontSize: 13 }}>{formatDate(p.received_at || p.created_at)}</td>
                                     <td>{p.sender_name || '-'}</td>
@@ -212,6 +220,57 @@ export const UPIPaymentsPage: React.FC = () => {
                 {payments.length === 0 && (
                     <div style={{ textAlign: 'center', padding: 40, color: '#8b7355' }}>
                         No UPI payments found
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '14px 16px', borderTop: '1px solid #e5e0d8',
+                    }}>
+                        <span style={{ fontSize: 13, color: '#8b7355' }}>
+                            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, payments.length)} of {payments.length}
+                        </span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                    background: page === 1 ? '#f0f0f0' : '#fff', border: '1px solid #e5e0d8',
+                                    borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer',
+                                    color: page === 1 ? '#ccc' : '#2c1810', fontSize: 13,
+                                }}
+                            >
+                                <ChevronLeft size={14} /> Prev
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => setPage(p)}
+                                    style={{
+                                        padding: '6px 10px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+                                        background: p === page ? '#4f5130' : '#fff',
+                                        color: p === page ? '#fff' : '#2c1810',
+                                        border: `1px solid ${p === page ? '#4f5130' : '#e5e0d8'}`,
+                                        fontWeight: p === page ? 700 : 400,
+                                    }}
+                                >{p}</button>
+                            ))}
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                    background: page === totalPages ? '#f0f0f0' : '#fff', border: '1px solid #e5e0d8',
+                                    borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer',
+                                    color: page === totalPages ? '#ccc' : '#2c1810', fontSize: 13,
+                                }}
+                            >
+                                Next <ChevronRight size={14} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

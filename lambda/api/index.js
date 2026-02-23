@@ -267,6 +267,12 @@ async function processGmailMessage(gmail, messageId) {
         if (!parsed.amount) return null;
     }
 
+    // Ignore transactions above ₹2000 — these are personal, not order-related
+    if (parsed.amount > 2000) {
+        console.log(`Skipping high-value transaction: ₹${parsed.amount} (max ₹2000)`);
+        return null;
+    }
+
     // Check duplicate — if already inserted but unmatched, retry auto-match
     const existing = await query('SELECT id, status, amount FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
     if (existing.length) {
