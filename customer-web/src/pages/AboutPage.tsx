@@ -36,7 +36,7 @@ export default function AboutPage() {
                     <Header variant="dark" />
 
                     <div className="about-hero">
-                        {/* Poster image shown instantly while video loads */}
+                        {/* Poster image — background fallback + native poster attr */}
                         <div
                             className="about-hero-poster"
                             style={{ backgroundImage: `url(${aboutPoster})` }}
@@ -48,6 +48,7 @@ export default function AboutPage() {
                             muted
                             playsInline
                             preload="auto"
+                            poster={aboutPoster}
                             src={aboutVideo}
                         />
                         <div className="about-hero-overlay" />

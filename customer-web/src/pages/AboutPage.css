@@ -53,12 +53,14 @@
 }
 
 /* Video loads on top of poster, covers it once playing */
+/* Transparent until first frame loads so poster shows through */
 .about-hero-video {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
     object-fit: cover;
     z-index: 1;
+    background: transparent;
 }
 
 .about-hero-overlay {
@@ -311,27 +313,61 @@
 /* ================================ */
 /* RESPONSIVE                       */
 /* ================================ */
-@media (max-width: 768px) {
+
+/* Tablet */
+@media (min-width: 768px) {
     .about-hero-title {
-        font-size: 38px;
-        letter-spacing: 3px;
+        font-size: 56px;
+    }
+}
+
+/* Mobile — match homepage hero + USP sizing */
+@media (max-width: 767px) {
+    /* Hero: bigger video area on mobile */
+    .about-hero {
+        min-height: 65vh;
+    }
+
+    .about-hero-title {
+        font-size: 32px;
+        letter-spacing: 2px;
     }
 
     .about-hero-desc {
-        font-size: 13px;
+        font-size: 12px;
+        line-height: 1.7;
     }
 
+    /* 4-point bar: match homepage USP exactly */
     .about-journey-bar {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 28px 20px;
-        padding: 32px 20px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        padding: 30px 16px;
     }
 
     .about-journey-item {
         max-width: none;
+        width: 100%;
     }
 
+    .about-journey-icon {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 8px;
+    }
+
+    .about-journey-title {
+        font-size: 10px;
+        letter-spacing: 1px;
+    }
+
+    .about-journey-desc {
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    /* Content block */
     .about-content-inner {
         padding: 16px 20px 0;
     }
@@ -351,7 +387,11 @@
         font-size: 36px;
     }
 
-    /* Journey cards 2-col on tablet */
+    .about-text {
+        font-size: 13px;
+    }
+
+    /* Journey cards 2-col */
     .journey-cards {
         grid-template-columns: 1fr 1fr;
         gap: 12px;
@@ -359,36 +399,6 @@
 
     .journey-heading {
         font-size: 30px;
-    }
-}
-
-@media (max-width: 480px) {
-    .about-hero-title {
-        font-size: 32px;
-        letter-spacing: 2px;
-    }
-
-    .about-hero-desc {
-        font-size: 12px;
-        line-height: 1.7;
-    }
-
-    .about-journey-bar {
-        gap: 24px 14px;
-        padding: 28px 14px;
-    }
-
-    .about-journey-desc {
-        font-size: 11px;
-    }
-
-    .philosophy-image {
-        height: 180px;
-    }
-
-    .journey-cards {
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
     }
 
     .journey-card {
