@@ -211,39 +211,6 @@
     margin-bottom: 20px;
 }
 
-/* Philosophy key points */
-.philosophy-points {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-.philosophy-point {
-    display: flex;
-    flex-direction: column;
-    padding: 14px 16px;
-    background: #fff;
-    border-radius: 8px;
-    border-left: 3px solid #4f5130;
-}
-
-.point-label {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: #1c0d02;
-    margin-bottom: 4px;
-}
-
-.point-desc {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-    font-weight: 400;
-    color: #777;
-    line-height: 1.5;
-}
 
 /* ================================ */
 /* JOURNEY — Illustration + Cards   */
@@ -382,11 +349,6 @@
 
     .about-heading {
         font-size: 36px;
-    }
-
-    .philosophy-points {
-        grid-template-columns: 1fr;
-        gap: 10px;
     }
 
     /* Journey cards 2-col on tablet */

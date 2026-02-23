@@ -86,27 +86,19 @@ export default function AboutPage() {
                             <div className="philosophy-text-col">
                                 <h2 className="about-heading">THE PHILOSOPHY</h2>
                                 <p className="about-text">
-                                    Great coffee needs nothing added — just care, precision, and
-                                    respect for the bean.
+                                    We believe great coffee needs nothing added — just care, precision, and respect for
+                                    the bean. Our process blends shade-grown sourcing, salt-roasting, and
+                                    small-batch craftsmanship.
                                 </p>
-                                <div className="philosophy-points">
-                                    <div className="philosophy-point">
-                                        <span className="point-label">Shade-Grown</span>
-                                        <span className="point-desc">Sourced from estates under native canopies</span>
-                                    </div>
-                                    <div className="philosophy-point">
-                                        <span className="point-label">Salt-Air Roasted</span>
-                                        <span className="point-desc">Less bitterness, more natural sweetness</span>
-                                    </div>
-                                    <div className="philosophy-point">
-                                        <span className="point-label">Small Batch</span>
-                                        <span className="point-desc">Every roast tuned for clean, smooth character</span>
-                                    </div>
-                                    <div className="philosophy-point">
-                                        <span className="point-label">Personalised</span>
-                                        <span className="point-desc">Custom profiles based on your taste preferences</span>
-                                    </div>
-                                </div>
+                                <p className="about-text">
+                                    Using a unique salt-air roast profile, we reduce bitterness and preserve natural
+                                    oils, delivering a cup that's clean, smooth, and full of character. No additives, no
+                                    shortcuts, only the true expression of Indian coffee.
+                                </p>
+                                <p className="about-text">
+                                    And because every palate is different, we offer personalized roast profiles based
+                                    on acidity, body, and bitterness; roasted just for you.
+                                </p>
                             </div>
                         </div>
 
