@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
@@ -20,9 +20,28 @@ export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
     const aboutPoster = useAsset('assets/about_poster.png');
     const aboutRoasting = useAsset('assets/about_roasting.png');
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [videoReady, setVideoReady] = useState(false);
 
-    const handleVideoPlaying = useCallback(() => setVideoReady(true), []);
+    useEffect(() => {
+        const el = videoRef.current;
+        if (!el) return;
+
+        const show = () => setVideoReady(true);
+
+        // Already playing (autoplay fired before React mounted)
+        if (!el.paused && el.readyState >= 2) {
+            show();
+            return;
+        }
+
+        el.addEventListener('playing', show);
+        el.addEventListener('timeupdate', show, { once: true });
+        return () => {
+            el.removeEventListener('playing', show);
+            el.removeEventListener('timeupdate', show);
+        };
+    }, []);
 
     return (
         <div className="about-outer">
@@ -39,6 +58,7 @@ export default function AboutPage() {
                             style={{ backgroundImage: `url(${aboutPoster})` }}
                         />
                         <video
+                            ref={videoRef}
                             className={`about-hero-video${videoReady ? ' playing' : ''}`}
                             autoPlay
                             loop
@@ -46,7 +66,6 @@ export default function AboutPage() {
                             playsInline
                             preload="auto"
                             src={aboutVideo}
-                            onPlaying={handleVideoPlaying}
                         />
                         <div className="about-hero-overlay" />
                         <div className="about-hero-content">
