@@ -267,9 +267,15 @@ async function processGmailMessage(gmail, messageId) {
         if (!parsed.amount) return null;
     }
 
-    // Check duplicate
-    const existing = await query('SELECT id FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
-    if (existing.length) return existing[0];
+    // Check duplicate — if already inserted but unmatched, retry auto-match
+    const existing = await query('SELECT id, status, amount FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
+    if (existing.length) {
+        if (existing[0].status !== 'matched') {
+            console.log(`Retrying auto-match for existing upi_payment ${existing[0].id} amount=${existing[0].amount}`);
+            await autoMatchPayment(existing[0].id, parseFloat(existing[0].amount), parsed.upiRef);
+        }
+        return existing[0];
+    }
 
     // Insert into upi_payments (don't store raw email body for privacy)
     const rows = await query(
@@ -811,20 +817,15 @@ exports.handler = async (event) => {
             );
             if (!rows.length) return error(404, 'Order not found');
 
-            // If UPI and still pending, trigger async Gmail check (non-blocking)
-            // API Gateway has 29s hard timeout; Gmail API can take 30s+ on cold start
-            // So we fire-and-forget a background Lambda invocation and return DB status instantly
+            // If UPI and still pending, check Gmail synchronously (completes in 2-4s)
             if (rows[0].payment_method === 'upi' && rows[0].payment_status === 'pending') {
-                try {
-                    await lambdaClient.send(new InvokeCommand({
-                        FunctionName: FUNCTION_NAME,
-                        InvocationType: 'Event', // async — returns immediately
-                        Payload: JSON.stringify({ __internal: 'check-gmail' }),
-                    }));
-                    console.log('Async Gmail check triggered for pending UPI order');
-                } catch (invokeErr) {
-                    console.error('Failed to trigger async Gmail check:', invokeErr.message);
-                }
+                await checkGmailForPendingPayments();
+                // Re-fetch in case it was just matched
+                const updated = await query(
+                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                    [id, ownProfileId]
+                );
+                if (updated.length) return ok(updated[0]);
             }
 
             return ok(rows[0]);

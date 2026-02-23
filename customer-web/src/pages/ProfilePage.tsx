@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import { getOrders, getTasteProfiles, getMyReviews, createReview, getAddresses, createAddress, deleteAddress } from '../services/api';
+import { getOrders, getTasteProfiles, getMyReviews, createReview, getAddresses, createAddress, deleteAddress, updateProfile } from '../services/api';
 import type { Order, TasteProfile as ApiTasteProfile, Review, Address } from '../services/api';
 import { useShopStore } from '../stores/shopStore';
 import Header from '../components/Header';
@@ -28,6 +28,11 @@ export default function ProfilePage() {
     const [showAddrForm, setShowAddrForm] = useState(false);
     const [addrForm, setAddrForm] = useState({ label: '', full_name: '', phone: '', address_line: '', city: '', state: '', pincode: '', country: 'India' });
     const [savingAddr, setSavingAddr] = useState(false);
+
+    // Name editing
+    const [editingName, setEditingName] = useState(false);
+    const [nameInput, setNameInput] = useState('');
+    const [savingName, setSavingName] = useState(false);
 
     // Review modal state
     const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -71,6 +76,21 @@ export default function ProfilePage() {
     const handleLogout = async () => {
         await logout();
         navigate('/');
+    };
+
+    const startEditName = () => {
+        setNameInput(profile?.full_name || '');
+        setEditingName(true);
+    };
+
+    const handleSaveName = async () => {
+        if (!dbUserId || !nameInput.trim()) return;
+        setSavingName(true);
+        try {
+            await updateProfile(dbUserId, { full_name: nameInput.trim() });
+            window.location.reload();
+        } catch { /* ignore */ }
+        finally { setSavingName(false); }
     };
 
     const handleSaveAddress = async () => {
@@ -174,7 +194,25 @@ export default function ProfilePage() {
                             {profile?.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div className="profile-info">
-                            <h1>{profile?.full_name || 'Coffee Lover'}</h1>
+                            {editingName ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <input
+                                        value={nameInput}
+                                        onChange={e => setNameInput(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+                                        autoFocus
+                                        style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 22, fontWeight: 700, color: '#1c0d02', border: '1.5px solid #4f5130', borderRadius: 8, padding: '4px 10px', outline: 'none', width: 180 }}
+                                    />
+                                    <button onClick={handleSaveName} disabled={savingName} style={{ background: '#4f5130', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                        {savingName ? '...' : 'Save'}
+                                    </button>
+                                    <button onClick={() => setEditingName(false)} style={{ background: 'none', border: 'none', color: '#98918a', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                                </div>
+                            ) : (
+                                <h1 style={{ cursor: 'pointer' }} onClick={startEditName} title="Click to edit name">
+                                    {profile?.full_name || 'Coffee Lover'} <span style={{ fontSize: 14, color: '#98918a', fontFamily: 'Montserrat', fontWeight: 400 }}>✎</span>
+                                </h1>
+                            )}
                             <p>{user.email}</p>
                         </div>
                     </div>
@@ -224,9 +262,9 @@ export default function ProfilePage() {
                                                     <span className="order-date">{new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                                     <span className="order-total">₹{order.total_amount}</span>
                                                 </div>
-                                                {order.order_items && order.order_items.length > 0 && (
+                                                {order.order_items && order.order_items.filter(Boolean).length > 0 && (
                                                     <div className="order-items-preview">
-                                                        {order.order_items.map((oi, idx) => (
+                                                        {order.order_items.filter(Boolean).map((oi, idx) => (
                                                             <span key={idx} className="order-item-tag">{oi.taste_profile_name} ×{oi.quantity}</span>
                                                         ))}
                                                     </div>
