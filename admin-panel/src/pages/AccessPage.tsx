@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import { UserPlus, Shield, Trash2, Mail, Key, Check, X, Users } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.shadowbeanco.net';
-const api = axios.create({ baseURL: API_BASE_URL, timeout: 15000, headers: { 'Content-Type': 'application/json' } });
-api.interceptors.request.use(async (config) => {
-    try { const s = await fetchAuthSession(); const t = s.tokens?.idToken?.toString(); if (t) config.headers.Authorization = `Bearer ${t}`; } catch {} return config;
-});
+import { adminApi as api } from '../lib/admin-api';
 
 interface AdminUser {
     id: string;

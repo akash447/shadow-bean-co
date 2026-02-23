@@ -494,7 +494,8 @@ function error(statusCode, message) {
 
 exports.handler = async (event) => {
     // Internal async event: Gmail check (fired by self-invocation)
-    if (event.__internal === 'check-gmail') {
+    // Only allow internal events from Lambda self-invocation (no httpMethod = not from API Gateway)
+    if (event.__internal === 'check-gmail' && !event.httpMethod && !event.requestContext?.http) {
         console.log('Async Gmail check triggered');
         await checkGmailForPendingPayments();
         return { statusCode: 200, body: 'done' };
@@ -587,31 +588,13 @@ exports.handler = async (event) => {
 
         // GET /offers (public - list active offers for dropdown)
         if (method === 'GET' && path === '/offers') {
-            try {
-                await query(
-                    `CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )`
-                );
-            } catch (e) { /* table may already exist */ }
-
             const rows = await query(
                 `SELECT code, description, type, value, min_order FROM offers
                  WHERE is_active = true
                    AND (expires_at IS NULL OR expires_at > NOW())
                    AND (max_uses = 0 OR used_count < max_uses)
                  ORDER BY created_at DESC LIMIT 5`
-            );
+            ).catch(() => []);
             return ok(rows.map(r => ({ code: r.code, description: r.description, type: r.type, value: Number(r.value), min_order: Number(r.min_order) })));
         }
 
@@ -621,25 +604,7 @@ exports.handler = async (event) => {
             const cartTotal = Number(body.cart_total) || 0;
             if (!code) return error(400, 'Code required');
 
-            try {
-                await query(
-                    `CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )`
-                );
-            } catch (e) { /* table may already exist */ }
-
-            const rows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [code]);
+            const rows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [code]).catch(() => []);
             if (!rows.length) return ok({ valid: false, reason: 'Invalid or inactive code' });
 
             const offer = rows[0];
@@ -657,7 +622,8 @@ exports.handler = async (event) => {
 
         // POST /profiles/ensure
         if (method === 'POST' && path === '/profiles/ensure') {
-            const emailToUse = body.email || user.email;
+            // SECURITY: Always use email from verified JWT, never from request body
+            const emailToUse = user.email;
             const nameToUse = body.full_name || user.name || '';
 
             // 1. Try by cognito_sub first
@@ -776,36 +742,59 @@ exports.handler = async (event) => {
         if (method === 'POST' && path === '/orders') {
             // Always use authenticated user's own profile
             const profileId = await resolveOwnProfileId(user);
-            console.log('Creating order for user:', user.sub, 'profileId:', profileId, 'amount:', body.total_amount);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
             await ensureUpiTables();
 
-            const paymentMethod = body.payment_method || 'cod';
-            const paymentStatus = paymentMethod === 'upi' ? 'pending' : 'pending';
-            const razorpayId = paymentMethod === 'upi' ? null : (body.razorpay_payment_id || 'COD-' + Date.now());
+            // SECURITY: Validate items and calculate total server-side
+            const items = body.items || [];
+            if (!items.length) return error(400, 'Order must have at least one item');
+            if (!body.shipping_address) return error(400, 'Shipping address required');
+
+            // Fetch active pricing to validate unit prices
+            const pricingRows = await query('SELECT * FROM pricing WHERE is_active = true LIMIT 1');
+            const pricing = pricingRows[0];
+            const serverUnitPrice = pricing ? Number(pricing.size_250g || pricing.base_price || 799) : 799;
+
+            let serverTotal = 0;
+            const validatedItems = [];
+            for (const item of items) {
+                const qty = Math.max(1, Math.min(100, parseInt(item.quantity) || 1));
+                // Use server-side price, ignore client-submitted unit_price
+                serverTotal += serverUnitPrice * qty;
+                validatedItems.push({
+                    taste_profile_id: item.taste_profile_id,
+                    taste_profile_name: String(item.taste_profile_name || 'Custom Blend').slice(0, 200),
+                    quantity: qty,
+                    unit_price: serverUnitPrice,
+                });
+            }
+
+            // Sanity check: total must be reasonable
+            if (serverTotal <= 0 || serverTotal > 100000) return error(400, 'Invalid order total');
+
+            const paymentMethod = ['cod', 'upi'].includes(body.payment_method) ? body.payment_method : 'cod';
+            const paymentStatus = 'pending';
+            const razorpayId = paymentMethod === 'upi' ? null : ('COD-' + Date.now());
 
             const orderRows = await query(
                 'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address, payment_method, payment_status) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) RETURNING *',
-                [profileId, 'pending', body.total_amount, razorpayId, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus]
+                [profileId, 'pending', serverTotal, razorpayId, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus]
             );
             const order = orderRows[0];
 
-            if (body.items?.length) {
-                for (const item of body.items) {
-                    // taste_profile_id may be null or a client-generated id — only insert valid UUIDs
-                    const tpId = item.taste_profile_id && /^[0-9a-f-]{36}$/i.test(item.taste_profile_id) ? item.taste_profile_id : null;
-                    if (tpId) {
-                        await query(
-                            'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
-                            [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
-                        );
-                    } else {
-                        await query(
-                            'INSERT INTO order_items (order_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2, $3, $4)',
-                            [order.id, item.taste_profile_name, item.quantity, item.unit_price]
-                        );
-                    }
+            for (const item of validatedItems) {
+                const tpId = item.taste_profile_id && /^[0-9a-f-]{36}$/i.test(item.taste_profile_id) ? item.taste_profile_id : null;
+                if (tpId) {
+                    await query(
+                        'INSERT INTO order_items (order_id, taste_profile_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+                        [order.id, tpId, item.taste_profile_name, item.quantity, item.unit_price]
+                    );
+                } else {
+                    await query(
+                        'INSERT INTO order_items (order_id, taste_profile_name, quantity, unit_price) VALUES ($1::uuid, $2, $3, $4)',
+                        [order.id, item.taste_profile_name, item.quantity, item.unit_price]
+                    );
                 }
             }
 
@@ -856,12 +845,25 @@ exports.handler = async (event) => {
             )`).catch(() => { });
             await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS user_name TEXT').catch(() => { });
             await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT false').catch(() => { });
-            // Get the user's name
+
+            // Validate inputs
+            const rating = Math.max(1, Math.min(5, parseInt(body.rating) || 5));
+            const comment = String(body.comment || '').slice(0, 2000);
+            // Verify order belongs to user (if provided)
+            let orderId = null;
+            if (body.order_id) {
+                const orderCheck = await query(
+                    'SELECT id FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                    [body.order_id, profileId]
+                );
+                if (orderCheck.length) orderId = body.order_id;
+            }
+
             const profileRows = await query('SELECT full_name FROM profiles WHERE id::text = $1', [profileId]);
             const userName = profileRows[0]?.full_name || 'Anonymous';
             const rows = await query(
                 'INSERT INTO reviews (user_id, order_id, rating, comment, user_name, is_approved) VALUES ($1::uuid, $2::uuid, $3, $4, $5, false) RETURNING *',
-                [profileId, body.order_id, body.rating, body.comment, userName]
+                [profileId, orderId, rating, comment, userName]
             );
             return created(rows[0]);
         }
@@ -1203,14 +1205,18 @@ exports.handler = async (event) => {
                 const { filename, contentType } = body;
                 if (!filename) return error(400, 'filename required');
 
-                // Sanitize filename: lowercase, replace spaces with underscores
-                const sanitized = filename.replace(/\s+/g, '_').toLowerCase();
-                const s3Key = sanitized;
+                // Validate content type — only allow images and videos
+                const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml', 'video/mp4', 'video/webm'];
+                const safeType = allowedTypes.includes(contentType) ? contentType : 'image/png';
+
+                // Sanitize filename: strip path traversal, allow only safe chars
+                const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+                const s3Key = `assets/${sanitized}`;
 
                 const command = new PutObjectCommand({
                     Bucket: MEDIA_BUCKET,
                     Key: s3Key,
-                    ContentType: contentType || 'image/png',
+                    ContentType: safeType,
                 });
 
                 const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
@@ -1274,8 +1280,9 @@ exports.handler = async (event) => {
                 return ok(rows);
             }
 
-            // POST /admin/access
+            // POST /admin/access — master admin only
             if (method === 'POST' && path === '/admin/access') {
+                if (user.email !== MASTER_ADMIN_EMAIL) return error(403, 'Only master admin can manage access');
                 const rows = await query(
                     'INSERT INTO admin_users (user_id, email, role, is_active) VALUES ($1, $2, $3, $4) RETURNING *',
                     [body.user_id, body.email, body.role || 'admin', body.is_active !== false]
@@ -1283,8 +1290,9 @@ exports.handler = async (event) => {
                 return created(rows[0]);
             }
 
-            // PUT /admin/access/:id
+            // PUT /admin/access/:id — master admin only
             if (method === 'PUT' && path.match(/^\/admin\/access\/[\w-]+$/)) {
+                if (user.email !== MASTER_ADMIN_EMAIL) return error(403, 'Only master admin can manage access');
                 const id = path.split('/')[3];
                 const rows = await query(
                     'UPDATE admin_users SET is_active = COALESCE($1, is_active), role = COALESCE($2, role) WHERE id::text = $3 RETURNING *',
@@ -1293,8 +1301,9 @@ exports.handler = async (event) => {
                 return ok(rows[0]);
             }
 
-            // DELETE /admin/access/:id
+            // DELETE /admin/access/:id — master admin only
             if (method === 'DELETE' && path.match(/^\/admin\/access\/[\w-]+$/)) {
+                if (user.email !== MASTER_ADMIN_EMAIL) return error(403, 'Only master admin can manage access');
                 const id = path.split('/')[3];
                 await query('DELETE FROM admin_users WHERE id::text = $1', [id]);
                 return ok({ deleted: true });
@@ -1391,7 +1400,7 @@ exports.handler = async (event) => {
         return error(404, 'Not found');
     } catch (err) {
         console.error('API Error:', err);
-        const msg = err?.message || 'Internal server error';
-        return error(500, msg);
+        // Don't leak internal error details to clients
+        return error(500, 'Internal server error');
     }
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { getActiveTerms } from '../services/api';
 
 const BG = '#FAF8F5';
@@ -52,7 +53,7 @@ export default function TermsPage() {
                     ) : content ? (
                         <div
                             style={{ color: DARK, fontSize: 14, lineHeight: 1.8 }}
-                            dangerouslySetInnerHTML={{ __html: content }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
                         />
                     ) : (
                         <p style={{ color: MUTED, textAlign: 'center', padding: 40 }}>

@@ -96,6 +96,9 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
+// Export for pages that need direct API access (e.g., AccessPage)
+export { api as adminApi };
+
 // Attach Cognito JWT to every request
 api.interceptors.request.use(async (config) => {
     try {

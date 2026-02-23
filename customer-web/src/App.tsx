@@ -34,13 +34,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+        <div style={{ padding: '40px 20px', fontFamily: 'sans-serif', textAlign: 'center' }}>
           <h1>Something went wrong</h1>
-          <p style={{ color: 'red' }}>{this.state.error?.message}</p>
-          <pre style={{ background: '#f0f0f0', padding: '10px', overflow: 'auto' }}>
-            {this.state.error?.stack}
-          </pre>
-          <button onClick={() => window.location.reload()}>Reload Page</button>
+          <p style={{ color: '#666' }}>An unexpected error occurred. Please reload the page.</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '10px 24px', cursor: 'pointer' }}>Reload Page</button>
         </div>
       );
     }

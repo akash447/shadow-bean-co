@@ -4,15 +4,12 @@ import { Amplify } from 'aws-amplify'
 import './index.css'
 import App from './App.tsx'
 
-// Global error handler for uncaught errors
-window.onerror = (message, source, lineno, colno, error) => {
-  console.error('Global error:', { message, source, lineno, colno, error });
-  document.body.innerHTML = `<div style="padding: 20px; font-family: sans-serif;">
-    <h1>Application Error</h1>
-    <p style="color: red;">${message}</p>
-    <p>Source: ${source}:${lineno}:${colno}</p>
-    <button onclick="window.location.reload()">Reload</button>
-  </div>`;
+// Global error handler — safe, no innerHTML injection
+window.onerror = () => {
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:20px;font-family:sans-serif;text-align:center;margin-top:60px';
+  div.innerHTML = '<h1>Something went wrong</h1><p>Please reload the page.</p><button onclick="window.location.reload()">Reload</button>';
+  document.body.replaceChildren(div);
 };
 
 // Configure AWS Amplify with Gen2 format - same backend as customer-web

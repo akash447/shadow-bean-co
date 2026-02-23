@@ -37,9 +37,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 20, color: 'red' }}>
-          <h2>Something went wrong.</h2>
-          <pre>{this.state.error?.toString()}</pre>
+        <div style={{ padding: '40px 20px', fontFamily: 'sans-serif', textAlign: 'center' }}>
+          <h2>Something went wrong</h2>
+          <p style={{ color: '#666' }}>An unexpected error occurred. Please reload.</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '10px 24px', cursor: 'pointer' }}>Reload</button>
         </div>
       );
     }
@@ -189,7 +190,7 @@ function App() {
               <Route path="/offers" element={<OffersPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/media" element={<MediaPage />} />
-              <Route path="/access" element={<AccessPage />} />
+              <Route path="/access" element={user?.isMaster ? <AccessPage /> : <Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
           <BottomNav />

@@ -355,7 +355,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const pendingRedirect = sessionStorage.getItem(OAUTH_REDIRECT_KEY);
             sessionStorage.removeItem(OAUTH_REDIRECT_KEY);
 
-            if (pendingRedirect && pendingRedirect !== '/' && pendingRedirect !== window.location.pathname) {
+            if (pendingRedirect && pendingRedirect.startsWith('/') && pendingRedirect !== '/' && pendingRedirect !== window.location.pathname) {
                 // Redirect immediately — tokens are in storage, fetchCurrentUser will run on the new page
                 window.location.replace(pendingRedirect);
                 return;
