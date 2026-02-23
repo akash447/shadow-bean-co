@@ -150,100 +150,179 @@
 /* BLOCK 2: CONTENT                 */
 /* ================================ */
 .about-content-block {
-    background: #fff;
+    background: #FAF8F5;
     display: flex;
     flex-direction: column;
 }
 
 .about-content-inner {
     flex: 1;
-    max-width: 1200px;
+    max-width: 1100px;
+    width: 100%;
     margin: 0 auto;
-    padding: 40px 24px;
+    padding: 20px 32px 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
+/* ================================ */
+/* PHILOSOPHY — Image + Text Split  */
+/* ================================ */
+.philosophy-section {
+    display: flex;
+    align-items: center;
+    gap: 48px;
+    margin-bottom: 48px;
+}
+
+.philosophy-image-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.philosophy-image {
+    width: 100%;
+    height: 340px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.philosophy-text-col {
+    flex: 1;
+    min-width: 0;
+}
+
 .about-heading {
     font-family: 'Agdasima', sans-serif;
-    font-size: 56px;
+    font-size: 42px;
     font-weight: 700;
     line-height: 1;
     color: #1c0d02;
-    margin-bottom: 24px;
-    letter-spacing: 2px;
-}
-
-.about-text {
-    font-size: 15px;
-    line-height: 1.8;
-    color: #333;
-    margin-bottom: 20px;
-}
-
-/* Philosophy */
-.philosophy-section {
-    margin-bottom: 80px;
-}
-
-.philosophy-content {
-    display: flex;
-    gap: 60px;
-}
-
-.philosophy-left { flex: 1; }
-.philosophy-right { flex: 2; }
-
-/* Journey */
-.journey-section {
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.journey-icons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.journey-icon {
-    width: 60px;
-    height: 60px;
-    object-fit: contain;
-}
-
-.dashed-line {
-    color: #888;
-    letter-spacing: 4px;
-    font-weight: 700;
-}
-
-.journey-heading {
-    font-family: 'Agdasima', sans-serif;
-    font-size: 40px;
-    font-weight: 700;
-    color: #1c0d02;
-    margin-bottom: 30px;
+    margin-bottom: 12px;
     letter-spacing: 2px;
     text-transform: uppercase;
 }
 
-.journey-text {
+.about-text {
     font-size: 14px;
-    line-height: 1.8;
-    color: #333;
+    line-height: 1.7;
+    color: #555;
     margin-bottom: 20px;
 }
 
-/* Footer */
-.about-footer {
-    padding: 40px;
+/* Philosophy key points */
+.philosophy-points {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.philosophy-point {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px;
+    background: #fff;
+    border-radius: 8px;
+    border-left: 3px solid #4f5130;
+}
+
+.point-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #1c0d02;
+    margin-bottom: 4px;
+}
+
+.point-desc {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: #777;
+    line-height: 1.5;
+}
+
+/* ================================ */
+/* JOURNEY — Illustration + Cards   */
+/* ================================ */
+.journey-section {
     text-align: center;
-    background-color: #f7f3ed;
+}
+
+.journey-heading {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: #1c0d02;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.journey-illustration {
+    max-width: 500px;
+    width: 90%;
+    height: auto;
+    margin: 0 auto 28px;
+    display: block;
+    opacity: 0.85;
+}
+
+.journey-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.journey-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 12px;
+    background: #fff;
+    border-radius: 10px;
+}
+
+.journey-card-num {
+    font-family: 'Agdasima', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #4f5130;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.journey-card-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #1c0d02;
+    margin-bottom: 8px;
+}
+
+.journey-card-text {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: #777;
+    line-height: 1.5;
+}
+
+/* ================================ */
+/* FOOTER                           */
+/* ================================ */
+.about-footer {
+    padding: 28px;
+    text-align: center;
+    background-color: #f0ece6;
 }
 
 .footer-brand {
@@ -253,7 +332,7 @@
     font-weight: 700;
     letter-spacing: 2px;
     color: #1c0d02;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .footer-copyright {
@@ -286,21 +365,38 @@
         max-width: none;
     }
 
-    .philosophy-content {
+    .about-content-inner {
+        padding: 16px 20px 0;
+    }
+
+    /* Philosophy stacks on mobile */
+    .philosophy-section {
         flex-direction: column;
-        gap: 32px;
+        gap: 24px;
+        margin-bottom: 36px;
+    }
+
+    .philosophy-image {
+        height: 220px;
     }
 
     .about-heading {
-        font-size: 40px;
+        font-size: 36px;
     }
 
-    .philosophy-section {
-        margin-bottom: 50px;
+    .philosophy-points {
+        grid-template-columns: 1fr;
+        gap: 10px;
     }
 
-    .journey-section {
-        padding: 0 16px;
+    /* Journey cards 2-col on tablet */
+    .journey-cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .journey-heading {
+        font-size: 30px;
     }
 }
 
@@ -322,5 +418,27 @@
 
     .about-journey-desc {
         font-size: 11px;
+    }
+
+    .philosophy-image {
+        height: 180px;
+    }
+
+    .journey-cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .journey-card {
+        padding: 14px 10px;
+    }
+
+    .journey-card-num {
+        font-size: 24px;
+    }
+
+    .journey-illustration {
+        max-width: 320px;
+        margin-bottom: 20px;
     }
 }

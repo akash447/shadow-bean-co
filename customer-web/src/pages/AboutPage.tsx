@@ -14,10 +14,18 @@ const JOURNEY_STEPS = [
     { icon: iconPersonalized, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
 ];
 
+const JOURNEY_CARDS = [
+    { num: '01', title: 'SOURCED', text: 'Hand-selected from shaded estates in Karnataka & Andhra Pradesh' },
+    { num: '02', title: 'HARVESTED', text: 'Each cherry picked at peak ripeness under native tree canopies' },
+    { num: '03', title: 'ROASTED', text: 'Salt-air roasted in small batches to unlock natural sweetness' },
+    { num: '04', title: 'DELIVERED', text: 'Freshly packed and shipped — from forest shade to your cup' },
+];
+
 export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
-    const coffeeFarm = useAsset('coffee_farm.png');
-    const productBag = useAsset('product_bag.png');
+    const aboutPoster = useAsset('assets/about_poster.png');
+    const aboutRoasting = useAsset('assets/about_roasting.png');
+    const journeyIllustration = useAsset('assets/journey_illustration.png');
 
     return (
         <div className="about-outer">
@@ -31,7 +39,7 @@ export default function AboutPage() {
                         {/* Poster image shown instantly while video loads */}
                         <div
                             className="about-hero-poster"
-                            style={{ backgroundImage: `url(${coffeeFarm})` }}
+                            style={{ backgroundImage: `url(${aboutPoster})` }}
                         />
                         <video
                             className="about-hero-video"
@@ -70,59 +78,58 @@ export default function AboutPage() {
                     <Header variant="light" />
 
                     <div className="about-content-inner">
-                        {/* Philosophy */}
+                        {/* Philosophy — image + text split */}
                         <div className="philosophy-section">
-                            <div className="philosophy-content">
-                                <div className="philosophy-left">
-                                    <h2 className="about-heading">THE<br />PHILOSOPHY</h2>
-                                </div>
-                                <div className="philosophy-right">
-                                    <p className="about-text">
-                                        We believe great coffee needs nothing added — just care, precision, and respect for
-                                        the bean. Our process blends shade-grown sourcing, salt-roasting, and
-                                        small-batch craftsmanship.
-                                    </p>
-                                    <p className="about-text">
-                                        Using a unique salt-air roast profile, we reduce bitterness and preserve natural
-                                        oils, delivering a cup that's clean, smooth, and full of character. No additives, no
-                                        shortcuts, only the true expression of Indian coffee.
-                                    </p>
-                                    <p className="about-text">
-                                        And because every palate is different, we offer personalized roast profiles based
-                                        on acidity, body, and bitterness; roasted just for you.
-                                    </p>
+                            <div className="philosophy-image-col">
+                                <img src={aboutRoasting} alt="Salt-air roasting process" className="philosophy-image" />
+                            </div>
+                            <div className="philosophy-text-col">
+                                <h2 className="about-heading">THE PHILOSOPHY</h2>
+                                <p className="about-text">
+                                    Great coffee needs nothing added — just care, precision, and
+                                    respect for the bean.
+                                </p>
+                                <div className="philosophy-points">
+                                    <div className="philosophy-point">
+                                        <span className="point-label">Shade-Grown</span>
+                                        <span className="point-desc">Sourced from estates under native canopies</span>
+                                    </div>
+                                    <div className="philosophy-point">
+                                        <span className="point-label">Salt-Air Roasted</span>
+                                        <span className="point-desc">Less bitterness, more natural sweetness</span>
+                                    </div>
+                                    <div className="philosophy-point">
+                                        <span className="point-label">Small Batch</span>
+                                        <span className="point-desc">Every roast tuned for clean, smooth character</span>
+                                    </div>
+                                    <div className="philosophy-point">
+                                        <span className="point-label">Personalised</span>
+                                        <span className="point-desc">Custom profiles based on your taste preferences</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Journey of a Coffee Bean */}
+                        {/* Journey of a Coffee Bean — illustration + step cards */}
                         <div className="journey-section">
-                            <div className="journey-icons">
-                                <img src='/icons/icon_map_karnataka.png' alt="Karnataka" className="journey-icon" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                <span className="dashed-line">----------------</span>
-                                <img src={productBag} alt="Coffee Bag" className="journey-icon" />
-                                <span className="dashed-line">----------------</span>
-                                <img src='/icons/icon_coffee_cup.png' alt="Coffee Cup" className="journey-icon" onError={(e) => e.currentTarget.style.display = 'none'} />
-                            </div>
-
                             <h2 className="journey-heading">JOURNEY OF A COFFEE BEAN</h2>
-
-                            <p className="journey-text">
-                                From the shaded estates of Karnataka and Andhra Pradesh, each bean is hand-selected for quality and
-                                grown under the protective canopy of native trees. After harvest, the beans travel to our roastery, where we
-                                roast them in small, controlled batches using our salt-air technique.
-                            </p>
-                            <p className="journey-text">
-                                Every roast is tuned carefully to unlock the bean's natural sweetness, aroma, and depth. Freshly roasted,
-                                packed, and shipped, each bag carries the journey of Indian coffee, from forest shade to your perfect cup.
-                            </p>
+                            <img src={journeyIllustration} alt="From farm to cup" className="journey-illustration" />
+                            <div className="journey-cards">
+                                {JOURNEY_CARDS.map((card) => (
+                                    <div key={card.num} className="journey-card">
+                                        <span className="journey-card-num">{card.num}</span>
+                                        <span className="journey-card-title">{card.title}</span>
+                                        <span className="journey-card-text">{card.text}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
                     {/* Footer */}
                     <footer className="about-footer">
                         <span className="footer-brand">SHADOW BEAN CO.</span>
-                        <span className="footer-copyright">&copy; 2024 Shadow Bean Co.</span>
+                        <span className="footer-copyright">&copy; 2025 Shadow Bean Co.</span>
                     </footer>
                 </section>
 
