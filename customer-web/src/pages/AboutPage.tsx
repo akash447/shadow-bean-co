@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
@@ -14,18 +15,14 @@ const JOURNEY_STEPS = [
     { icon: iconPersonalized, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
 ];
 
-const JOURNEY_CARDS = [
-    { num: '01', title: 'SOURCED', text: 'Hand-selected from shaded estates in Karnataka & Andhra Pradesh' },
-    { num: '02', title: 'HARVESTED', text: 'Each cherry picked at peak ripeness under native tree canopies' },
-    { num: '03', title: 'ROASTED', text: 'Salt-air roasted in small batches to unlock natural sweetness' },
-    { num: '04', title: 'DELIVERED', text: 'Freshly packed and shipped — from forest shade to your cup' },
-];
 
 export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
     const aboutPoster = useAsset('assets/about_poster.png');
     const aboutRoasting = useAsset('assets/about_roasting.png');
-    const journeyIllustration = useAsset('assets/journey_illustration.png');
+    const [videoReady, setVideoReady] = useState(false);
+
+    const handleVideoPlaying = useCallback(() => setVideoReady(true), []);
 
     return (
         <div className="about-outer">
@@ -36,20 +33,20 @@ export default function AboutPage() {
                     <Header variant="dark" />
 
                     <div className="about-hero">
-                        {/* Poster image — background fallback + native poster attr */}
+                        {/* Poster image — visible until video starts playing */}
                         <div
                             className="about-hero-poster"
                             style={{ backgroundImage: `url(${aboutPoster})` }}
                         />
                         <video
-                            className="about-hero-video"
+                            className={`about-hero-video${videoReady ? ' playing' : ''}`}
                             autoPlay
                             loop
                             muted
                             playsInline
                             preload="auto"
-                            poster={aboutPoster}
                             src={aboutVideo}
+                            onPlaying={handleVideoPlaying}
                         />
                         <div className="about-hero-overlay" />
                         <div className="about-hero-content">
@@ -103,20 +100,6 @@ export default function AboutPage() {
                             </div>
                         </div>
 
-                        {/* Journey of a Coffee Bean — illustration + step cards */}
-                        <div className="journey-section">
-                            <h2 className="journey-heading">JOURNEY OF A COFFEE BEAN</h2>
-                            <img src={journeyIllustration} alt="From farm to cup" className="journey-illustration" />
-                            <div className="journey-cards">
-                                {JOURNEY_CARDS.map((card) => (
-                                    <div key={card.num} className="journey-card">
-                                        <span className="journey-card-num">{card.num}</span>
-                                        <span className="journey-card-title">{card.title}</span>
-                                        <span className="journey-card-text">{card.text}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
 
                     {/* Footer */}

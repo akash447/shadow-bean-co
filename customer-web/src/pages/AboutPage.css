@@ -52,15 +52,19 @@
     z-index: 0;
 }
 
-/* Video loads on top of poster, covers it once playing */
-/* Transparent until first frame loads so poster shows through */
+/* Video — hidden until playing so poster shows through */
 .about-hero-video {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
     object-fit: cover;
     z-index: 1;
-    background: transparent;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.about-hero-video.playing {
+    opacity: 1;
 }
 
 .about-hero-overlay {
@@ -215,77 +219,6 @@
 
 
 /* ================================ */
-/* JOURNEY — Illustration + Cards   */
-/* ================================ */
-.journey-section {
-    text-align: center;
-}
-
-.journey-heading {
-    font-family: 'Agdasima', sans-serif;
-    font-size: 36px;
-    font-weight: 700;
-    color: #1c0d02;
-    margin-bottom: 20px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-}
-
-.journey-illustration {
-    max-width: 500px;
-    width: 90%;
-    height: auto;
-    margin: 0 auto 28px;
-    display: block;
-    opacity: 0.85;
-}
-
-.journey-cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.journey-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 20px 12px;
-    background: #fff;
-    border-radius: 10px;
-}
-
-.journey-card-num {
-    font-family: 'Agdasima', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: #4f5130;
-    line-height: 1;
-    margin-bottom: 6px;
-}
-
-.journey-card-title {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #1c0d02;
-    margin-bottom: 8px;
-}
-
-.journey-card-text {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-    font-weight: 400;
-    color: #777;
-    line-height: 1.5;
-}
-
-/* ================================ */
 /* FOOTER                           */
 /* ================================ */
 .about-footer {
@@ -323,11 +256,6 @@
 
 /* Mobile — match homepage hero + USP sizing */
 @media (max-width: 767px) {
-    /* Hero: bigger video area on mobile */
-    .about-hero {
-        min-height: 65vh;
-    }
-
     .about-hero-title {
         font-size: 32px;
         letter-spacing: 2px;
@@ -389,28 +317,5 @@
 
     .about-text {
         font-size: 13px;
-    }
-
-    /* Journey cards 2-col */
-    .journey-cards {
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-
-    .journey-heading {
-        font-size: 30px;
-    }
-
-    .journey-card {
-        padding: 14px 10px;
-    }
-
-    .journey-card-num {
-        font-size: 24px;
-    }
-
-    .journey-illustration {
-        max-width: 320px;
-        margin-bottom: 20px;
     }
 }
