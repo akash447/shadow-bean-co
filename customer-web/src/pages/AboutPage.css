@@ -1,44 +1,77 @@
-.about-container {
-    min-height: 100vh;
+/* ================================ */
+/* OUTER: Scroll Snap Container    */
+/* ================================ */
+.about-outer {
+    height: 100vh;
+    overflow: hidden;
     font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
-    background-color: #fff;
     color: #1c0d02;
 }
 
-/* ================================ */
-/* SECTION 1: HERO VIDEO BANNER    */
-/* ================================ */
-.about-hero {
-    position: relative;
-    width: 100%;
+.about-scroll {
     height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+
+/* Hide scrollbar */
+.about-scroll::-webkit-scrollbar { display: none; }
+.about-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Each block snaps */
+.about-block {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    position: relative;
+}
+
+/* ================================ */
+/* BLOCK 1: HERO VIDEO + BAR       */
+/* ================================ */
+.about-hero-block {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.about-hero {
+    flex: 1;
+    position: relative;
     overflow: hidden;
 }
 
+/* Poster image — shown instantly, sits behind the video */
+.about-hero-poster {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
+}
+
+/* Video loads on top of poster, covers it once playing */
 .about-hero-video {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     object-fit: cover;
-    z-index: 0;
+    z-index: 1;
 }
 
 .about-hero-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.45);
-    z-index: 1;
+    z-index: 2;
 }
 
 .about-hero-content {
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
     color: #fff;
@@ -49,33 +82,33 @@
 
 .about-hero-title {
     font-family: 'Agdasima', sans-serif;
-    font-size: 64px;
-    font-weight: 700;
-    line-height: 1.05;
-    letter-spacing: 6px;
-    margin: 0 0 20px;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: 4px;
+    margin: 0 0 16px;
     text-transform: uppercase;
 }
 
 .about-hero-desc {
     font-family: 'Montserrat', sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 300;
     line-height: 1.8;
     color: rgba(255, 255, 255, 0.9);
     margin: 0 auto;
-    max-width: 520px;
+    max-width: 500px;
 }
 
 /* ================================ */
-/* SECTION 2: JOURNEY 4-POINT BAR  */
+/* JOURNEY 4-POINT BAR              */
 /* ================================ */
 .about-journey-bar {
     background-color: #fff;
     display: flex;
     justify-content: center;
     gap: 60px;
-    padding: 48px 20px;
+    padding: 40px 20px;
     flex-wrap: wrap;
 }
 
@@ -84,14 +117,14 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    max-width: 180px;
+    max-width: 170px;
 }
 
 .about-journey-icon {
     width: 48px;
     height: 48px;
     object-fit: contain;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     opacity: 0.85;
 }
 
@@ -102,7 +135,7 @@
     letter-spacing: 2px;
     text-transform: uppercase;
     color: #1c0d02;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .about-journey-desc {
@@ -114,16 +147,22 @@
 }
 
 /* ================================ */
-/* SECTIONS 3 & 4: CONTENT         */
+/* BLOCK 2: CONTENT                 */
 /* ================================ */
-.about-section {
-    margin-bottom: 100px;
+.about-content-block {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
 }
 
-.about-inner {
+.about-content-inner {
+    flex: 1;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .about-heading {
@@ -143,9 +182,9 @@
     margin-bottom: 20px;
 }
 
-/* Philosophy Section */
+/* Philosophy */
 .philosophy-section {
-    padding-top: 80px;
+    margin-bottom: 80px;
 }
 
 .philosophy-content {
@@ -153,19 +192,14 @@
     gap: 60px;
 }
 
-.philosophy-left {
-    flex: 1;
-}
+.philosophy-left { flex: 1; }
+.philosophy-right { flex: 2; }
 
-.philosophy-right {
-    flex: 2;
-}
-
-/* Journey Section */
+/* Journey */
 .journey-section {
     text-align: center;
     max-width: 800px;
-    margin: 0 auto 100px;
+    margin: 0 auto;
 }
 
 .journey-icons {
@@ -210,7 +244,6 @@
     padding: 40px;
     text-align: center;
     background-color: #f7f3ed;
-    margin-top: 60px;
 }
 
 .footer-brand {
@@ -234,8 +267,8 @@
 /* ================================ */
 @media (max-width: 768px) {
     .about-hero-title {
-        font-size: 42px;
-        letter-spacing: 4px;
+        font-size: 38px;
+        letter-spacing: 3px;
     }
 
     .about-hero-desc {
@@ -245,8 +278,8 @@
     .about-journey-bar {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 32px 24px;
-        padding: 36px 24px;
+        gap: 28px 20px;
+        padding: 32px 20px;
     }
 
     .about-journey-item {
@@ -263,23 +296,18 @@
     }
 
     .philosophy-section {
-        padding-top: 60px;
-    }
-
-    .about-section {
-        margin-bottom: 60px;
+        margin-bottom: 50px;
     }
 
     .journey-section {
-        margin-bottom: 60px;
-        padding: 0 20px;
+        padding: 0 16px;
     }
 }
 
 @media (max-width: 480px) {
     .about-hero-title {
-        font-size: 36px;
-        letter-spacing: 3px;
+        font-size: 32px;
+        letter-spacing: 2px;
     }
 
     .about-hero-desc {
@@ -288,8 +316,8 @@
     }
 
     .about-journey-bar {
-        gap: 28px 16px;
-        padding: 32px 16px;
+        gap: 24px 14px;
+        padding: 28px 14px;
     }
 
     .about-journey-desc {
