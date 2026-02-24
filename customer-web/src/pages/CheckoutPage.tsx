@@ -122,10 +122,10 @@ export default function CheckoutPage() {
                 if (res.payment_status === 'confirmed' || res.payment_status === 'detected') {
                     setUpiPolling(false);
                 } else {
-                    setTimeout(poll, 5000);
+                    setTimeout(poll, 3000);
                 }
             } catch {
-                if (!cancelled) setTimeout(poll, 5000);
+                if (!cancelled) setTimeout(poll, 3000);
             }
         };
         poll();
@@ -203,57 +203,66 @@ export default function CheckoutPage() {
                                     style={{ padding: '14px 28px', background: '#e5e0d8', color: DARK, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Back to Home</motion.button>
                             </div>
                         </>
+                    ) : (upiStatus === 'detected' || upiStatus === 'confirmed') ? (
+                        <>
+                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                            </div>
+                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 28, color: DARK, margin: '0 0 8px' }}>
+                                Your Order Has Been Placed!
+                            </h2>
+                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 20 }}>
+                                Order ID: <strong style={{ color: OLIVE, fontSize: 16, fontFamily: 'monospace' }}>{ordId?.slice(0, 8)}</strong>
+                            </p>
+                            <div style={{ background: '#d1fae5', border: '1.5px solid #a7f3d0', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
+                                <div style={{ fontSize: 13, color: '#065f46', lineHeight: 1.7 }}>
+                                    Payment of <strong>₹{amt}</strong> received successfully.<br />
+                                    We'll start preparing your custom blend right away!
+                                </div>
+                            </div>
+                            <p style={{ color: '#aaa', fontSize: 12 }}>Redirecting to your orders...</p>
+                        </>
                     ) : (
                         <>
-                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: upiStatus === 'detected' ? '#d1fae5' : '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                                {upiStatus === 'detected' ? (
-                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                                ) : (
-                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-                                        style={{ width: 40, height: 40, border: `3px solid ${BORDER}`, borderTopColor: OLIVE, borderRadius: '50%' }} />
-                                )}
+                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                                    style={{ width: 40, height: 40, border: `3px solid ${BORDER}`, borderTopColor: OLIVE, borderRadius: '50%' }} />
                             </div>
                             <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>
-                                {upiStatus === 'detected' ? 'Payment Detected!' : 'Verifying UPI Payment...'}
+                                Verifying UPI Payment...
                             </h2>
                             <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
 
-                            {upiStatus === 'pending' && (
-                                <>
-                                    <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                                        <QRCodeSVG value={upiUri(amt)} size={180} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
-                                    </div>
+                            <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                                <QRCodeSVG value={upiUri(amt)} size={180} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
+                            </div>
 
-                                    <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 20, textAlign: 'left' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                            <div>
-                                                <div style={{ fontSize: 12, color: MUTED, marginBottom: 2 }}>Pay to UPI ID</div>
-                                                <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
-                                            </div>
-                                            <button onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
-                                                style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                                                Copy
-                                            </button>
-                                        </div>
-                                        <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: DARK }}>₹{amt}</div>
+                            <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 20, textAlign: 'left' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: MUTED, marginBottom: 2 }}>Pay to UPI ID</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
                                     </div>
+                                    <button onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
+                                        style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                        Copy
+                                    </button>
+                                </div>
+                                <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
+                                <div style={{ fontSize: 24, fontWeight: 800, color: DARK }}>₹{amt}</div>
+                            </div>
 
-                                    <div style={{ background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left' }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>How to pay</div>
-                                        <div style={{ fontSize: 12, color: '#78716c', lineHeight: 1.7 }}>
-                                            1. Scan QR code or copy UPI ID above<br />
-                                            2. Pay <strong>₹{amt}</strong> from any UPI app (GPay, PhonePe, Paytm)<br />
-                                            3. We'll auto-verify via HDFC bank alert — please wait
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                            <div style={{ background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>How to pay</div>
+                                <div style={{ fontSize: 12, color: '#78716c', lineHeight: 1.7 }}>
+                                    1. Scan QR code or copy UPI ID above<br />
+                                    2. Pay <strong>₹{amt}</strong> from any UPI app (GPay, PhonePe, Paytm)<br />
+                                    3. We'll auto-verify via HDFC bank alert — please wait
+                                </div>
+                            </div>
 
                             <p style={{ color: '#aaa', fontSize: 12 }}>
-                                {(upiStatus === 'detected' || upiStatus === 'confirmed')
-                                    ? 'Order placed! Redirecting to your orders...'
-                                    : 'Waiting for HDFC bank payment alert. This may take up to a minute.'}
+                                Waiting for HDFC bank payment alert. This may take up to a minute.
                             </p>
                         </>
                     )}

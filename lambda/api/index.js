@@ -314,11 +314,11 @@ async function processGmailMessage(gmail, messageId) {
 
 // Throttle: track last Gmail check time per Lambda instance
 let lastGmailCheckTime = 0;
-const GMAIL_CHECK_INTERVAL_MS = 10000; // check Gmail at most every 10 seconds
+const GMAIL_CHECK_INTERVAL_MS = 3000; // check Gmail at most every 3 seconds
 
-async function checkGmailForPendingPayments() {
+async function checkGmailForPendingPayments(force = false) {
     const now = Date.now();
-    if (now - lastGmailCheckTime < GMAIL_CHECK_INTERVAL_MS) return; // throttled
+    if (!force && now - lastGmailCheckTime < GMAIL_CHECK_INTERVAL_MS) return; // throttled
     lastGmailCheckTime = now;
 
     const secrets = await getGoogleSecrets();
@@ -834,9 +834,9 @@ exports.handler = async (event) => {
             );
             if (!rows.length) return error(404, 'Order not found');
 
-            // If UPI and still pending, check Gmail synchronously (completes in 2-4s)
+            // If UPI and still pending, force check Gmail synchronously (completes in 2-4s)
             if (rows[0].payment_method === 'upi' && rows[0].payment_status === 'pending') {
-                await checkGmailForPendingPayments();
+                await checkGmailForPendingPayments(true);
                 // Re-fetch in case it was just matched
                 const updated = await query(
                     'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
