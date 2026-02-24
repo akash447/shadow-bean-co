@@ -156,7 +156,7 @@
 /* BLOCK 2: CONTENT                 */
 /* ================================ */
 .about-content-block {
-    background: #FAF8F5;
+    background: #fff;
     display: flex;
     flex-direction: column;
 }
