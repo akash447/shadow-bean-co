@@ -266,6 +266,11 @@ export async function getPaymentStatus(orderId: string): Promise<{ payment_statu
     return data;
 }
 
+export async function verifyPayment(orderId: string): Promise<{ payment_status: string; verified: boolean }> {
+    const { data } = await api.post(`/orders/${orderId}/verify-payment`);
+    return data;
+}
+
 // ==============================================
 // REVIEWS
 // ==============================================

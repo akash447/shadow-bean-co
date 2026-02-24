@@ -822,30 +822,46 @@ exports.handler = async (event) => {
             return created(order);
         }
 
-        // GET /orders/:id/payment-status
+        // GET /orders/:id/payment-status — DB read only, no Gmail scan (privacy)
         if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/payment-status$/)) {
             const id = path.split('/')[2];
             await ensureUpiTables();
-            // Verify order belongs to the authenticated user
             const ownProfileId = await resolveOwnProfileId(user);
             const rows = await query(
                 'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
                 [id, ownProfileId]
             );
             if (!rows.length) return error(404, 'Order not found');
+            return ok(rows[0]);
+        }
 
-            // If UPI and still pending, force check Gmail synchronously (completes in 2-4s)
-            if (rows[0].payment_method === 'upi' && rows[0].payment_status === 'pending') {
-                await checkGmailForPendingPayments(true);
-                // Re-fetch in case it was just matched
-                const updated = await query(
-                    'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
-                    [id, ownProfileId]
-                );
-                if (updated.length) return ok(updated[0]);
+        // POST /orders/:id/verify-payment — user-triggered, checks Gmail once for this order
+        if (method === 'POST' && path.match(/^\/orders\/[\w-]+\/verify-payment$/)) {
+            const id = path.split('/')[2];
+            await ensureUpiTables();
+            const ownProfileId = await resolveOwnProfileId(user);
+            const rows = await query(
+                'SELECT payment_status, payment_method, total_amount FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                [id, ownProfileId]
+            );
+            if (!rows.length) return error(404, 'Order not found');
+            if (rows[0].payment_method !== 'upi') return error(400, 'Not a UPI order');
+
+            // Already detected/confirmed — return immediately
+            if (rows[0].payment_status === 'detected' || rows[0].payment_status === 'confirmed') {
+                return ok({ payment_status: rows[0].payment_status, verified: true });
             }
 
-            return ok(rows[0]);
+            // Trigger a single Gmail check (force bypass throttle)
+            await checkGmailForPendingPayments(true);
+
+            // Re-fetch to see if it was matched
+            const updated = await query(
+                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                [id, ownProfileId]
+            );
+            const status = updated.length ? updated[0].payment_status : 'pending';
+            return ok({ payment_status: status, verified: status === 'detected' || status === 'confirmed' });
         }
 
         // POST /reviews

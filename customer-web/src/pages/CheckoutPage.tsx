@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCartStore } from '../stores/cartStore';
-import { createOrder, ensureProfile, getPaymentStatus, getAddresses, createAddress } from '../services/api';
+import { createOrder, ensureProfile, verifyPayment, getAddresses, createAddress } from '../services/api';
 import type { Address } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -38,8 +38,10 @@ export default function CheckoutPage() {
     const [ordId, setOrdId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [focus, setFocus] = useState<string | null>(null);
-    const [upiPolling, setUpiPolling] = useState(false);
+    const [upiScreen, setUpiScreen] = useState(false);
     const [upiStatus, setUpiStatus] = useState<string>('pending');
+    const [verifying, setVerifying] = useState(false);
+    const [verifyError, setVerifyError] = useState<string | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [saveAddress, setSaveAddress] = useState(true);
 
@@ -100,37 +102,23 @@ export default function CheckoutPage() {
         setAddr(EMPTY_ADDR);
     };
 
-    // UPI payment polling — treat both 'detected' and 'confirmed' as success
-    useEffect(() => {
-        if (!upiPolling || !ordId) return;
-        let cancelled = false;
-        const startTime = Date.now();
-        const TIMEOUT = 30 * 60 * 1000;
-
-        const poll = async () => {
-            if (cancelled) return;
-            if (Date.now() - startTime > TIMEOUT) {
-                setUpiStatus('timeout');
-                setUpiPolling(false);
-                return;
+    // User-triggered payment verification — calls backend once to check Gmail
+    const handleVerifyPayment = async () => {
+        if (!ordId || verifying) return;
+        setVerifying(true);
+        setVerifyError(null);
+        try {
+            const res = await verifyPayment(ordId);
+            setUpiStatus(res.payment_status);
+            if (!res.verified) {
+                setVerifyError('Payment not yet received. Please wait a moment for your bank to process, then try again.');
             }
-            try {
-                const res = await getPaymentStatus(ordId);
-                if (cancelled) return;
-                setUpiStatus(res.payment_status);
-                // Payment verified — stop polling, stay on detected screen
-                if (res.payment_status === 'confirmed' || res.payment_status === 'detected') {
-                    setUpiPolling(false);
-                } else {
-                    setTimeout(poll, 3000);
-                }
-            } catch {
-                if (!cancelled) setTimeout(poll, 3000);
-            }
-        };
-        poll();
-        return () => { cancelled = true; };
-    }, [upiPolling, ordId]);
+        } catch {
+            setVerifyError('Could not check payment status. Please try again.');
+        } finally {
+            setVerifying(false);
+        }
+    };
 
     /* ── Payment detected → wait 4s → redirect to profile/orders ── */
     useEffect(() => {
@@ -170,7 +158,7 @@ export default function CheckoutPage() {
     };
 
     /* ── Empty ── */
-    if (items.length === 0 && !upiPolling && upiStatus === 'pending') {
+    if (items.length === 0 && !upiScreen && upiStatus === 'pending') {
         return (
             <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
                 <div style={{ width: 80, height: 80, borderRadius: 20, background: '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, marginBottom: 20 }}>🛒</div>
@@ -181,91 +169,111 @@ export default function CheckoutPage() {
         );
     }
 
-    /* ── UPI Polling Screen ── */
-    if (upiPolling || upiStatus === 'detected' || upiStatus === 'confirmed' || upiStatus === 'timeout') {
+    /* ── UPI Payment Screen ── */
+    if (upiScreen) {
         const amt = orderTotalRef.current;
+
+        // Order placed — payment detected
+        if (upiStatus === 'detected' || upiStatus === 'confirmed') {
+            return (
+                <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
+                    <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }} style={{ textAlign: 'center', maxWidth: 440 }}>
+                        <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                        </div>
+                        <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 28, color: DARK, margin: '0 0 8px' }}>
+                            Your Order Has Been Placed!
+                        </h2>
+                        <p style={{ color: MUTED, fontSize: 14, marginBottom: 20 }}>
+                            Order ID: <strong style={{ color: OLIVE, fontSize: 16, fontFamily: 'monospace' }}>{ordId?.slice(0, 8)}</strong>
+                        </p>
+                        <div style={{ background: '#d1fae5', border: '1.5px solid #a7f3d0', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
+                            <div style={{ fontSize: 13, color: '#065f46', lineHeight: 1.7 }}>
+                                Payment of <strong>₹{amt}</strong> received successfully.<br />
+                                We'll start preparing your custom blend right away!
+                            </div>
+                        </div>
+                        <p style={{ color: '#aaa', fontSize: 12, marginBottom: 16 }}>Redirecting to your orders...</p>
+                    </motion.div>
+                </div>
+            );
+        }
+
+        // Awaiting payment — show QR + verify button
         return (
             <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: "'Montserrat', sans-serif", padding: 24 }}>
                 <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 16 }} style={{ textAlign: 'center', maxWidth: 440 }}>
-                    {upiStatus === 'timeout' ? (
-                        <>
-                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                            </div>
-                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>Payment Not Received</h2>
-                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 24 }}>We didn't detect your UPI payment within 30 minutes.</p>
-                            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                    onClick={() => { setUpiStatus('pending'); setUpiPolling(true); }}
-                                    style={{ padding: '14px 28px', background: OLIVE, color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Retry</motion.button>
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                    onClick={() => nav('/')}
-                                    style={{ padding: '14px 28px', background: '#e5e0d8', color: DARK, border: 'none', borderRadius: 14, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Back to Home</motion.button>
-                            </div>
-                        </>
-                    ) : (upiStatus === 'detected' || upiStatus === 'confirmed') ? (
-                        <>
-                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                            </div>
-                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 28, color: DARK, margin: '0 0 8px' }}>
-                                Your Order Has Been Placed!
-                            </h2>
-                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 20 }}>
-                                Order ID: <strong style={{ color: OLIVE, fontSize: 16, fontFamily: 'monospace' }}>{ordId?.slice(0, 8)}</strong>
-                            </p>
-                            <div style={{ background: '#d1fae5', border: '1.5px solid #a7f3d0', borderRadius: 14, padding: '16px 20px', marginBottom: 20, textAlign: 'left' }}>
-                                <div style={{ fontSize: 13, color: '#065f46', lineHeight: 1.7 }}>
-                                    Payment of <strong>₹{amt}</strong> received successfully.<br />
-                                    We'll start preparing your custom blend right away!
-                                </div>
-                            </div>
-                            <p style={{ color: '#aaa', fontSize: 12 }}>Redirecting to your orders...</p>
-                        </>
-                    ) : (
-                        <>
-                            <div style={{ width: 90, height: 90, borderRadius: '50%', background: '#f5efe8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-                                    style={{ width: 40, height: 40, border: `3px solid ${BORDER}`, borderTopColor: OLIVE, borderRadius: '50%' }} />
-                            </div>
-                            <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>
-                                Verifying UPI Payment...
-                            </h2>
-                            <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
+                    <h2 style={{ fontFamily: "'Agdasima', sans-serif", fontSize: 26, color: DARK, margin: '0 0 8px' }}>
+                        Complete UPI Payment
+                    </h2>
+                    <p style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Order ID: <strong style={{ color: OLIVE }}>{ordId?.slice(0, 8)}</strong></p>
 
-                            <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                                <QRCodeSVG value={upiUri(amt)} size={180} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
-                            </div>
+                    <div style={{ background: '#fff', padding: 14, borderRadius: 16, border: `1.5px solid ${BORDER}`, display: 'inline-block', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                        <QRCodeSVG value={upiUri(amt)} size={180} level="M" bgColor="#ffffff" fgColor="#1c0d02" />
+                    </div>
 
-                            <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 20, textAlign: 'left' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <div>
-                                        <div style={{ fontSize: 12, color: MUTED, marginBottom: 2 }}>Pay to UPI ID</div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
-                                    </div>
-                                    <button onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
-                                        style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                                        Copy
-                                    </button>
-                                </div>
-                                <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
-                                <div style={{ fontSize: 24, fontWeight: 800, color: DARK }}>₹{amt}</div>
+                    <div style={{ background: CARD, border: `1.5px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', marginBottom: 20, textAlign: 'left' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                                <div style={{ fontSize: 12, color: MUTED, marginBottom: 2 }}>Pay to UPI ID</div>
+                                <div style={{ fontSize: 16, fontWeight: 700, color: DARK, fontFamily: 'monospace', wordBreak: 'break-all' }}>{UPI_ID}</div>
                             </div>
+                            <button onClick={() => { navigator.clipboard.writeText(UPI_ID); }}
+                                style={{ background: OLIVE, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                Copy
+                            </button>
+                        </div>
+                        <div style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>Amount</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: DARK }}>₹{amt}</div>
+                    </div>
 
-                            <div style={{ background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left' }}>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>How to pay</div>
-                                <div style={{ fontSize: 12, color: '#78716c', lineHeight: 1.7 }}>
-                                    1. Scan QR code or copy UPI ID above<br />
-                                    2. Pay <strong>₹{amt}</strong> from any UPI app (GPay, PhonePe, Paytm)<br />
-                                    3. We'll auto-verify via HDFC bank alert — please wait
-                                </div>
-                            </div>
+                    <div style={{ background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 20, textAlign: 'left' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>How to pay</div>
+                        <div style={{ fontSize: 12, color: '#78716c', lineHeight: 1.7 }}>
+                            1. Scan QR code or copy UPI ID above<br />
+                            2. Pay <strong>₹{amt}</strong> from any UPI app (GPay, PhonePe, Paytm)<br />
+                            3. After payment, tap the button below to verify
+                        </div>
+                    </div>
 
-                            <p style={{ color: '#aaa', fontSize: 12 }}>
-                                Waiting for HDFC bank payment alert. This may take up to a minute.
-                            </p>
-                        </>
+                    {/* Verify button — triggers Gmail check only on click */}
+                    <motion.button
+                        whileHover={{ scale: verifying ? 1 : 1.02 }}
+                        whileTap={{ scale: verifying ? 1 : 0.97 }}
+                        onClick={handleVerifyPayment}
+                        disabled={verifying}
+                        style={{
+                            width: '100%', padding: '16px 0', marginBottom: 12,
+                            background: verifying ? '#aaa' : `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,
+                            color: '#fff', border: 'none', borderRadius: 14,
+                            fontWeight: 800, fontSize: 15, cursor: verifying ? 'not-allowed' : 'pointer',
+                            letterSpacing: '0.04em',
+                            boxShadow: verifying ? 'none' : '0 6px 20px rgba(79,81,48,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                        }}
+                    >
+                        {verifying ? (
+                            <>
+                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                    style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }} />
+                                Checking Payment...
+                            </>
+                        ) : (
+                            "I've Completed Payment — Verify"
+                        )}
+                    </motion.button>
+
+                    {verifyError && (
+                        <div style={{ background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 12, textAlign: 'left' }}>
+                            <div style={{ fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>{verifyError}</div>
+                        </div>
                     )}
+
+                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => nav('/')}
+                        style={{ padding: '12px 28px', background: '#e5e0d8', color: DARK, border: 'none', borderRadius: 14, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                        Back to Home
+                    </motion.button>
                 </motion.div>
             </div>
         );
@@ -318,8 +326,8 @@ export default function CheckoutPage() {
             });
             setOrdId(order?.id || 'N/A');
             clearCart();
-            // Go to UPI payment verification screen
-            setUpiPolling(true);
+            // Go to UPI payment screen
+            setUpiScreen(true);
         } catch (err: any) {
             setError(err?.response?.data?.error || err?.message || 'Something went wrong');
         } finally { setSubmitting(false); }
