@@ -1,18 +1,12 @@
 export default function TypingIndicator() {
     return (
-        <div className="flex items-start max-w-[82%]">
-            <div
-                className="flex items-center gap-1.5 px-4 py-3 rounded-2xl rounded-bl-sm"
-                style={{ background: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.1)' }}
-            >
+        <div className="flex items-start">
+            <div className="flex items-center gap-1.5 px-4 py-3 rounded-2xl rounded-bl-sm bg-gray-100">
                 {[0, 1, 2].map((i) => (
                     <span
                         key={i}
-                        className="w-2 h-2 rounded-full inline-block"
-                        style={{
-                            background: '#E8A94A',
-                            animation: `dotBounce 1.4s ease-in-out ${i * 0.2}s infinite`,
-                        }}
+                        className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"
+                        style={{ animation: `dotBounce 1.4s ease-in-out ${i * 0.2}s infinite` }}
                     />
                 ))}
             </div>

@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChatMessage } from './types';
+import type { TasteProfile } from '../../stores/cartStore';
+import { useCartStore } from '../../stores/cartStore';
 import { createConversation } from './api';
 import MessageList from './MessageList';
 
@@ -17,20 +19,16 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
     const conversationRef = useRef(createConversation());
     const inputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
+    const addItem = useCartStore(s => s.addItem);
 
-    // Send greeting on mount
+    // Greeting on mount
     useEffect(() => {
         const greeting = conversationRef.current.getGreeting();
         setIsTyping(true);
         const timer = setTimeout(() => {
-            setMessages([{
-                role: 'assistant',
-                content: greeting.message,
-                chips: greeting.chips,
-                card: greeting.card,
-            }]);
+            setMessages([{ role: 'assistant', content: greeting.message, chips: greeting.chips, card: greeting.card }]);
             setIsTyping(false);
-        }, 600);
+        }, 500);
         return () => clearTimeout(timer);
     }, []);
 
@@ -38,18 +36,46 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
         if (!isTyping) inputRef.current?.focus();
     }, [isTyping]);
 
+    const handleAddToCart = useCallback((taste: { bitterness?: number; flavour?: number; roast?: string; grind?: string; qty?: number }) => {
+        const b = taste.bitterness || 3;
+        const f = taste.flavour || 3;
+        const r = taste.roast || 'Medium';
+        const g = taste.grind || 'Whole Bean';
+        const qty = taste.qty || 1;
+
+        const profile: TasteProfile = {
+            id: `chat-${Date.now()}`,
+            name: `CR-${b}${f}-${r.charAt(0).toUpperCase()}${g.charAt(0).toUpperCase()}`,
+            bitterness: b,
+            acidity: 3,
+            body: 3,
+            flavour: f,
+            roastLevel: r as 'Light' | 'Medium' | 'Balanced',
+            grindType: g,
+        };
+
+        for (let i = 0; i < qty; i++) {
+            addItem(profile);
+        }
+
+        // Navigate to cart after short delay
+        setTimeout(() => {
+            navigate('/cart');
+            onClose();
+        }, 1500);
+    }, [addItem, navigate, onClose]);
+
     const handleSend = useCallback((text?: string) => {
         const msg = (text || input).trim();
         if (!msg) return;
 
-        const userMessage: ChatMessage = { role: 'user', content: msg };
-        setMessages(prev => [...prev, userMessage]);
+        setMessages(prev => [...prev, { role: 'user', content: msg }]);
         setInput('');
         setIsTyping(true);
 
-        // Simulate typing delay
         setTimeout(() => {
             const response = conversationRef.current.respond(msg);
+
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: response.message,
@@ -57,11 +83,15 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
                 card: response.card,
             }]);
             setIsTyping(false);
-        }, 400 + Math.random() * 600);
-    }, [input]);
+
+            // Handle actions
+            if (response.action?.type === 'add_to_cart') {
+                handleAddToCart(response.action.taste);
+            }
+        }, 400 + Math.random() * 400);
+    }, [input, handleAddToCart]);
 
     const handleChipSelect = useCallback((chip: string) => {
-        // Remove chips from the last message
         setMessages(prev => prev.map((m, i) =>
             i === prev.length - 1 && m.role === 'assistant' ? { ...m, chips: [] } : m
         ));
@@ -74,100 +104,54 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
     }, [navigate, onClose]);
 
     const panelStyle: React.CSSProperties = isMobile
-        ? {
-            position: 'fixed', inset: 0,
-            zIndex: 10000,
-            display: 'flex', flexDirection: 'column',
-            background: '#1A0F00',
-            animation: 'chatSlideUp 0.3s ease-out',
-        }
-        : {
-            position: 'fixed', top: 0, right: 0, bottom: 0,
-            width: 380,
-            zIndex: 10000,
-            display: 'flex', flexDirection: 'column',
-            background: '#1A0F00',
-            boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
-            animation: 'chatSlideIn 0.3s ease-out',
-        };
+        ? { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#fff', animation: 'chatSlideUp 0.3s ease-out' }
+        : { position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.1)', animation: 'chatSlideIn 0.3s ease-out' };
 
     return (
         <div style={panelStyle}>
             {/* Header */}
-            <div
-                className="flex items-center justify-between px-4 py-3 shrink-0"
-                style={{ borderBottom: '1px solid rgba(245,240,232,0.08)' }}
-            >
+            <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-gray-100">
                 {isMobile ? (
                     <button
                         onClick={onClose}
-                        className="flex items-center gap-2 cursor-pointer"
-                        style={{ background: 'none', border: 'none', color: '#F5F0E8', fontSize: 15, fontFamily: "'DM Sans', sans-serif" }}
+                        className="flex items-center gap-2 cursor-pointer bg-transparent border-none text-gray-700 text-sm"
+                        style={{ fontFamily: "'DM Sans', sans-serif" }}
                         aria-label="Close chat"
                     >
-                        <span style={{ fontSize: 20 }}>&larr;</span>
+                        <span className="text-lg">&larr;</span>
                         <span>Back</span>
                     </button>
                 ) : (
                     <div className="flex items-center gap-2.5">
-                        <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                            style={{ background: 'linear-gradient(135deg, #C97B2A, #A05A10)' }}
-                        >
-                            &#9749;
+                        <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-white text-sm">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="10" rx="2" />
+                                <circle cx="12" cy="5" r="4" />
+                                <circle cx="9" cy="16" r="1" fill="currentColor" />
+                                <circle cx="15" cy="16" r="1" fill="currentColor" />
+                            </svg>
                         </div>
                         <div>
-                            <div className="text-sm font-semibold" style={{ color: '#F5F0E8', fontFamily: "'Playfair Display', serif" }}>
-                                Shadow Bean Co
-                            </div>
-                            <div className="text-xs" style={{ color: 'rgba(245,240,232,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
-                                Your coffee assistant
-                            </div>
+                            <div className="text-sm font-semibold text-gray-900" style={{ fontFamily: "'DM Sans', sans-serif" }}>Shadow Bean Co</div>
+                            <div className="text-xs text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>Coffee Assistant</div>
                         </div>
                     </div>
                 )}
-
                 <div className="flex items-center gap-1">
                     {!isMobile && onMinimize && (
-                        <button
-                            onClick={onMinimize}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors"
-                            style={{ background: 'transparent', border: 'none', color: 'rgba(245,240,232,0.5)', fontSize: 18 }}
-                            aria-label="Minimize chat"
-                            onMouseEnter={e => e.currentTarget.style.color = '#F5F0E8'}
-                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.5)'}
-                        >
-                            &mdash;
-                        </button>
+                        <button onClick={onMinimize} className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer bg-transparent border-none text-gray-400 hover:text-gray-700 text-lg" aria-label="Minimize">&mdash;</button>
                     )}
                     {!isMobile && (
-                        <button
-                            onClick={onClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors"
-                            style={{ background: 'transparent', border: 'none', color: 'rgba(245,240,232,0.5)', fontSize: 18 }}
-                            aria-label="Close chat"
-                            onMouseEnter={e => e.currentTarget.style.color = '#F5F0E8'}
-                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.5)'}
-                        >
-                            &times;
-                        </button>
+                        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer bg-transparent border-none text-gray-400 hover:text-gray-700 text-lg" aria-label="Close">&times;</button>
                     )}
                 </div>
             </div>
 
             {/* Messages */}
-            <MessageList
-                messages={messages}
-                isTyping={isTyping}
-                onChipSelect={handleChipSelect}
-                onNavigate={handleNavigate}
-            />
+            <MessageList messages={messages} isTyping={isTyping} onChipSelect={handleChipSelect} onNavigate={handleNavigate} />
 
             {/* Input */}
-            <div
-                className="flex items-center gap-2 px-3 py-2.5 shrink-0"
-                style={{ borderTop: '1px solid rgba(245,240,232,0.08)', background: 'rgba(0,0,0,0.2)' }}
-            >
+            <div className="flex items-center gap-2 px-3 py-2.5 shrink-0 border-t border-gray-100 bg-gray-50">
                 <input
                     ref={inputRef}
                     value={input}
@@ -175,26 +159,15 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                     placeholder="Type a message..."
                     disabled={isTyping}
-                    className="flex-1 py-2.5 px-4 text-sm rounded-full outline-none"
-                    style={{
-                        background: 'rgba(245,240,232,0.06)',
-                        border: '1px solid rgba(245,240,232,0.1)',
-                        color: '#F5F0E8',
-                        fontFamily: "'DM Sans', sans-serif",
-                    }}
+                    className="flex-1 py-2.5 px-4 text-sm rounded-full outline-none border border-gray-200 bg-white text-gray-800"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
                 />
                 <button
                     onClick={() => handleSend()}
                     disabled={isTyping || !input.trim()}
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-opacity"
-                    style={{
-                        background: input.trim() ? 'linear-gradient(135deg, #C97B2A, #A05A10)' : 'rgba(245,240,232,0.08)',
-                        border: 'none',
-                        color: '#F5F0E8',
-                        fontSize: 16,
-                        opacity: input.trim() ? 1 : 0.5,
-                    }}
-                    aria-label="Send message"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-opacity border-none text-white"
+                    style={{ background: input.trim() ? '#1f2937' : '#d1d5db', opacity: input.trim() ? 1 : 0.6 }}
+                    aria-label="Send"
                 >
                     &#10148;
                 </button>

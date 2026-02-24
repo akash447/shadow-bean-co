@@ -12,13 +12,11 @@ export interface ChatCard {
 
 export interface ProductCardData {
     name: string;
-    description: string;
-    tastingNotes: string;
+    bitterness: number;
+    flavour: number;
+    roast: string;
+    grind: string;
     price: number;
-    bitterness?: number;
-    flavour?: number;
-    roast?: string;
-    grind?: string;
     reason: string;
 }
 
@@ -32,4 +30,14 @@ export interface OrderSummaryData {
 export interface OrderConfirmedData {
     orderId: string;
     total: number;
+}
+
+export interface TasteState {
+    time?: 'morning' | 'evening';
+    milk?: boolean;
+    bitterness?: number;
+    flavour?: number;
+    roast?: string;
+    grind?: string;
+    qty?: number;
 }
