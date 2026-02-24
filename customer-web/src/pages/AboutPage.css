@@ -42,13 +42,12 @@
     overflow: hidden;
 }
 
-/* Poster image — shown instantly, sits behind the video */
+/* Dark backdrop — shown instantly, sits behind the video */
 .about-hero-poster {
     position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background-size: cover;
-    background-position: center;
+    background: #1a1a1a;
     z-index: 0;
 }
 

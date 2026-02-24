@@ -57,7 +57,7 @@ export function createConversation() {
         }
 
         // Skip to taste flow on order intent
-        if (match(lower, ORDER_INTENT) && !['bitterness', 'flavour', 'roast', 'grind', 'quantity', 'summary'].includes(state.phase)) {
+        if (match(lower, ORDER_INTENT) && !['bitterness', 'flavour', 'roast', 'grind', 'recommend', 'quantity', 'summary', 'done'].includes(state.phase)) {
             state.phase = 'bitterness';
             return {
                 message: "Let's build your perfect blend! First — how bitter do you like your coffee? (1 = very mild, 5 = bold & strong)",

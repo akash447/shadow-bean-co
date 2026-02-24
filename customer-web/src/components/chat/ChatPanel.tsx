@@ -58,9 +58,9 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
             addItem(profile);
         }
 
-        // Navigate to cart after short delay
+        // Navigate to order page after short delay
         setTimeout(() => {
-            navigate('/cart');
+            navigate('/checkout');
             onClose();
         }, 1500);
     }, [addItem, navigate, onClose]);
@@ -104,13 +104,13 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
     }, [navigate, onClose]);
 
     const panelStyle: React.CSSProperties = isMobile
-        ? { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#fff', animation: 'chatSlideUp 0.3s ease-out' }
-        : { position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.1)', animation: 'chatSlideIn 0.3s ease-out' };
+        ? { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#FAF8F5', animation: 'chatSlideUp 0.3s ease-out' }
+        : { position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#FAF8F5', boxShadow: '-4px 0 24px rgba(0,0,0,0.1)', animation: 'chatSlideIn 0.3s ease-out' };
 
     return (
         <div style={panelStyle}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-gray-200" style={{ background: '#fff' }}>
                 {isMobile ? (
                     <button
                         onClick={onClose}
@@ -151,7 +151,7 @@ export default function ChatPanel({ isMobile, onClose, onMinimize }: Props) {
             <MessageList messages={messages} isTyping={isTyping} onChipSelect={handleChipSelect} onNavigate={handleNavigate} />
 
             {/* Input */}
-            <div className="flex items-center gap-2 px-3 py-2.5 shrink-0 border-t border-gray-100 bg-gray-50">
+            <div className="flex items-center gap-2 px-3 py-2.5 shrink-0 border-t border-gray-200" style={{ background: '#fff' }}>
                 <input
                     ref={inputRef}
                     value={input}
