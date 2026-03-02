@@ -3,23 +3,26 @@ import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
 
-import iconSalt from '../assets/icons/icon_salt_roasted.png';
-import iconHandHarvested from '../assets/icons/icon_hand_harvested.svg';
-import iconEstates from '../assets/icons/icon_estates.svg';
-import iconShippedFresh from '../assets/icons/icon_shipped_fresh.svg';
-
-const JOURNEY_STEPS = [
-    { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
-    { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
-    { icon: iconSalt, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
-    { icon: iconShippedFresh, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
-];
-
+// Icons now pulled from admin-managed media CDN via useAsset()
 
 export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
     // aboutPoster removed — using dark background instead of image to avoid flash
     const aboutRoasting = useAsset('assets/about_roasting.png');
+
+    // Journey icons — mapped from admin-managed media CDN (same keys as HomePage)
+    const iconShadeGrown = useAsset('icon_shadow_grown.png');
+    const iconSaltRoasted = useAsset('icon_salt_roasted.png');
+    const iconSmallBatch = useAsset('icon_small_batch.png');
+    const iconPersonalised = useAsset('icon_personalised.png');
+
+    const JOURNEY_STEPS = [
+        { icon: iconShadeGrown, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
+        { icon: iconSmallBatch, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
+        { icon: iconSaltRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
+        { icon: iconPersonalised, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
+    ];
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoReady, setVideoReady] = useState(false);
 
