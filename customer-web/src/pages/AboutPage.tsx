@@ -10,17 +10,17 @@ export default function AboutPage() {
     // aboutPoster removed — using dark background instead of image to avoid flash
     const aboutRoasting = useAsset('assets/about_roasting.png');
 
-    // Journey icons — mapped from admin-managed media CDN (same keys as HomePage)
-    const iconShadeGrown = useAsset('icon_shadow_grown.png');
-    const iconSaltRoasted = useAsset('icon_salt_roasted.png');
-    const iconSmallBatch = useAsset('icon_small_batch.png');
-    const iconPersonalised = useAsset('icon_personalised.png');
+    // Journey icons — unique keys for About page (managed from admin Media page)
+    const iconEstates = useAsset('icon_estates.png');
+    const iconHandHarvested = useAsset('icon_hand_harvested.png');
+    const iconSaltAirRoasted = useAsset('icon_salt_air_roasted.png');
+    const iconDelivery = useAsset('icon_delivery.png');
 
     const JOURNEY_STEPS = [
-        { icon: iconShadeGrown, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
-        { icon: iconSmallBatch, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
-        { icon: iconSaltRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
-        { icon: iconPersonalised, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
+        { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
+        { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
+        { icon: iconSaltAirRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
+        { icon: iconDelivery, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
     ];
 
     const videoRef = useRef<HTMLVideoElement>(null);
