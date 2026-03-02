@@ -61,17 +61,7 @@ const match = (input: string, keywords: string[]) =>
 
 /* ──────────────── Intent categories with synonyms ──────────────── */
 
-interface IntentDef {
-    name: string;
-    keywords: string[];
-    response: (state: ConvoState) => BotResponse;
-}
 
-interface ConvoState {
-    phase: Phase;
-    taste: TasteState;
-    messageCount: number;
-}
 
 const ORDER_INTENT = ['order', 'buy', 'purchase', 'want to', 'add to cart', 'get me', 'i want', 'show me product', 'place order', 'checkout', 'gimme', 'grab', 'shop'];
 const BRAND_QS = ['brand', 'company', 'shadow bean', 'who are you', 'about you', 'story', 'about', 'your company', 'your brand', 'about the brand', 'what is shadow', 'founded'];
@@ -136,7 +126,7 @@ function findBestIntent(input: string): string | null {
     return null;
 }
 
-function getIntentResponse(intentName: string, phase: Phase): BotResponse | null {
+function getIntentResponse(intentName: string): BotResponse | null {
     switch (intentName) {
         case 'brand':
             return { message: "Shadow Bean Co is a small-batch coffee brand from India. We source shade-grown beans from Karnataka and Andhra Pradesh and roast them using our unique salt-air technique. Every blend is customised to your taste!", chips: ['Tell me about the process', 'I want to order', "What's the price?"], card: null };
@@ -172,8 +162,8 @@ function getIntentResponse(intentName: string, phase: Phase): BotResponse | null
 /* ──────────────── Main conversation engine ──────────────── */
 
 export function createConversation() {
-    const state: ConvoState = {
-        phase: 'welcome',
+    const state: { phase: Phase; taste: TasteState; messageCount: number } = {
+        phase: 'welcome' as Phase,
         taste: {} as TasteState,
         messageCount: 0,
     };
@@ -207,44 +197,44 @@ export function createConversation() {
 
         // Common questions (exact match first, then fuzzy)
         if (match(lower, BRAND_QS) || fuzzyMatch(lower, BRAND_QS)) {
-            return getIntentResponse('brand', state.phase)!;
+            return getIntentResponse('brand')!;
         }
         if (match(lower, PROCESS_QS) || fuzzyMatch(lower, PROCESS_QS)) {
-            return getIntentResponse('process', state.phase)!;
+            return getIntentResponse('process')!;
         }
         if (match(lower, PRICE_QS) || fuzzyMatch(lower, PRICE_QS)) {
-            return getIntentResponse('price', state.phase)!;
+            return getIntentResponse('price')!;
         }
         if (match(lower, SHIPPING_QS) || fuzzyMatch(lower, SHIPPING_QS)) {
-            return getIntentResponse('shipping', state.phase)!;
+            return getIntentResponse('shipping')!;
         }
         if (match(lower, PAYMENT_QS) || fuzzyMatch(lower, PAYMENT_QS)) {
-            return getIntentResponse('payment', state.phase)!;
+            return getIntentResponse('payment')!;
         }
         if (match(lower, CONTACT_QS) || fuzzyMatch(lower, CONTACT_QS)) {
-            return getIntentResponse('contact', state.phase)!;
+            return getIntentResponse('contact')!;
         }
         if (match(lower, THANKS) || fuzzyMatch(lower, THANKS)) {
-            return getIntentResponse('thanks', state.phase)!;
+            return getIntentResponse('thanks')!;
         }
         // New intents: coffee types, subscription, gifts, caffeine, origin, taste
         if (match(lower, COFFEE_TYPES) || fuzzyMatch(lower, COFFEE_TYPES)) {
-            return getIntentResponse('coffee_type', state.phase)!;
+            return getIntentResponse('coffee_type')!;
         }
         if (match(lower, SUBSCRIPTION_QS) || fuzzyMatch(lower, SUBSCRIPTION_QS)) {
-            return getIntentResponse('subscription', state.phase)!;
+            return getIntentResponse('subscription')!;
         }
         if (match(lower, GIFT_QS) || fuzzyMatch(lower, GIFT_QS)) {
-            return getIntentResponse('gift', state.phase)!;
+            return getIntentResponse('gift')!;
         }
         if (match(lower, CAFFEINE_QS) || fuzzyMatch(lower, CAFFEINE_QS)) {
-            return getIntentResponse('caffeine', state.phase)!;
+            return getIntentResponse('caffeine')!;
         }
         if (match(lower, ORIGIN_QS) || fuzzyMatch(lower, ORIGIN_QS)) {
-            return getIntentResponse('origin', state.phase)!;
+            return getIntentResponse('origin')!;
         }
         if (match(lower, TASTE_QS) || fuzzyMatch(lower, TASTE_QS)) {
-            return getIntentResponse('taste', state.phase)!;
+            return getIntentResponse('taste')!;
         }
 
         // Phase flow — check BEFORE generic NO so phase-specific matches win
@@ -452,7 +442,7 @@ export function createConversation() {
                 // Smart fallback: try to find best matching intent via fuzzy matching
                 const bestIntent = findBestIntent(lower);
                 if (bestIntent) {
-                    const intentResp = getIntentResponse(bestIntent, state.phase);
+                    const intentResp = getIntentResponse(bestIntent);
                     if (intentResp) return intentResp;
 
                     // Handle intents that map to phase changes
