@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <circle cx="40" cy="40" r="40" fill="#1c1c1c"/>
+  <g transform="translate(22,14)" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Map pin -->
+    <path d="M18 4 C10 4 4 10 4 18 C4 30 18 44 18 44 C18 44 32 30 32 18 C32 10 26 4 18 4Z"/>
+    <circle cx="18" cy="18" r="6" fill="none"/>
+    <!-- Coffee leaf inside pin -->
+    <path d="M15 18 C15 14 18 12 21 14 C18 14 16 16 16 18" fill="white" stroke="none"/>
+    <!-- Small hills at bottom -->
+    <path d="M2 48 C8 42 14 46 18 42 C22 46 28 42 34 48" stroke="white" stroke-width="1.8"/>
+  </g>
+</svg>

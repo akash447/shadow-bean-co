@@ -578,9 +578,9 @@
         font-size: 11px;
     }
 
-    /* Brewing Section - compact on mobile */
+    /* Brewing Section - taller video on mobile to fill space */
     .brewing-images {
-        height: 26vh;
+        height: 38vh;
         margin-top: 60px;
     }
 

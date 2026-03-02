@@ -3,16 +3,16 @@ import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
 
-import iconShadow from '../assets/icons/icon_shadow_grown.png';
 import iconSalt from '../assets/icons/icon_salt_roasted.png';
-import iconSmallBatch from '../assets/icons/icon_small_batch.png';
-import iconPersonalized from '../assets/icons/icon_personalised.png';
+import iconHandHarvested from '../assets/icons/icon_hand_harvested.svg';
+import iconEstates from '../assets/icons/icon_estates.svg';
+import iconShippedFresh from '../assets/icons/icon_shipped_fresh.svg';
 
 const JOURNEY_STEPS = [
-    { icon: iconShadow, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
-    { icon: iconSmallBatch, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
+    { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
+    { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
     { icon: iconSalt, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
-    { icon: iconPersonalized, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
+    { icon: iconShippedFresh, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
 ];
 
 
