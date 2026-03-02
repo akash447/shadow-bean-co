@@ -1,0 +1,10 @@
+﻿aws : 
+At line:1 char:1
++ aws acm describe-certificate --certificate-arn "arn:aws:acm:us-east-1 ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+An error occurred (ResourceNotFoundException) when calling the 
+DescribeCertificate operation: Could not find certificate arn:aws:acm:us-east-1
+:173256371846:certificate/bd2928a6-7755-43fd-852a-9924e9fff7d7.

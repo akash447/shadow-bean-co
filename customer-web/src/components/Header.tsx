@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
+import botMascot from '../assets/icons/bot_mascot.png';
 import './Header.css';
 
 // SVG Icons
@@ -180,18 +181,16 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
                             <button onClick={() => handleNavClick('/about')} className={isActive('/about') ? 'active' : ''}>ABOUT</button>
                         </nav>
 
-                        {/* Chat with us */}
+                        {/* Bot mascot — bottom-right of mobile menu */}
                         <button
                             onClick={() => {
                                 setMobileMenuOpen(false);
                                 setTimeout(() => window.dispatchEvent(new Event('open-chat')), 300);
                             }}
-                            className="mobile-chat-btn"
+                            className="mobile-bot-btn"
+                            aria-label="Chat with us"
                         >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                            </svg>
-                            Chat with us
+                            <img src={botMascot} alt="Chat bot" style={{ width: 48, height: 48, objectFit: 'contain' }} />
                         </button>
 
                         <div className="mobile-social">

@@ -1,0 +1,14 @@
+﻿[
+    {
+        "Id": "E35Z5V9TCCYTOJ",
+        "DomainName": "d2uvamm252h6jw.cloudfront.net",
+        "Aliases": {
+            "Quantity": 1,
+            "Items": [
+                "media.shadowbeanco.net"
+            ]
+        },
+        "Status": "Deployed",
+        "Enabled": null
+    }
+]

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Delivery box -->
+  <rect x="60" y="120" width="300" height="280" rx="20" fill="none" stroke="#1c1c1c" stroke-width="30"/>
+  <!-- Box top flaps -->
+  <path d="M60 200h300" fill="none" stroke="#1c1c1c" stroke-width="30"/>
+  <path d="M140 120v80" fill="none" stroke="#1c1c1c" stroke-width="24"/>
+  <path d="M280 120v80" fill="none" stroke="#1c1c1c" stroke-width="24"/>
+  <path d="M210 120v80" fill="none" stroke="#1c1c1c" stroke-width="24"/>
+  <!-- Tape/seal -->
+  <path d="M160 200v60l20 20 20-20v-60" fill="none" stroke="#1c1c1c" stroke-width="20" stroke-linejoin="round"/>
+  <!-- Small label on box -->
+  <rect x="100" y="300" width="60" height="50" rx="6" fill="none" stroke="#1c1c1c" stroke-width="18"/>
+  <line x1="112" y1="320" x2="148" y2="320" stroke="#1c1c1c" stroke-width="12"/>
+  <line x1="112" y1="336" x2="138" y2="336" stroke="#1c1c1c" stroke-width="12"/>
+  <!-- Checkmark circle -->
+  <circle cx="380" cy="380" r="90" fill="white" stroke="#1c1c1c" stroke-width="28"/>
+  <path d="M340 380l30 30 60-60" fill="none" stroke="#1c1c1c" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

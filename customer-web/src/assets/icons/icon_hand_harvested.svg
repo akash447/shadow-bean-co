@@ -1,17 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
-  <circle cx="40" cy="40" r="40" fill="#1c1c1c"/>
-  <g transform="translate(18,16)" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Hand picking -->
-    <path d="M22 34 C22 34 18 28 18 24 C18 20 14 18 12 20 C10 22 10 26 14 30"/>
-    <path d="M14 30 C10 28 6 26 4 28 C2 30 4 34 8 34 L22 34"/>
-    <path d="M22 34 L22 40 C22 42 24 44 26 44 L34 44"/>
-    <path d="M34 44 C36 44 38 42 38 40 L38 34"/>
-    <path d="M38 34 C38 30 36 28 34 28"/>
-    <path d="M34 28 L28 28 C26 28 24 26 24 24"/>
-    <!-- Coffee cherry -->
-    <circle cx="28" cy="10" r="4" fill="white" stroke="none"/>
-    <circle cx="36" cy="12" r="3.5" fill="white" stroke="none"/>
-    <path d="M32 6 L32 2" stroke="white"/>
-    <path d="M30 4 C32 2 34 2 36 4" stroke="white" fill="none"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Two open hands cradling coffee cherries -->
+  <path d="M160 460c-8 0-16-4-22-12l-80-120c-12-18-8-40 4-56 14-18 36-24 54-14l24 14V160c0-22 18-40 40-40s40 18 40 40v80" fill="none" stroke="#1c1c1c" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M352 460c8 0 16-4 22-12l80-120c12-18 8-40-4-56-14-18-36-24-54-14l-24 14V160c0-22-18-40-40-40s-40 18-40 40v80" fill="none" stroke="#1c1c1c" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Coffee cherries with leaves -->
+  <ellipse cx="232" cy="200" rx="28" ry="34" fill="none" stroke="#1c1c1c" stroke-width="24"/>
+  <ellipse cx="280" cy="200" rx="28" ry="34" fill="none" stroke="#1c1c1c" stroke-width="24"/>
+  <path d="M240 166c-10-30 0-60 16-80" fill="none" stroke="#1c1c1c" stroke-width="20" stroke-linecap="round"/>
+  <path d="M272 166c10-30 0-60-16-80" fill="none" stroke="#1c1c1c" stroke-width="20" stroke-linecap="round"/>
+  <!-- Leaves -->
+  <path d="M240 90c-30-10-60 0-70 20 20-4 46 0 60 16" fill="none" stroke="#1c1c1c" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M272 90c30-10 60 0 70 20-20-4-46 0-60 16" fill="none" stroke="#1c1c1c" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -1,0 +1,57 @@
+﻿{
+    "CertificateSummaryList": [
+        {
+            "CertificateArn": "arn:aws:acm:us-east-1:173256371846:certificate/58a55eca-12ee-4d05-acc8-f44ec451e292",
+            "DomainName": "shadowbeanco.net",
+            "SubjectAlternativeNameSummaries": [
+                "shadowbeanco.net",
+                "*.shadowbeanco.net"
+            ],
+            "HasAdditionalSubjectAlternativeNames": false,
+            "Status": "ISSUED",
+            "Type": "AMAZON_ISSUED",
+            "KeyAlgorithm": "RSA-2048",
+            "KeyUsages": [
+                "DIGITAL_SIGNATURE",
+                "KEY_ENCIPHERMENT"
+            ],
+            "ExtendedKeyUsages": [
+                "TLS_WEB_SERVER_AUTHENTICATION"
+            ],
+            "ExportOption": "DISABLED",
+            "InUse": false,
+            "Exported": false,
+            "RenewalEligibility": "INELIGIBLE",
+            "NotBefore": "2026-02-08T05:30:00+05:30",
+            "NotAfter": "2027-03-10T05:29:59+05:30",
+            "CreatedAt": "2026-02-08T18:41:44.381000+05:30",
+            "IssuedAt": "2026-02-08T19:19:06.275000+05:30"
+        },
+        {
+            "CertificateArn": "arn:aws:acm:us-east-1:173256371846:certificate/2c178a66-3c8b-4bc7-83e2-01bacd52211f",
+            "DomainName": "media.shadowbeanco.net",
+            "SubjectAlternativeNameSummaries": [
+                "media.shadowbeanco.net"
+            ],
+            "HasAdditionalSubjectAlternativeNames": false,
+            "Status": "ISSUED",
+            "Type": "AMAZON_ISSUED",
+            "KeyAlgorithm": "RSA-2048",
+            "KeyUsages": [
+                "DIGITAL_SIGNATURE",
+                "KEY_ENCIPHERMENT"
+            ],
+            "ExtendedKeyUsages": [
+                "TLS_WEB_SERVER_AUTHENTICATION"
+            ],
+            "ExportOption": "DISABLED",
+            "InUse": true,
+            "Exported": false,
+            "RenewalEligibility": "ELIGIBLE",
+            "NotBefore": "2026-02-08T05:30:00+05:30",
+            "NotAfter": "2027-03-10T05:29:59+05:30",
+            "CreatedAt": "2026-02-08T18:41:44.435000+05:30",
+            "IssuedAt": "2026-02-08T19:29:06.270000+05:30"
+        }
+    ]
+}

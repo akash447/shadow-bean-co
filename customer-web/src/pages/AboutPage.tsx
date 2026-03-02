@@ -3,25 +3,23 @@ import Header from '../components/Header';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
 
-// Icons now pulled from admin-managed media CDN via useAsset()
+// About page journey icons — local SVG assets (different from HomePage icons)
+import iconEstates from '../assets/icons/icon_estates.svg';
+import iconHandHarvested from '../assets/icons/icon_hand_harvested.svg';
+import iconSaltAirRoasted from '../assets/icons/icon_salt_air_roasted.svg';
+import iconDelivery from '../assets/icons/icon_delivery.svg';
+
+const JOURNEY_STEPS = [
+    { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
+    { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
+    { icon: iconSaltAirRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
+    { icon: iconDelivery, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
+];
 
 export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
     // aboutPoster removed — using dark background instead of image to avoid flash
     const aboutRoasting = useAsset('assets/about_roasting.png');
-
-    // Journey icons — unique keys for About page (managed from admin Media page)
-    const iconEstates = useAsset('icon_estates.png');
-    const iconHandHarvested = useAsset('icon_hand_harvested.png');
-    const iconSaltAirRoasted = useAsset('icon_salt_air_roasted.png');
-    const iconDelivery = useAsset('icon_delivery.png');
-
-    const JOURNEY_STEPS = [
-        { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
-        { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
-        { icon: iconSaltAirRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
-        { icon: iconDelivery, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
-    ];
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [videoReady, setVideoReady] = useState(false);
