@@ -28,9 +28,9 @@ export default function ChatWidget() {
         <>
             <style>{`
                 @keyframes chatPulse {
-                    0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.25); }
-                    70% { box-shadow: 0 0 0 14px rgba(0,0,0,0); }
-                    100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+                    0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.35); }
+                    70% { box-shadow: 0 0 0 14px rgba(59,130,246,0); }
+                    100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
                 }
                 @keyframes chatSlideIn {
                     from { transform: translateX(100%); opacity: 0; }
@@ -57,16 +57,15 @@ export default function ChatWidget() {
                         bottom: 20, right: 20,
                         width: 56, height: 56,
                         borderRadius: '50%',
-                        background: '#1c1c1c',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        boxShadow: showPulse
+                            ? undefined
+                            : '0 4px 14px rgba(59,130,246,0.35)',
                         animation: showPulse ? 'chatPulse 2s infinite' : 'none',
                     }}
                 >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="10" rx="2" />
-                        <circle cx="12" cy="5" r="4" />
-                        <circle cx="9" cy="16" r="1" fill="white" />
-                        <circle cx="15" cy="16" r="1" fill="white" />
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                 </button>
             )}
