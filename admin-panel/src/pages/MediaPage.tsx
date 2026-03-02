@@ -294,13 +294,13 @@ const styles = {
 
 function categoryColor(category: string): { bg: string; text: string } {
     switch (category) {
-        case 'hero':    return { bg: '#fce4ec', text: '#880e4f' };
-        case 'icons':   return { bg: '#e8eaf6', text: '#283593' };
+        case 'hero': return { bg: '#fce4ec', text: '#880e4f' };
+        case 'icons': return { bg: '#e8eaf6', text: '#283593' };
         case 'product': return { bg: '#e8f5e9', text: '#2e7d32' };
-        case 'about':   return { bg: '#fff3e0', text: '#e65100' };
-        case 'social':  return { bg: '#e1f5fe', text: '#0277bd' };
-        case 'video':   return { bg: '#f3e5f5', text: '#7b1fa2' };
-        default:        return { bg: '#f0e6d9', text: '#5d4037' };
+        case 'about': return { bg: '#fff3e0', text: '#e65100' };
+        case 'social': return { bg: '#e1f5fe', text: '#0277bd' };
+        case 'video': return { bg: '#f3e5f5', text: '#7b1fa2' };
+        default: return { bg: '#f0e6d9', text: '#5d4037' };
     }
 }
 
@@ -311,6 +311,7 @@ const REQUIRED_KEYS = [
     'farmer_highlight', 'icon_shade_grown', 'icon_salt_roasted',
     'icon_small_batch', 'icon_personalised', 'icon_pour_over_kit',
     'icon_french_press', 'icon_chhani',
+    'icon_estates', 'icon_hand_harvested', 'icon_salt_air_roasted', 'icon_delivery',
 ];
 
 // ===== Component =====
