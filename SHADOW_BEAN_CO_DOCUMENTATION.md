@@ -1,5 +1,5 @@
 # Shadow Bean Co - Complete Technical Documentation
-**Last Updated: 2026-02-08**
+**Last Updated: 2026-03-23**
 **For: Antigravity IDE Context Sync**
 
 ---
@@ -19,7 +19,7 @@ Shadow Bean Co is a specialty coffee e-commerce platform from India. The entire 
 | **Customer Website** | Amplify d2tg6prh50w16m | https://shadowbeanco.net |
 | **Admin Panel** | Amplify dz6fvucmxdid9 | https://admin-shadowbeanco.com |
 | **API Gateway** | lcsu89utmg | https://api.shadowbeanco.net |
-| **Lambda Function** | shadowbeanco-api | nodejs20.x, 512MB |
+| **Lambda Function** | shadowbeanco-api | nodejs22.x, 512MB |
 | **Aurora PostgreSQL** | shadowbeanco-db cluster | shadowbeanco-db.cluster-czu488yay7o2.ap-south-1.rds.amazonaws.com |
 | **S3 Media Bucket** | shadowbeanco-media | 37 files |
 | **CloudFront CDN** | E35Z5V9TCCYTOJ | https://media.shadowbeanco.net |
@@ -63,8 +63,8 @@ Shadow Bean Co is a specialty coffee e-commerce platform from India. The entire 
                     admin-panel (React/Vite)
 ```
 
-**Payment**: Razorpay (unchanged)
-**Shipping**: Shiprocket (unchanged)
+**Payment**: Razorpay (live keys, Standard Checkout)
+**Shipping**: Shiprocket (auto-order creation on admin confirm, webhook tracking)
 
 ---
 
@@ -73,12 +73,16 @@ Shadow Bean Co is a specialty coffee e-commerce platform from India. The entire 
 ```
 Shadow Bean Co/
 ├── customer-web/          # Customer website (React + Vite + TypeScript)
+│   ├── public/
+│   │   ├── robots.txt     # Crawl rules (AI bots allowed)
+│   │   ├── sitemap.xml    # Sitemap for search engines
+│   │   └── llms.txt       # AI-readable product description
 │   ├── src/
-│   │   ├── components/    # Header, SEO, CDNImage
+│   │   ├── components/    # Header, SEO, CDNImage, YetiMascot, ChatWidget
 │   │   ├── contexts/      # AuthContext (Cognito), AssetContext (CDN)
 │   │   ├── pages/         # HomePage, ShopPage, CartPage, CheckoutPage, etc.
 │   │   ├── services/      # api.ts (Lambda API client), amplify-auth.ts
-│   │   ├── stores/        # cartStore (Zustand)
+│   │   ├── stores/        # cartStore, shopStore (Zustand)
 │   │   └── main.tsx       # Amplify v6 Gen2 config + React entry
 │   ├── amplify.yml        # Amplify build spec
 │   └── package.json
@@ -129,22 +133,23 @@ Shadow Bean Co/
 
 ## 5. DATABASE SCHEMA (Aurora PostgreSQL)
 
-12 tables in `shadowbeanco` database:
+13 tables in `shadowbeanco` database:
 
 | Table | Purpose | Key Fields |
 |-------|---------|-----------|
 | `profiles` | User profiles | id, cognito_sub, email, full_name, phone, avatar_url |
 | `products` | Coffee products | id, name, description, base_price, sizes, image_url, is_active |
 | `taste_profiles` | User's coffee preferences | id, user_id, name, bitterness, acidity, body, flavour, roast_level, grind_type |
-| `orders` | Customer orders | id, user_id, status, total_amount, razorpay_payment_id, shipping_address |
+| `orders` | Customer orders | id, user_id, status, total_amount, razorpay_order_id, razorpay_payment_id, shipping_address, shiprocket_order_id, shiprocket_shipment_id, cancellation_reason, cancelled_at |
 | `order_items` | Items in each order | id, order_id, taste_profile_id, taste_profile_name, quantity, unit_price |
 | `addresses` | Saved shipping addresses | id, user_id, label, full_name, phone, address_line, city, state, pincode |
-| `reviews` | Product reviews | id, user_id, rating, comment, is_approved |
+| `reviews` | Product reviews | id, user_id, rating, comment, user_name, is_approved |
 | `pricing` | Price configurations | id, name, base_price, size_100g/250g/500g/1kg, discount_pct, is_active |
 | `terms_and_conditions` | T&C versions | id, content, version, is_active |
 | `app_assets` | CDN media assets | id, key, url, title, type, category |
 | `admin_users` | Admin access list | id, user_id, email, role, is_active |
 | `shipping_config` | Shipping settings | id, provider, config, is_active |
+| `offers` | Discount coupons | id, code, description, type, value, min_order, max_uses, used_count, is_active, expires_at |
 
 ---
 
@@ -170,12 +175,16 @@ Base URL: `https://api.shadowbeanco.net`
 | GET | `/profiles/:id` | Get profile by ID or cognito_sub |
 | PUT | `/profiles/:id` | Update profile |
 | GET | `/taste-profiles` | List user's taste profiles |
-| POST | `/taste-profiles` | Create taste profile |
+| POST | `/taste-profiles` | Create taste profile (validates values 1-5) |
+| DELETE | `/taste-profiles/:id` | Delete taste profile |
 | GET | `/addresses` | List user's addresses |
 | POST | `/addresses` | Create address |
 | GET | `/orders` | List user's orders |
-| POST | `/orders` | Place new order |
+| POST | `/orders` | Place new order (server-side price calc, Razorpay/COD) |
+| GET | `/orders/:id/payment-status` | Check payment status |
+| POST | `/orders/:id/verify-payment` | Verify Razorpay payment signature |
 | POST | `/reviews` | Submit review |
+| POST | `/webhooks/shipping` | Shiprocket shipping status webhook |
 
 ### Admin Routes (JWT + admin_users table / master email)
 | Method | Path | Description |
@@ -183,12 +192,12 @@ Base URL: `https://api.shadowbeanco.net`
 | POST | `/admin/auth/check` | Check if current user is admin |
 | GET | `/admin/dashboard/stats` | Dashboard statistics |
 | GET | `/admin/orders` | All orders |
-| PUT | `/admin/orders/:id/status` | Update order status |
-| PUT | `/admin/orders/:id/cancel` | Cancel order |
+| PUT | `/admin/orders/:id/status` | Update order status (validated enum: pending/confirmed/processing/shipped/delivered/cancelled) |
+| PUT | `/admin/orders/:id/cancel` | Cancel order with reason |
 | GET | `/admin/profiles` | All user profiles |
 | GET/POST | `/admin/products` | List/create products |
 | PUT/DELETE | `/admin/products/:id` | Update/delete product |
-| GET/DELETE | `/admin/reviews/:id` | List/delete reviews |
+| GET/PUT/DELETE | `/admin/reviews/:id` | List/approve/delete reviews |
 | GET/POST | `/admin/pricing` | List/create pricing |
 | PUT | `/admin/pricing/:id` | Update pricing |
 | GET/POST | `/admin/terms` | Get/create T&C |
@@ -197,6 +206,9 @@ Base URL: `https://api.shadowbeanco.net`
 | PUT | `/admin/assets/:key` | Update asset metadata |
 | DELETE | `/admin/assets/:key` | Delete asset from S3 + DB |
 | GET/POST/PUT/DELETE | `/admin/access` | Manage admin users |
+| POST | `/admin/offers/init` | Initialize offers table |
+| GET/POST | `/admin/offers` | List/create discount coupons |
+| PUT/DELETE | `/admin/offers/:id` | Update/delete coupons |
 
 ---
 
@@ -220,7 +232,7 @@ Base URL: `https://api.shadowbeanco.net`
 
 ### Admin Access Control
 Admin access is NOT based on Cognito groups. Instead:
-1. Master admin email is hardcoded in Lambda: `akasingh.singh6@gmail.com`
+1. Master admin email is set via Lambda env var `MASTER_ADMIN_EMAIL` (fallback: `akasingh.singh6@gmail.com`)
 2. Additional admins are stored in `admin_users` table
 3. Lambda endpoint `POST /admin/auth/check` verifies admin status
 4. Admin credentials: akasingh.singh6@gmail.com / ShadowBean@2026
@@ -369,7 +381,7 @@ frontend:
 ```
 
 ### Lambda CORS (in index.js)
-Same origins list as API Gateway. Set per-request based on `Origin` header.
+Same origins list as API Gateway, stored in a `Set` for O(1) lookup. Dev origins (`localhost:5173`, `localhost:8081`, `localhost:8098`) enabled via `ALLOW_DEV_CORS=true` env var. Set per-request based on `Origin` header.
 
 ---
 
@@ -378,8 +390,12 @@ Same origins list as API Gateway. Set per-request based on `Origin` header.
 - **S3**: Private bucket + CloudFront OAC (no Principal: * policies)
 - **DB Credentials**: AWS Secrets Manager (`shadowbeanco/db-credentials`)
 - **JWT Verification**: Lambda verifies Cognito ID tokens using `aws-jwt-verify`
-- **Admin Auth**: Email-based check (master admin + admin_users table), NOT Cognito groups
-- **CORS**: Locked to specific origins
+- **Admin Auth**: Email-based check (master admin via env var + admin_users table), NOT Cognito groups
+- **CORS**: Locked to specific origins (Set-based O(1) lookup)
+- **Security Headers**: All API responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security` (HSTS, 2-year max-age), `Referrer-Policy: strict-origin-when-cross-origin`
+- **Input Validation**: Order status validated against enum, taste profile values clamped to 1-5, shipping address fields capped at 200 chars, taste profile strings capped at 50-100 chars
+- **Server-Side Pricing**: Order totals calculated server-side from active pricing table, client-submitted prices ignored
+- **Rate Limiting**: In-memory per-IP rate limiter (100 req/min per Lambda instance)
 - **Terraform State**: .tfstate files gitignored, secrets in terraform.tfvars (gitignored)
 - **No hardcoded secrets in code** (environment variables + Secrets Manager)
 
@@ -388,11 +404,12 @@ Same origins list as API Gateway. Set per-request based on `Origin` header.
 ## 12. KEY DEPENDENCIES
 
 ### customer-web
-- react, react-dom, react-router-dom (HashRouter)
+- react, react-dom, react-router-dom (BrowserRouter)
 - aws-amplify (v6 - Cognito auth)
 - axios (API calls)
-- zustand (cart state)
+- zustand (cart + shop state)
 - vite + typescript
+- React.lazy + Suspense (route-level code splitting for all pages except HomePage)
 
 ### admin-panel
 - react, react-dom, react-router-dom (BrowserRouter)
@@ -405,6 +422,9 @@ Same origins list as API Gateway. Set per-request based on `Origin` header.
 - @aws-sdk/client-rds-data (Aurora Data API)
 - @aws-sdk/client-s3 + @aws-sdk/s3-request-presigner (S3 operations)
 - aws-jwt-verify (Cognito token verification)
+- razorpay (payment processing)
+- nodemailer (order confirmation emails)
+- crypto (Razorpay signature verification)
 
 ### mobile-app / web-app
 - expo, react-native
@@ -462,11 +482,25 @@ aws amplify list-jobs --app-id dz6fvucmxdid9 --branch-name main --region ap-sout
 
 5. **Mobile App**: Auth migrated to Cognito (`cognito-auth.ts`) but the app hasn't been rebuilt/tested with the new dependencies since Firebase/Supabase removal.
 
-6. **Lighthouse Audit**: Step 38 in migration checklist - not yet completed.
+---
+
+## 15. PERFORMANCE & SEO OPTIMIZATIONS (2026-03-23)
+
+### Performance
+- **Code Splitting**: All routes except HomePage use `React.lazy()` + `<Suspense>`. Initial JS bundle reduced from ~384KB to ~150KB.
+- **Lazy Loading**: All below-the-fold images have `loading="lazy"` (USP icons, product bags, brew icons, farmer background).
+- **Deferred Video**: `how_to_brew.mp4` uses `preload="none"` to avoid loading hundreds of KB on initial page load.
+- **Mobile UX Fix**: Sticky "Add to Cart" bar replaced with inline flow elements inside each customization step, preventing grind type from being hidden behind it. Slide views changed from `position: absolute` to `position: relative` with `display: none/block` toggle on mobile.
+
+### SEO
+- **SEO Components**: `<HomeSEO />`, `<ShopSEO />`, `<AboutSEO />` rendered on their respective pages. Each sets document title, meta description, OpenGraph tags, Twitter Cards, canonical URL, and JSON-LD structured data.
+- **Sitemap**: `customer-web/public/sitemap.xml` — lists `/`, `/shop`, `/about`, `/terms` with priorities.
+- **robots.txt**: Updated with explicit `Allow: /` rules for AI crawlers (GPTBot, ChatGPT-User, Claude-Web, anthropic-ai, Bingbot, PerplexityBot).
+- **llms.txt**: `customer-web/public/llms.txt` — AI-readable product description with price, customisation options, USPs, brewing methods, and URLs.
 
 ---
 
-## 15. REMOVED SERVICES (Complete)
+## 16. REMOVED SERVICES (Complete, Legacy)
 
 | Service | Status | Notes |
 |---------|--------|-------|
@@ -478,22 +512,32 @@ aws amplify list-jobs --app-id dz6fvucmxdid9 --branch-name main --region ap-sout
 
 ---
 
-## 16. FILE-BY-FILE REFERENCE
+## 17. FILE-BY-FILE REFERENCE
 
 ### Critical Files
 | File | Purpose |
 |------|---------|
+| `customer-web/src/App.tsx` | React.lazy code splitting, Suspense, ErrorBoundary, routing |
 | `customer-web/src/main.tsx` | Amplify v6 config (Cognito + OAuth) |
 | `customer-web/src/contexts/AuthContext.tsx` | Auth state, login, Google login, Hub listener |
 | `customer-web/src/contexts/AssetContext.tsx` | CDN asset provider, useAsset() hook |
 | `customer-web/src/services/api.ts` | Axios API client with JWT interceptor |
-| `customer-web/src/pages/CheckoutPage.tsx` | Order placement (calls POST /orders) |
+| `customer-web/src/components/SEO.tsx` | SEO component (OG, Twitter, JSON-LD) + page presets |
+| `customer-web/src/pages/ShopPage.tsx` | Coffee customization (taste profile, roast, grind), inline cart |
+| `customer-web/src/pages/ShopPage.css` | Shop styling (inline mobile cart bar, slide-view toggle) |
+| `customer-web/src/pages/CheckoutPage.tsx` | Order placement (Razorpay + COD) |
+| `customer-web/src/pages/HomePage.tsx` | Landing page (lazy images, deferred video, HomeSEO) |
+| `customer-web/src/stores/cartStore.ts` | Zustand cart state |
+| `customer-web/src/stores/shopStore.ts` | Zustand shop customization state (persisted) |
 | `customer-web/src/components/Header.tsx` | Site header with logo_main asset |
+| `customer-web/public/robots.txt` | Crawl rules with AI bot allows |
+| `customer-web/public/sitemap.xml` | Search engine sitemap |
+| `customer-web/public/llms.txt` | AI-readable product info |
 | `admin-panel/src/main.tsx` | Amplify v6 config (admin redirects) |
 | `admin-panel/src/App.tsx` | Auth state + Hub listener for OAuth |
 | `admin-panel/src/lib/admin-api.ts` | Admin API client, signIn, signInWithGoogle |
 | `admin-panel/src/pages/MediaPage.tsx` | S3 media upload/manage UI |
-| `lambda/api/index.js` | ALL API routes, JWT verify, CORS, DB queries |
+| `lambda/api/index.js` | ALL API routes, JWT verify, CORS, security headers, DB queries, Razorpay, Shiprocket |
 | `terraform/main.tf` | Core AWS infrastructure |
 | `database/rds_schema.sql` | Complete PostgreSQL schema |
 
