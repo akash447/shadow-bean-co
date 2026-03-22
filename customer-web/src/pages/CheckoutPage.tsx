@@ -269,7 +269,7 @@ export default function CheckoutPage() {
                 shipping_address: addr,
                 items: items.map(it => ({
                     taste_profile_id: it.profile.id && /^[0-9a-f-]{36}$/i.test(it.profile.id) ? it.profile.id : undefined,
-                    taste_profile_name: it.profile.name, quantity: it.quantity, unit_price: 799,
+                    taste_profile_name: it.profile.name, quantity: it.quantity, unit_price: 599,
                 })),
             });
             setOrdId(order?.id || 'N/A');
@@ -470,7 +470,7 @@ export default function CheckoutPage() {
                                             <span style={{ color: '#666', flex: 1, marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {it.profile.name} <span style={{ color: '#aaa' }}>x{it.quantity}</span>
                                             </span>
-                                            <span style={{ fontWeight: 600, color: DARK }}>₹{799 * it.quantity}</span>
+                                            <span style={{ fontWeight: 600, color: DARK }}>₹{599 * it.quantity}</span>
                                         </div>
                                     ))}
                                 </div>

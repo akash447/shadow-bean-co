@@ -46,6 +46,113 @@ function getRazorpay() {
     return _razorpayInstance;
 }
 
+// Shiprocket config
+const SHIPROCKET_BASE_URL = 'https://apiv2.shiprocket.in/v1/external';
+const SHIPROCKET_EMAIL = process.env.SHIPROCKET_EMAIL;
+const SHIPROCKET_PASSWORD = process.env.SHIPROCKET_PASSWORD;
+const SHIPROCKET_CHANNEL_ID = process.env.SHIPROCKET_CHANNEL_ID || '';
+let _shiprocketToken = null;
+let _shiprocketTokenExpiry = 0;
+
+async function getShiprocketToken() {
+    if (_shiprocketToken && Date.now() < _shiprocketTokenExpiry) return _shiprocketToken;
+    if (!SHIPROCKET_EMAIL || !SHIPROCKET_PASSWORD) {
+        console.log('Shiprocket credentials not configured, skipping');
+        return null;
+    }
+    const res = await fetch(`${SHIPROCKET_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: SHIPROCKET_EMAIL, password: SHIPROCKET_PASSWORD }),
+    });
+    if (!res.ok) { console.error('Shiprocket auth failed:', res.status); return null; }
+    const data = await res.json();
+    _shiprocketToken = data.token;
+    _shiprocketTokenExpiry = Date.now() + 9 * 24 * 60 * 60 * 1000; // 9 days
+    return _shiprocketToken;
+}
+
+async function shiprocketFetch(endpoint, options = {}) {
+    const token = await getShiprocketToken();
+    if (!token) return null;
+    const res = await fetch(`${SHIPROCKET_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
+    });
+    if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error(`Shiprocket ${endpoint} failed:`, res.status, errText);
+        return null;
+    }
+    return res.json();
+}
+
+async function createShiprocketOrder(order, items, shippingAddr) {
+    const addr = typeof shippingAddr === 'string' ? JSON.parse(shippingAddr) : shippingAddr;
+    const customerName = addr?.fullName || addr?.name || addr?.full_name || 'Customer';
+    const nameParts = customerName.split(' ');
+
+    const orderDate = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const paymentType = order.payment_method === 'cod' ? 'COD' : 'Prepaid';
+
+    const shiprocketItems = (items || []).map((item, idx) => ({
+        name: item.taste_profile_name || `Custom Blend ${idx + 1}`,
+        sku: `SBC-${order.id.slice(0, 8)}-${idx}`,
+        units: parseInt(item.quantity) || 1,
+        selling_price: parseFloat(item.unit_price) || 599,
+        discount: 0,
+        tax: 0,
+        hsn: '0901',
+    }));
+
+    const totalWeight = Math.max(0.5, shiprocketItems.reduce((sum, i) => sum + i.units * 0.3, 0));
+
+    const payload = {
+        order_id: order.id.slice(0, 8),
+        order_date: orderDate,
+        pickup_location: 'Shadow Bean Co',
+        channel_id: SHIPROCKET_CHANNEL_ID,
+        billing_customer_name: nameParts[0] || 'Customer',
+        billing_last_name: nameParts.slice(1).join(' ') || '',
+        billing_address: addr?.addressLine1 || addr?.address_line || addr?.address || '',
+        billing_address_2: addr?.addressLine2 || '',
+        billing_city: addr?.city || '',
+        billing_state: addr?.state || '',
+        billing_pincode: String(addr?.pincode || ''),
+        billing_country: 'India',
+        billing_email: order.user_email || '',
+        billing_phone: String(addr?.phone || ''),
+        shipping_is_billing: true,
+        order_items: shiprocketItems,
+        payment_method: paymentType,
+        shipping_charges: 0,
+        giftwrap_charges: 0,
+        transaction_charges: 0,
+        total_discount: 0,
+        sub_total: parseFloat(order.total_amount) || 0,
+        length: 20,
+        breadth: 15,
+        height: 10,
+        weight: totalWeight,
+    };
+
+    console.log('Creating Shiprocket order:', JSON.stringify({ order_id: payload.order_id, sub_total: payload.sub_total }));
+    const result = await shiprocketFetch('/orders/create/adhoc', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+    if (result && result.shipment_id) {
+        // Store shiprocket IDs in DB
+        await query(
+            `UPDATE orders SET shiprocket_order_id = $1, shiprocket_shipment_id = $2 WHERE id = $3::uuid`,
+            [String(result.order_id), String(result.shipment_id), order.id]
+        ).catch(err => console.error('Failed to store Shiprocket IDs:', err.message));
+        console.log(`Shiprocket order created: order_id=${result.order_id}, shipment_id=${result.shipment_id}`);
+    }
+    return result;
+}
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'akasingh.singh6@gmail.com';
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_USER = process.env.SMTP_USER;
@@ -522,7 +629,7 @@ exports.handler = async (event) => {
             // Fetch active pricing to validate unit prices
             const pricingRows = await query('SELECT * FROM pricing WHERE is_active = true LIMIT 1');
             const pricing = pricingRows[0];
-            const serverUnitPrice = pricing ? Number(pricing.size_250g || pricing.base_price || 799) : 799;
+            const serverUnitPrice = pricing ? Number(pricing.size_250g || pricing.base_price || 599) : 599;
 
             let serverTotal = 0;
             const validatedItems = [];
@@ -615,6 +722,35 @@ exports.handler = async (event) => {
             return ok(rows[0]);
         }
 
+        // GET /orders/:id/tracking — get Shiprocket tracking info
+        if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/tracking$/)) {
+            const id = path.split('/')[2];
+            const ownProfileId = await resolveOwnProfileId(user);
+            const rows = await query(
+                'SELECT shiprocket_shipment_id, tracking_url, status FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                [id, ownProfileId]
+            );
+            if (!rows.length) return error(404, 'Order not found');
+            const order = rows[0];
+            if (!order.shiprocket_shipment_id) return ok({ tracking: null, message: 'Shipment not yet created' });
+
+            // Fetch live tracking from Shiprocket
+            try {
+                const trackData = await shiprocketFetch(`/courier/track/shipment/${order.shiprocket_shipment_id}`);
+                if (trackData?.tracking_data) {
+                    // Store tracking URL if available
+                    const trackUrl = trackData.tracking_data.track_url;
+                    if (trackUrl && trackUrl !== order.tracking_url) {
+                        await query('UPDATE orders SET tracking_url = $1 WHERE id::text = $2', [trackUrl, id]).catch(() => {});
+                    }
+                    return ok({ tracking: trackData.tracking_data });
+                }
+            } catch (trackErr) {
+                console.error('Shiprocket tracking error:', trackErr);
+            }
+            return ok({ tracking: null, tracking_url: order.tracking_url });
+        }
+
         // POST /orders/:id/verify-payment — Razorpay signature verification
         if (method === 'POST' && path.match(/^\/orders\/[\w-]+\/verify-payment$/)) {
             const id = path.split('/')[2];
@@ -684,6 +820,21 @@ exports.handler = async (event) => {
                 }
             } catch (emailErr) {
                 console.error('Confirmation email error:', emailErr);
+            }
+
+            // Create Shiprocket order for fulfillment
+            try {
+                const fullOrder = await query(
+                    `SELECT o.*, p.email as user_email, p.full_name as user_name
+                     FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
+                     WHERE o.id::text = $1`, [id]
+                );
+                if (fullOrder.length) {
+                    const orderItems = await query('SELECT * FROM order_items WHERE order_id::text = $1', [id]);
+                    await createShiprocketOrder(fullOrder[0], orderItems, fullOrder[0].shipping_address);
+                }
+            } catch (shipErr) {
+                console.error('Shiprocket order creation error:', shipErr);
             }
 
             return ok({ payment_status: 'paid', verified: true });
@@ -817,6 +968,24 @@ exports.handler = async (event) => {
                 const rows = await query('UPDATE orders SET status = $1 WHERE id::text = $2 RETURNING *', [body.status, id]);
                 if (!rows.length) return error(404, 'Order not found');
                 console.log('Order status updated:', rows[0].id, rows[0].status);
+
+                // Auto-create Shiprocket order when confirmed (if not already created)
+                if (body.status === 'confirmed' && !rows[0].shiprocket_order_id) {
+                    try {
+                        const fullOrder = await query(
+                            `SELECT o.*, p.email as user_email, p.full_name as user_name
+                             FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
+                             WHERE o.id::text = $1`, [id]
+                        );
+                        if (fullOrder.length) {
+                            const orderItems = await query('SELECT * FROM order_items WHERE order_id::text = $1', [id]);
+                            await createShiprocketOrder(fullOrder[0], orderItems, fullOrder[0].shipping_address);
+                        }
+                    } catch (shipErr) {
+                        console.error('Shiprocket order creation error (admin):', shipErr);
+                    }
+                }
+
                 return ok(rows[0]);
             }
 

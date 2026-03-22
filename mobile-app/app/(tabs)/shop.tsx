@@ -440,7 +440,7 @@ export default function ShopScreen() {
                             styles.addToCartPrice,
                             isTablet && { fontSize: 14, paddingHorizontal: 14, paddingVertical: 6 },
                             { backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }
-                        ]}>₹799</Text>
+                        ]}>₹599</Text>
                     </TouchableOpacity>
                 </View>
 

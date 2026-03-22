@@ -97,7 +97,7 @@ export const useCartStore = create<CartStore>()(
             setDiscount: (d) => set({ discount: d }),
 
             getSubtotal: () => {
-                return get().items.reduce((sum, item) => sum + (799 * item.quantity), 0);
+                return get().items.reduce((sum, item) => sum + (599 * item.quantity), 0);
             },
 
             getDiscountAmount: () => {

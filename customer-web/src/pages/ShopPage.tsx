@@ -338,7 +338,7 @@ export default function ShopPage() {
                                     </button>
                                 </div>
                                 <button className="btn-add-to-cart-desktop desktop-only step1-spacer" onClick={handleAddToCart}>
-                                    ADD TO CART • ₹799
+                                    ADD TO CART • ₹599
                                 </button>
                             </div>
                         </div>
@@ -372,7 +372,7 @@ export default function ShopPage() {
                                 </div>
 
                                 <button className="btn-add-to-cart-desktop desktop-only step2-spacer" onClick={handleAddToCart}>
-                                    ADD TO CART • ₹799
+                                    ADD TO CART • ₹599
                                 </button>
                             </div>
                         </div>
@@ -386,7 +386,7 @@ export default function ShopPage() {
                                 <span className="mobile-cart-desc">{roastLevel} • {grindType} • 250g</span>
                             </div>
                             <button className="mobile-cart-btn" onClick={handleAddToCart}>
-                                ADD TO CART <span className="mobile-cart-price">₹799</span>
+                                ADD TO CART <span className="mobile-cart-price">₹599</span>
                             </button>
                         </div>
                     </div>

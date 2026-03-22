@@ -133,7 +133,7 @@ function getIntentResponse(intentName: string): BotResponse | null {
         case 'process':
             return { message: "Our salt-air roasting preserves the bean's natural oils and reduces bitterness — giving you a cleaner, smoother cup with more character. No additives, no shortcuts.", chips: ['Sounds great!', 'I want to try', "What's the price?"], card: null };
         case 'price':
-            return { message: "Each custom 250g bag is ₹799 with free shipping across India!", chips: ['I want to order', 'Tell me more about the coffee'], card: null };
+            return { message: "Each custom 250g bag is ₹599 with free shipping across India!", chips: ['I want to order', 'Tell me more about the coffee'], card: null };
         case 'shipping':
             return { message: "Free shipping across India! Orders typically arrive in 5-7 business days, freshly roasted and packed.", chips: ['I want to order', 'What payment methods?'], card: null };
         case 'payment':
@@ -262,7 +262,7 @@ export function createConversation() {
                 }
                 state.phase = 'educate';
                 return {
-                    message: "Nice! Our shade-grown, salt-air roasted beans let you customise bitterness, flavour, roast, and grind — all for ₹799 per 250g bag. Want to build your custom blend?",
+                    message: "Nice! Our shade-grown, salt-air roasted beans let you customise bitterness, flavour, roast, and grind — all for ₹599 per 250g bag. Want to build your custom blend?",
                     chips: ['Yes, let\'s do it', 'Tell me more'],
                     card: null,
                 };
@@ -341,7 +341,7 @@ export function createConversation() {
                             flavour: state.taste.flavour!,
                             roast: state.taste.roast!,
                             grind: state.taste.grind,
-                            price: 799,
+                            price: 599,
                             reason: `Custom blend: Bitterness ${state.taste.bitterness}/5, Flavour ${state.taste.flavour}/5, ${state.taste.roast} roast, ${state.taste.grind} grind.`,
                         },
                     },
@@ -391,7 +391,7 @@ export function createConversation() {
                 state.taste.qty = qty;
                 state.phase = 'summary';
 
-                const total = 799 * qty;
+                const total = 599 * qty;
                 const sku = generateSKU(state.taste.bitterness!, state.taste.flavour!, state.taste.roast!, state.taste.grind!);
 
                 return {
@@ -400,7 +400,7 @@ export function createConversation() {
                     card: {
                         type: 'summary',
                         data: {
-                            items: [{ name: sku, qty, price: 799 }],
+                            items: [{ name: sku, qty, price: 599 }],
                             discount: 0,
                             total,
                             grind: state.taste.grind!,

@@ -282,7 +282,7 @@ export default function WebShopScreen() {
                 </div>
                 <button style={styles.addToCartButton} onClick={handleAddToCart}>
                     ADD TO CART
-                    <span style={styles.priceTag}>₹799</span>
+                    <span style={styles.priceTag}>₹599</span>
                 </button>
             </div>
 

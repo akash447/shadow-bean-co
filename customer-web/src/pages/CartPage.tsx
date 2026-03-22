@@ -207,7 +207,7 @@ export default function CartPage() {
 
                   {/* Price + Qty */}
                   <div className="cart-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
-                    <span style={{ fontWeight: 800, fontSize: 18, color: DARK }}>₹{799 * item.quantity}</span>
+                    <span style={{ fontWeight: 800, fontSize: 18, color: DARK }}>₹{599 * item.quantity}</span>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {/* Stepper */}
@@ -260,7 +260,7 @@ export default function CartPage() {
                     <span style={{ color: '#666', flex: 1, marginRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.profile.name} <span style={{ color: '#aaa' }}>×{item.quantity}</span>
                     </span>
-                    <span style={{ fontWeight: 600, color: DARK }}>₹{799 * item.quantity}</span>
+                    <span style={{ fontWeight: 600, color: DARK }}>₹{599 * item.quantity}</span>
                   </div>
                 ))}
               </div>
