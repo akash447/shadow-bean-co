@@ -197,10 +197,7 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    padding-bottom: 90px;
-    /* Space for sticky cart */
     overflow: hidden;
-    /* For carousel sliding */
 }
 
 /* Carousel Container */
@@ -595,8 +592,13 @@
     background: #3d3f26;
 }
 
-/* Mobile Sticky Cart Bar - Hidden on desktop */
+/* Mobile Sticky Cart Bar - Removed, replaced by inline cart bars */
 .mobile-sticky-cart {
+    display: none;
+}
+
+/* Inline cart bar - hidden on desktop, shown on mobile */
+.mobile-cart-bar-inline {
     display: none;
 }
 
@@ -828,29 +830,18 @@
     }
 
     .slide-view {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        position: relative;
         padding: 0;
-        opacity: 0;
-        pointer-events: none;
-        transition: transform 0.4s ease, opacity 0.4s ease;
+        display: none;
     }
 
     .slide-view.active {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(0);
+        display: block;
     }
 
-    .slide-view.hidden-left {
-        transform: translateX(-100%);
-    }
-
+    .slide-view.hidden-left,
     .slide-view.hidden-right {
-        transform: translateX(100%);
+        display: none;
     }
 
     /* ========== CUSTOMIZATION CARD - HORIZONTAL SWIPE STYLE ========== */
@@ -859,8 +850,7 @@
         background: #fff;
         border-radius: 20px;
         padding: 16px 18px 14px;
-        margin: 0 12px 140px;
-        /* Extra bottom margin so grind tiles aren't hidden behind sticky cart */
+        margin: 0 12px 20px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         display: flex;
         flex-direction: column;
@@ -1039,17 +1029,13 @@
 
 
 
-    /* ========== STICKY CART BAR - DARK OLIVE ========== */
-    .mobile-sticky-cart {
+    /* ========== INLINE CART BAR - DARK OLIVE ========== */
+    .mobile-cart-bar-inline {
         display: block;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
         background: #3d3f26;
         padding: 14px 16px;
-        z-index: 100;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+        border-radius: 16px;
+        margin-top: 16px;
     }
 
     .mobile-cart-content {

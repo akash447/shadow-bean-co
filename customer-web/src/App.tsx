@@ -3,18 +3,19 @@ import { AuthProvider } from './contexts/AuthContext'
 import { AssetProvider } from './contexts/AssetContext'
 import { YetiProvider } from './components/YetiMascot'
 import HomePage from './pages/HomePage'
-import ShopPage from './pages/ShopPage'
-import CartPage from './pages/CartPage'
-import CheckoutPage from './pages/CheckoutPage'
-import AboutPage from './pages/AboutPage'
-import ProfilePage from './pages/ProfilePage'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import TermsPage from './pages/TermsPage'
 import ChatWidget from './components/chat'
 import './App.css'
-import { Component } from 'react'
+import { Component, lazy, Suspense } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+
+const ShopPage = lazy(() => import('./pages/ShopPage'))
+const CartPage = lazy(() => import('./pages/CartPage'))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const TermsPage = lazy(() => import('./pages/TermsPage'))
 
 // Error Boundary to catch React errors
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -52,17 +53,19 @@ function App() {
         <AuthProvider>
           <YetiProvider>
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/shop" element={<ShopPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/checkout" element={<CheckoutPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-              </Routes>
+              <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="loading-spinner" /></div>}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/shop" element={<ShopPage />} />
+                  <Route path="/cart" element={<CartPage />} />
+                  <Route path="/checkout" element={<CheckoutPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                </Routes>
+              </Suspense>
               <ChatWidget />
             </BrowserRouter>
           </YetiProvider>

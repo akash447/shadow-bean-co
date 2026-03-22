@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { ShopSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCartStore } from '../stores/cartStore';
@@ -195,6 +196,7 @@ export default function ShopPage() {
 
     return (
         <div className="shop-page">
+            <ShopSEO />
             <Header variant="light" />
 
             <main className="shop-layout">
@@ -205,6 +207,7 @@ export default function ShopPage() {
                             src={productBag}
                             alt="Custom Coffee Blend"
                             className="mobile-product-img"
+                            loading="lazy"
                         />
                         <span className="mobile-blend-label">YOUR BLEND</span>
                     </div>
@@ -228,6 +231,7 @@ export default function ShopPage() {
                             src={productBag}
                             alt="Custom Coffee Blend"
                             className="shop-product-img"
+                            loading="lazy"
                         />
                     </div>
 
@@ -337,6 +341,18 @@ export default function ShopPage() {
                                         NEXT: GRIND TYPE →
                                     </button>
                                 </div>
+                                {/* Inline cart bar for mobile step 1 */}
+                                <div className="mobile-cart-bar-inline">
+                                    <div className="mobile-cart-content">
+                                        <div className="mobile-cart-info">
+                                            <span className="mobile-cart-label">Your Custom Blend</span>
+                                            <span className="mobile-cart-desc">{roastLevel} • {grindType} • 250g</span>
+                                        </div>
+                                        <button className="mobile-cart-btn" onClick={handleAddToCart}>
+                                            ADD TO CART <span className="mobile-cart-price">₹599</span>
+                                        </button>
+                                    </div>
+                                </div>
                                 <button className="btn-add-to-cart-desktop desktop-only step1-spacer" onClick={handleAddToCart}>
                                     ADD TO CART • ₹599
                                 </button>
@@ -371,23 +387,22 @@ export default function ShopPage() {
                                     </div>
                                 </div>
 
+                                {/* Inline cart bar for mobile step 2 */}
+                                <div className="mobile-cart-bar-inline">
+                                    <div className="mobile-cart-content">
+                                        <div className="mobile-cart-info">
+                                            <span className="mobile-cart-label">Your Custom Blend</span>
+                                            <span className="mobile-cart-desc">{roastLevel} • {grindType} • 250g</span>
+                                        </div>
+                                        <button className="mobile-cart-btn" onClick={handleAddToCart}>
+                                            ADD TO CART <span className="mobile-cart-price">₹599</span>
+                                        </button>
+                                    </div>
+                                </div>
                                 <button className="btn-add-to-cart-desktop desktop-only step2-spacer" onClick={handleAddToCart}>
                                     ADD TO CART • ₹599
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Mobile Sticky Cart Bar */}
-                    <div className="mobile-sticky-cart">
-                        <div className="mobile-cart-content">
-                            <div className="mobile-cart-info">
-                                <span className="mobile-cart-label">Your Custom Blend</span>
-                                <span className="mobile-cart-desc">{roastLevel} • {grindType} • 250g</span>
-                            </div>
-                            <button className="mobile-cart-btn" onClick={handleAddToCart}>
-                                ADD TO CART <span className="mobile-cart-price">₹599</span>
-                            </button>
                         </div>
                     </div>
                 </div>

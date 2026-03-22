@@ -1,0 +1,45 @@
+# Shadow Bean Co
+
+> Premium shade-grown, salt-roasted coffee beans personalised to your taste. Small batch roasted in India.
+
+## Product
+
+- **Name**: Shadow Bean Co Custom Blend
+- **Price**: ₹599 (250g bag)
+- **Category**: Specialty Coffee Beans
+- **Origin**: India (Karnataka & Andhra Pradesh estates)
+
+## Customisation Options
+
+Customers personalise their coffee by choosing:
+
+- **Bitterness**: Scale of 1–5
+- **Flavour**: Scale of 1–5
+- **Roast Level**: Light, Medium, or Balanced
+- **Grind Type**: Whole Bean, Espresso, Moka Pot, French Press, Pour Over, Filter
+
+Each combination generates a unique SKU code (e.g. CR-35-ME) and is roasted to order.
+
+## Unique Selling Points
+
+1. **Salt-Air Roasting**: A signature roasting method using salt-infused air that reduces bitterness and preserves natural oils
+2. **Shade Grown**: Beans grown under native tree canopies in Indian coffee estates for deeper, layered flavour
+3. **Small Batch**: Every order is roasted in small controlled batches for freshness and precision
+4. **Personalised Roasts**: Roast profiles tailored to individual taste preferences
+
+## How to Brew
+
+- Pour-over kit (recommended for full clarity)
+- French press, Aeropress, Moka Pot, or South Indian filter
+- Simple chhani (strainer) — no equipment needed
+
+## Links
+
+- Website: https://shadowbeanco.net
+- Shop: https://shadowbeanco.net/shop
+- About: https://shadowbeanco.net/about
+
+## Contact
+
+- Email: support@shadowbeanco.net
+- Based in India

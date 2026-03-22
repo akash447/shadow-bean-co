@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { HomeSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import { getReviews } from '../services/api';
 import type { Review } from '../services/api';
@@ -81,6 +82,7 @@ export default function HomePage() {
 
     return (
         <div className="home-container">
+            <HomeSEO />
             {/* Scroll Snap Container */}
             <div className="scroll-container">
                 {/* Block 1: Hero Section */}
@@ -103,7 +105,7 @@ export default function HomePage() {
                     <div className="usp-section">
                         {USP_FEATURES.map((item, i) => (
                             <div key={i} className="usp-item">
-                                <img src={item.icon} alt={item.title} className="usp-icon" />
+                                <img src={item.icon} alt={item.title} className="usp-icon" loading="lazy" />
                                 <span className="usp-title">{item.title}</span>
                                 <span className="usp-desc">{item.desc}</span>
                             </div>
@@ -119,6 +121,7 @@ export default function HomePage() {
                             src={productBag}
                             alt="Coffee Bag"
                             className="product-image"
+                            loading="lazy"
                         />
                         <span className="section-label">YOUR PERFECT CUP</span>
                         <h2 className="section-title">
@@ -140,6 +143,7 @@ export default function HomePage() {
                             loop
                             muted
                             playsInline
+                            preload="none"
                             className="brewing-video"
                         />
                     </div>
@@ -152,7 +156,7 @@ export default function HomePage() {
                         <div className="brew-methods">
                             {BREW_METHODS.map((method, i) => (
                                 <div key={i} className="brew-method">
-                                    <img src={brewMethodIcons[method.iconKey]} alt={method.title} className="brew-icon" />
+                                    <img src={brewMethodIcons[method.iconKey]} alt={method.title} className="brew-icon" loading="lazy" />
                                     <span className="brew-title">{method.title}</span>
                                     <span className="brew-desc">{method.desc}</span>
                                 </div>

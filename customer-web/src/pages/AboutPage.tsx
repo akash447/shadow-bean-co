@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Header from '../components/Header';
+import { AboutSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
 
@@ -46,6 +47,7 @@ export default function AboutPage() {
 
     return (
         <div className="about-outer">
+            <AboutSEO />
             <div className="about-scroll">
 
                 {/* BLOCK 1: Hero Video + Journey Bar */}

@@ -27,7 +27,7 @@ const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'ap-south-1_jZV
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || '42vpa5vousikig0c4ohq2vmkge';
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || 'shadowbeanco-media';
 const MEDIA_CDN_URL = process.env.MEDIA_CDN_URL || 'https://media.shadowbeanco.net';
-const MASTER_ADMIN_EMAIL = 'akasingh.singh6@gmail.com';
+const MASTER_ADMIN_EMAIL = process.env.MASTER_ADMIN_EMAIL || 'akasingh.singh6@gmail.com';
 
 const REGION = process.env.AWS_REGION || 'ap-south-1';
 const rds = new RDSDataClient({ region: REGION });
@@ -342,11 +342,18 @@ const DEV_ORIGINS = process.env.ALLOW_DEV_CORS === 'true' ? [
     'http://localhost:8081',
     'http://localhost:8098',
 ] : [];
-const ALLOWED_ORIGINS = [...PROD_ORIGINS, ...DEV_ORIGINS];
+const ALLOWED_ORIGINS_SET = new Set([...PROD_ORIGINS, ...DEV_ORIGINS]);
+
+const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+};
 
 function getCorsHeaders(event) {
     const origin = event?.headers?.origin || event?.headers?.Origin || '';
-    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+    const allowedOrigin = ALLOWED_ORIGINS_SET.has(origin) ? origin : PROD_ORIGINS[0];
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -359,15 +366,15 @@ function getCorsHeaders(event) {
 let CORS_HEADERS = {};
 
 function ok(body) {
-    return { statusCode: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    return { statusCode: 200, headers: { ...CORS_HEADERS, ...SECURITY_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 function created(body) {
-    return { statusCode: 201, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    return { statusCode: 201, headers: { ...CORS_HEADERS, ...SECURITY_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 function error(statusCode, message) {
-    return { statusCode, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: message }) };
+    return { statusCode, headers: { ...CORS_HEADERS, ...SECURITY_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: message }) };
 }
 
 // ==============================================
@@ -636,9 +643,18 @@ exports.handler = async (event) => {
             // Always use authenticated user's own profile
             const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found');
+            // Validate taste values are in 1-5 range
+            const clamp = (v, min, max) => Math.max(min, Math.min(max, parseInt(v) || min));
+            const bitterness = clamp(body.bitterness, 1, 5);
+            const acidity = clamp(body.acidity, 1, 5);
+            const bodyVal = clamp(body.body, 1, 5);
+            const flavour = clamp(body.flavour, 1, 5);
+            const name = String(body.name || '').slice(0, 100);
+            const roastLevel = String(body.roast_level || '').slice(0, 50);
+            const grindType = String(body.grind_type || '').slice(0, 50);
             const rows = await query(
                 'INSERT INTO taste_profiles (user_id, name, bitterness, acidity, body, flavour, roast_level, grind_type) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-                [profileId, body.name, body.bitterness, body.acidity, body.body, body.flavour, body.roast_level, body.grind_type]
+                [profileId, name, bitterness, acidity, bodyVal, flavour, roastLevel, grindType]
             );
             return created(rows[0]);
         }
@@ -695,9 +711,6 @@ exports.handler = async (event) => {
             const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
-            // Ensure razorpay_order_id column exists
-            await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(255)`).catch(() => {});
-
             // SECURITY: Validate items and calculate total server-side
             const items = body.items || [];
             if (!items.length) return error(400, 'Order must have at least one item');
@@ -747,6 +760,14 @@ exports.handler = async (event) => {
 
             // Sanity check: total must be reasonable
             if (serverTotal <= 0 || serverTotal > 100000) return error(400, 'Invalid order total');
+
+            // Sanitize shipping address fields (max 200 chars each)
+            const addr = body.shipping_address;
+            if (typeof addr === 'object' && addr !== null) {
+                for (const key of Object.keys(addr)) {
+                    if (typeof addr[key] === 'string') addr[key] = addr[key].slice(0, 200);
+                }
+            }
 
             const paymentMethod = ['cod', 'razorpay'].includes(body.payment_method) ? body.payment_method : 'cod';
             const paymentStatus = 'pending';
@@ -922,19 +943,6 @@ exports.handler = async (event) => {
             // Always use authenticated user's own profile
             const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found');
-            // Ensure reviews table has needed columns
-            await query(`CREATE TABLE IF NOT EXISTS reviews (
-                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                user_id UUID REFERENCES profiles(id),
-                order_id UUID,
-                rating INTEGER NOT NULL DEFAULT 5,
-                comment TEXT,
-                user_name TEXT,
-                is_approved BOOLEAN DEFAULT false,
-                created_at TIMESTAMPTZ DEFAULT now()
-            )`).catch(() => { });
-            await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS user_name TEXT').catch(() => { });
-            await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT false').catch(() => { });
 
             // Validate inputs
             const rating = Math.max(1, Math.min(5, parseInt(body.rating) || 5));
@@ -1040,6 +1048,10 @@ exports.handler = async (event) => {
 
             // PUT /admin/orders/:id/status
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/status$/)) {
+                const VALID_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+                if (!body.status || !VALID_STATUSES.includes(body.status)) {
+                    return error(400, `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`);
+                }
                 const id = path.split('/')[3];
                 console.log('Updating order status:', id, '->', body.status);
                 const rows = await query('UPDATE orders SET status = $1 WHERE id::text = $2 RETURNING *', [body.status, id]);
@@ -1070,9 +1082,6 @@ exports.handler = async (event) => {
             if (method === 'PUT' && path.match(/^\/admin\/orders\/[\w-]+\/cancel$/)) {
                 const id = path.split('/')[3];
                 console.log('Cancelling order:', id, 'reason:', body.reason);
-                // Ensure cancel columns exist
-                await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT`).catch(() => { });
-                await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ`).catch(() => { });
                 const rows = await query(
                     'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_at = NOW() WHERE id::text = $3 RETURNING *',
                     ['cancelled', body.reason, id]
@@ -1134,7 +1143,6 @@ exports.handler = async (event) => {
             // PUT /admin/reviews/:id (approve/unapprove)
             if (method === 'PUT' && path.match(/^\/admin\/reviews\/[\w-]+$/)) {
                 const id = path.split('/')[3];
-                await query('ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT false').catch(() => { });
                 const rows = await query(
                     'UPDATE reviews SET is_approved = $1 WHERE id::text = $2 RETURNING *',
                     [body.is_approved !== false, id]
@@ -1332,21 +1340,6 @@ exports.handler = async (event) => {
 
             // GET /admin/offers
             if (method === 'GET' && path === '/admin/offers') {
-                await query(`
-                    CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )
-                `);
                 const rows = await query('SELECT * FROM offers ORDER BY created_at DESC');
                 return ok(rows);
             }
@@ -1354,21 +1347,6 @@ exports.handler = async (event) => {
             // POST /admin/offers
             if (method === 'POST' && path === '/admin/offers') {
                 console.log('Creating offer:', body.code, body.type, body.value);
-                await query(`
-                    CREATE TABLE IF NOT EXISTS offers (
-                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                        code VARCHAR(50) UNIQUE NOT NULL,
-                        description TEXT,
-                        type VARCHAR(20) NOT NULL DEFAULT 'percentage',
-                        value NUMERIC(10,2) NOT NULL DEFAULT 0,
-                        min_order NUMERIC(10,2) DEFAULT 0,
-                        max_uses INTEGER DEFAULT 0,
-                        used_count INTEGER DEFAULT 0,
-                        is_active BOOLEAN DEFAULT true,
-                        expires_at TIMESTAMPTZ,
-                        created_at TIMESTAMPTZ DEFAULT now()
-                    )
-                `);
                 const rows = await query(
                     'INSERT INTO offers (code, description, type, value, min_order, max_uses, is_active, expires_at) VALUES ($1, $2, $3, $4::NUMERIC, $5::NUMERIC, $6, $7, $8::TIMESTAMPTZ) RETURNING *',
                     [body.code?.toUpperCase(), body.description || '', body.type || 'percentage', String(body.value || 0), String(body.min_order || 0), body.max_uses || 0, body.is_active !== false, body.expires_at || null]
