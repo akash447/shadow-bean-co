@@ -489,8 +489,8 @@ exports.handler = async (event) => {
             return ok({ valid: true, type: offer.type, value: Number(offer.value), description: offer.description });
         }
 
-        // --- SHIPROCKET WEBHOOK (unauthenticated) ---
-        if (method === 'POST' && path === '/webhooks/shiprocket') {
+        // --- SHIPROCKET WEBHOOK (open access as required by Shiprocket) ---
+        if (method === 'POST' && (path === '/webhooks/shipping' || path === '/webhooks/shiprocket')) {
             console.log('Shiprocket webhook received:', JSON.stringify(body));
             try {
                 const srOrderId = body.order_id ? String(body.order_id) : null;
