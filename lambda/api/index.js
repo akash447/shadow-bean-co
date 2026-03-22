@@ -13,13 +13,11 @@
 
 const { RDSDataClient, ExecuteStatementCommand } = require('@aws-sdk/client-rds-data');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
-const { google } = require('googleapis');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-
-// NOTE: LambdaClient removed — was unused. Google OAuth secrets moved to Secrets Manager.
 
 // Configuration from environment
 const DB_CLUSTER_ARN = process.env.DB_CLUSTER_ARN;
@@ -34,25 +32,20 @@ const MASTER_ADMIN_EMAIL = 'akasingh.singh6@gmail.com';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
 const rds = new RDSDataClient({ region: REGION });
 const s3 = new S3Client({ region: REGION });
-const secretsManager = new SecretsManagerClient({ region: REGION });
 
-// Google OAuth secrets — loaded from Secrets Manager at runtime (cached per Lambda instance)
-const GOOGLE_OAUTH_SECRET_ARN = process.env.GOOGLE_OAUTH_SECRET_ARN || 'shadowbeanco/google-oauth';
-let _googleSecrets = null;
-async function getGoogleSecrets() {
-    if (_googleSecrets) return _googleSecrets;
-    try {
-        const resp = await secretsManager.send(new GetSecretValueCommand({ SecretId: GOOGLE_OAUTH_SECRET_ARN }));
-        _googleSecrets = JSON.parse(resp.SecretString);
-        return _googleSecrets;
-    } catch (err) {
-        console.error('Failed to load Google OAuth secrets from Secrets Manager:', err.message);
-        return {};
+// Razorpay config — loaded from environment variables
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+let _razorpayInstance = null;
+function getRazorpay() {
+    if (_razorpayInstance) return _razorpayInstance;
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        throw new Error('Razorpay credentials not configured');
     }
+    _razorpayInstance = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+    return _razorpayInstance;
 }
 
-// Other config
-const UPI_ID = process.env.UPI_ID || '8765280251@ybl';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'akasingh.singh6@gmail.com';
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_USER = process.env.SMTP_USER;
@@ -208,226 +201,8 @@ async function isAdmin(user) {
 }
 
 // ==============================================
-// UPI / GMAIL HELPERS
+// EMAIL HELPER
 // ==============================================
-
-async function getGmailClient() {
-    const secrets = await getGoogleSecrets();
-    const oauth2 = new google.auth.OAuth2(secrets.GOOGLE_CLIENT_ID, secrets.GOOGLE_CLIENT_SECRET);
-    oauth2.setCredentials({ refresh_token: secrets.GOOGLE_REFRESH_TOKEN });
-    return google.gmail({ version: 'v1', auth: oauth2 });
-}
-
-function parseHDFCEmail(subject, body) {
-    // HDFC bank credit alert format:
-    // "Dear Customer, Rs. 8.00 is successfully credited to your account **2678
-    //  by VPA 8765280251@amazonpay AKASH KUMAR SINGH on 23-02-26.
-    //  Your UPI transaction reference number is 642002462897."
-    const result = { amount: null, senderName: null, upiRef: null, receivedAt: null };
-
-    // Amount: "Rs. 799.00" or "Rs.799" or "INR 799.00"
-    const amtMatch = body.match(/Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
-    if (amtMatch) result.amount = parseFloat(amtMatch[1].replace(/,/g, ''));
-
-    // Sender: "by VPA 8765280251@amazonpay AKASH KUMAR SINGH on"
-    const senderMatch = body.match(/by\s+(?:VPA\s+)?(.+?)\s+on\s+\d/i);
-    if (senderMatch) result.senderName = senderMatch[1].trim();
-
-    // UPI Ref: "reference number is 642002462897" or "Ref No. 642002462897"
-    const refMatch = body.match(/(?:reference\s+number\s+is|Ref\.?\s*(?:No\.?\s*)?:?)\s*(\d{10,})/i);
-    if (refMatch) result.upiRef = refMatch[1];
-
-    // Date: "on 23-02-26" or "on 23-02-2026"
-    const dateMatch = body.match(/on\s+(\d{2}-\d{2}-\d{2,4})/i);
-    if (dateMatch) {
-        try {
-            const parts = dateMatch[1].split('-');
-            const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-            result.receivedAt = new Date(`${year}-${parts[1]}-${parts[0]}`).toISOString();
-        } catch { }
-    }
-
-    return result;
-}
-
-async function processGmailMessage(gmail, messageId) {
-    const msg = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
-    const headers = msg.data.payload?.headers || [];
-    const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
-    const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
-
-    // Only process HDFC bank alerts (from any hdfcbank domain)
-    if (!from.toLowerCase().includes('hdfcbank')) return null;
-
-    // Extract body text
-    let bodyText = '';
-    const parts = msg.data.payload?.parts || [];
-    if (parts.length) {
-        const textPart = parts.find(p => p.mimeType === 'text/plain') || parts[0];
-        bodyText = Buffer.from(textPart.body?.data || '', 'base64').toString('utf-8');
-    } else if (msg.data.payload?.body?.data) {
-        bodyText = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
-    }
-
-    console.log(`Processing HDFC credit alert: amount parsing from bodyLen=${bodyText.length}`);
-
-    const parsed = parseHDFCEmail(subject, bodyText);
-    console.log(`Parsed result: amount=${parsed.amount}, ref=${parsed.upiRef}, sender=${parsed.senderName}`);
-    if (!parsed.amount) {
-        // Try parsing amount from subject as fallback
-        const subjAmt = subject.match(/(?:Rs\.?|INR)\s*([\d,]+(?:\.\d{2})?)/i);
-        if (subjAmt) parsed.amount = parseFloat(subjAmt[1].replace(/,/g, ''));
-        console.log(`Subject parse fallback: amount=${parsed.amount}`);
-        if (!parsed.amount) return null;
-    }
-
-    // Ignore transactions above ₹2000 — these are personal, not order-related
-    if (parsed.amount > 2000) {
-        console.log(`Skipping high-value transaction: ₹${parsed.amount} (max ₹2000)`);
-        return null;
-    }
-
-    // Check duplicate — if already inserted but unmatched, retry auto-match
-    const existing = await query('SELECT id, status, amount FROM upi_payments WHERE gmail_message_id = $1', [messageId]);
-    if (existing.length) {
-        if (existing[0].status !== 'matched') {
-            console.log(`Retrying auto-match for existing upi_payment ${existing[0].id} amount=${existing[0].amount}`);
-            await autoMatchPayment(existing[0].id, parseFloat(existing[0].amount), parsed.upiRef);
-        }
-        return existing[0];
-    }
-
-    // Insert into upi_payments (don't store raw email body for privacy)
-    const rows = await query(
-        `INSERT INTO upi_payments (gmail_message_id, sender_name, upi_ref, amount, received_at, raw_subject, raw_body)
-         VALUES ($1, $2, $3, $4::NUMERIC, $5::TIMESTAMPTZ, $6, $7) RETURNING *`,
-        [messageId, parsed.senderName, parsed.upiRef, String(parsed.amount),
-         parsed.receivedAt || new Date().toISOString(), 'HDFC Credit Alert', null]
-    );
-
-    if (rows.length) {
-        await autoMatchPayment(rows[0].id, parsed.amount, parsed.upiRef);
-    }
-
-    return rows[0] || null;
-}
-
-// Throttle: track last Gmail check time per Lambda instance
-let lastGmailCheckTime = 0;
-const GMAIL_CHECK_INTERVAL_MS = 3000; // check Gmail at most every 3 seconds
-
-async function checkGmailForPendingPayments(force = false) {
-    const now = Date.now();
-    if (!force && now - lastGmailCheckTime < GMAIL_CHECK_INTERVAL_MS) return; // throttled
-    lastGmailCheckTime = now;
-
-    const secrets = await getGoogleSecrets();
-    if (!secrets.GOOGLE_CLIENT_ID || !secrets.GOOGLE_CLIENT_SECRET || !secrets.GOOGLE_REFRESH_TOKEN) {
-        console.log('Gmail OAuth not configured in Secrets Manager, skipping check');
-        return;
-    }
-
-    // PRIVACY: Only hit Gmail API if there are actually pending UPI orders
-    const pendingOrders = await query(
-        `SELECT id FROM orders WHERE payment_method = 'upi' AND payment_status = 'pending'
-         AND created_at > NOW() - INTERVAL '2 hours' LIMIT 1`
-    );
-    if (!pendingOrders.length) {
-        console.log('No pending UPI orders, skipping Gmail check');
-        return;
-    }
-
-    try {
-        const gmail = await getGmailClient();
-
-        // Search ONLY for HDFC bank credit alerts (not personal emails)
-        // Two queries for better coverage — subject-based and body-based
-        const searches = [
-            'from:hdfcbank subject:"Account update" newer_than:2h',
-            'from:hdfcbank "credited" newer_than:2h',
-        ];
-
-        const seenIds = new Set();
-        for (const q of searches) {
-            try {
-                const res = await gmail.users.messages.list({ userId: 'me', q, maxResults: 10 });
-                const messages = res.data.messages || [];
-                console.log(`Gmail search "${q}": found ${messages.length} emails`);
-                for (const m of messages) {
-                    if (!seenIds.has(m.id)) {
-                        seenIds.add(m.id);
-                        await processGmailMessage(gmail, m.id);
-                    }
-                }
-            } catch (searchErr) {
-                console.error(`Gmail search error:`, searchErr.message);
-            }
-        }
-    } catch (err) {
-        console.error('Gmail on-demand check error:', err.message);
-    }
-}
-
-async function autoMatchPayment(upiPaymentId, amount, upiRef) {
-    // Find pending UPI orders with matching amount, created within last 24h
-    console.log(`Auto-matching: looking for pending UPI orders with amount=${amount}`);
-    const candidates = await query(
-        `SELECT id, total_amount FROM orders
-         WHERE payment_method = 'upi' AND payment_status = 'pending'
-         AND total_amount = $1::NUMERIC AND created_at > NOW() - INTERVAL '24 hours'
-         ORDER BY created_at DESC`,
-        [String(amount)]
-    );
-    console.log(`Auto-match candidates: ${candidates.length} orders found`);
-
-    if (candidates.length >= 1) {
-        // Match to the most recent pending order (sorted by created_at DESC)
-        const orderId = candidates[0].id;
-        console.log(`Matching to most recent pending order: ${orderId} (out of ${candidates.length} candidates)`);
-        await query(
-            `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
-            [orderId, upiPaymentId]
-        );
-        await query(
-            `UPDATE orders SET payment_status = 'detected', status = 'confirmed', upi_ref_number = $1 WHERE id = $2::uuid`,
-            [upiRef, orderId]
-        );
-        console.log(`Auto-matched UPI payment ${upiPaymentId} to order ${orderId} — order auto-confirmed`);
-
-        // Send notifications
-        try {
-            const orderRows = await query(
-                `SELECT o.*, p.email as user_email, p.full_name as user_name
-                 FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
-                 WHERE o.id = $1::uuid`, [orderId]
-            );
-            if (orderRows.length) {
-                const order = orderRows[0];
-                await sendEmail(ADMIN_EMAIL, 'UPI Payment Detected',
-                    `<h3>UPI payment auto-matched</h3>
-                     <p>Amount: ₹${amount}</p>
-                     <p>Order: ${orderId}</p>
-                     <p>Customer: ${order.user_name} (${order.user_email})</p>
-                     <p>UPI Ref: ${upiRef || 'N/A'}</p>`
-                );
-                if (order.user_email) {
-                    await sendEmail(order.user_email, 'Payment Received - Shadow Bean Co',
-                        `<h3>We received your payment!</h3>
-                         <p>Your UPI payment of ₹${amount} for order ${orderId.slice(0, 8)} has been detected.</p>
-                         <p>We'll confirm it shortly.</p>`
-                    );
-                }
-            }
-        } catch (emailErr) {
-            console.error('Notification email error:', emailErr);
-        }
-
-        return true;
-    }
-
-    console.log(`No unique auto-match for amount ₹${amount} (${candidates.length} candidates)`);
-    return false;
-}
 
 async function sendEmail(to, subject, html) {
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
@@ -442,21 +217,6 @@ async function sendEmail(to, subject, html) {
         from: `"Shadow Bean Co" <${SMTP_USER}>`,
         to, subject, html,
     });
-}
-
-async function ensureUpiTables() {
-    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(10) DEFAULT 'cod'`).catch(() => {});
-    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'pending'`).catch(() => {});
-    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS upi_ref_number VARCHAR(100)`).catch(() => {});
-    await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gmail_message_id VARCHAR(255)`).catch(() => {});
-    await query(`CREATE TABLE IF NOT EXISTS upi_payments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        gmail_message_id VARCHAR(255) UNIQUE,
-        sender_name TEXT, upi_ref VARCHAR(100), amount DECIMAL(10,2),
-        received_at TIMESTAMPTZ, status VARCHAR(20) DEFAULT 'unmatched',
-        matched_order_id UUID, raw_subject TEXT, raw_body TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-    )`).catch(() => {});
 }
 
 // ==============================================
@@ -508,20 +268,6 @@ function error(statusCode, message) {
 // ==============================================
 
 exports.handler = async (event) => {
-    // Internal async event: Gmail check (fired by self-invocation)
-    // Only allow internal events from Lambda self-invocation (no httpMethod = not from API Gateway)
-    // Also verify webhook token from Secrets Manager
-    if (event.__internal === 'check-gmail' && !event.httpMethod && !event.requestContext?.http) {
-        const secrets = await getGoogleSecrets();
-        if (event.__token !== secrets.WEBHOOK_TOKEN) {
-            console.warn('Internal event rejected: invalid token');
-            return { statusCode: 403, body: 'forbidden' };
-        }
-        console.log('Async Gmail check triggered (token verified)');
-        await checkGmailForPendingPayments();
-        return { statusCode: 200, body: 'done' };
-    }
-
     // Set CORS headers per-request
     CORS_HEADERS = getCorsHeaders(event);
 
@@ -765,7 +511,8 @@ exports.handler = async (event) => {
             const profileId = await resolveOwnProfileId(user);
             if (!profileId) return error(400, 'User profile not found. Please ensure your profile is set up.');
 
-            await ensureUpiTables();
+            // Ensure razorpay_order_id column exists
+            await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(255)`).catch(() => {});
 
             // SECURITY: Validate items and calculate total server-side
             const items = body.items || [];
@@ -794,13 +541,24 @@ exports.handler = async (event) => {
             // Sanity check: total must be reasonable
             if (serverTotal <= 0 || serverTotal > 100000) return error(400, 'Invalid order total');
 
-            const paymentMethod = ['cod', 'upi'].includes(body.payment_method) ? body.payment_method : 'cod';
+            const paymentMethod = ['cod', 'razorpay'].includes(body.payment_method) ? body.payment_method : 'cod';
             const paymentStatus = 'pending';
-            const razorpayId = paymentMethod === 'upi' ? null : ('COD-' + Date.now());
+
+            // Create Razorpay order if payment method is razorpay
+            let razorpayOrderId = null;
+            if (paymentMethod === 'razorpay') {
+                const rzp = getRazorpay();
+                const rzpOrder = await rzp.orders.create({
+                    amount: serverTotal * 100, // Razorpay expects paise
+                    currency: 'INR',
+                    receipt: `order_${Date.now()}`,
+                });
+                razorpayOrderId = rzpOrder.id;
+            }
 
             const orderRows = await query(
-                'INSERT INTO orders (user_id, status, total_amount, razorpay_payment_id, shipping_address, payment_method, payment_status) VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7) RETURNING *',
-                [profileId, 'pending', serverTotal, razorpayId, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus]
+                'INSERT INTO orders (user_id, status, total_amount, shipping_address, payment_method, payment_status, razorpay_order_id) VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6, $7) RETURNING *',
+                [profileId, 'pending', serverTotal, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus, razorpayOrderId]
             );
             const order = orderRows[0];
 
@@ -822,46 +580,90 @@ exports.handler = async (event) => {
             return created(order);
         }
 
-        // GET /orders/:id/payment-status — DB read only, no Gmail scan (privacy)
+        // GET /orders/:id/payment-status
         if (method === 'GET' && path.match(/^\/orders\/[\w-]+\/payment-status$/)) {
             const id = path.split('/')[2];
-            await ensureUpiTables();
             const ownProfileId = await resolveOwnProfileId(user);
             const rows = await query(
-                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                'SELECT payment_status, payment_method, razorpay_payment_id FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
                 [id, ownProfileId]
             );
             if (!rows.length) return error(404, 'Order not found');
             return ok(rows[0]);
         }
 
-        // POST /orders/:id/verify-payment — user-triggered, checks Gmail once for this order
+        // POST /orders/:id/verify-payment — Razorpay signature verification
         if (method === 'POST' && path.match(/^\/orders\/[\w-]+\/verify-payment$/)) {
             const id = path.split('/')[2];
-            await ensureUpiTables();
             const ownProfileId = await resolveOwnProfileId(user);
             const rows = await query(
-                'SELECT payment_status, payment_method, total_amount FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
+                'SELECT payment_status, payment_method, total_amount, razorpay_order_id FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
                 [id, ownProfileId]
             );
             if (!rows.length) return error(404, 'Order not found');
-            if (rows[0].payment_method !== 'upi') return error(400, 'Not a UPI order');
+            if (rows[0].payment_method !== 'razorpay') return error(400, 'Not a Razorpay order');
 
-            // Already detected/confirmed — return immediately
-            if (rows[0].payment_status === 'detected' || rows[0].payment_status === 'confirmed') {
-                return ok({ payment_status: rows[0].payment_status, verified: true });
+            // Already paid — return immediately
+            if (rows[0].payment_status === 'paid') {
+                return ok({ payment_status: 'paid', verified: true });
             }
 
-            // Trigger a single Gmail check (force bypass throttle)
-            await checkGmailForPendingPayments(true);
+            const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = body;
+            if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+                return error(400, 'Missing Razorpay payment details');
+            }
 
-            // Re-fetch to see if it was matched
-            const updated = await query(
-                'SELECT payment_status, payment_method, upi_ref_number FROM orders WHERE id::text = $1 AND user_id = $2::uuid',
-                [id, ownProfileId]
+            // Verify that the order_id matches what we have in DB
+            if (razorpay_order_id !== rows[0].razorpay_order_id) {
+                return error(400, 'Razorpay order ID mismatch');
+            }
+
+            // HMAC SHA256 signature verification
+            const expectedSignature = crypto
+                .createHmac('sha256', RAZORPAY_KEY_SECRET)
+                .update(razorpay_order_id + '|' + razorpay_payment_id)
+                .digest('hex');
+
+            if (expectedSignature !== razorpay_signature) {
+                return error(400, 'Payment verification failed — invalid signature');
+            }
+
+            // Signature valid — update order
+            await query(
+                `UPDATE orders SET payment_status = 'paid', status = 'confirmed', razorpay_payment_id = $1 WHERE id::text = $2`,
+                [razorpay_payment_id, id]
             );
-            const status = updated.length ? updated[0].payment_status : 'pending';
-            return ok({ payment_status: status, verified: status === 'detected' || status === 'confirmed' });
+
+            // Send confirmation emails
+            try {
+                const orderRows = await query(
+                    `SELECT o.*, p.email as user_email, p.full_name as user_name
+                     FROM orders o LEFT JOIN profiles p ON o.user_id = p.id
+                     WHERE o.id::text = $1`, [id]
+                );
+                if (orderRows.length) {
+                    const order = orderRows[0];
+                    await sendEmail(ADMIN_EMAIL, 'New Order Confirmed - Shadow Bean Co',
+                        `<h3>New order confirmed via Razorpay</h3>
+                         <p>Amount: ₹${order.total_amount}</p>
+                         <p>Order: ${id}</p>
+                         <p>Customer: ${order.user_name} (${order.user_email})</p>
+                         <p>Payment ID: ${razorpay_payment_id}</p>`
+                    );
+                    if (order.user_email) {
+                        await sendEmail(order.user_email, 'Order Confirmed - Shadow Bean Co',
+                            `<h3>Your order is confirmed!</h3>
+                             <p>Hi ${order.user_name || ''},</p>
+                             <p>Your payment of ₹${order.total_amount} for order ${id.slice(0, 8)} has been confirmed.</p>
+                             <p>We'll start preparing your custom blend right away!</p>`
+                        );
+                    }
+                }
+            } catch (emailErr) {
+                console.error('Confirmation email error:', emailErr);
+            }
+
+            return ok({ payment_status: 'paid', verified: true });
         }
 
         // POST /reviews
@@ -1009,116 +811,6 @@ exports.handler = async (event) => {
                 if (!rows.length) return error(404, 'Order not found');
                 console.log('Order cancelled:', rows[0].id);
                 return ok(rows[0]);
-            }
-
-            // --- UPI PAYMENT MANAGEMENT ---
-
-            // GET /admin/upi-payments
-            if (method === 'GET' && path === '/admin/upi-payments') {
-                await ensureUpiTables();
-                const statusFilter = qs.status;
-                let sql = 'SELECT * FROM upi_payments';
-                const params = [];
-                if (statusFilter && statusFilter !== 'all') {
-                    sql += ' WHERE status = $1';
-                    params.push(statusFilter);
-                }
-                sql += ' ORDER BY created_at DESC';
-                const rows = await query(sql, params);
-                return ok(rows);
-            }
-
-            // PUT /admin/upi-payments/:id/match
-            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/match$/)) {
-                await ensureUpiTables();
-                const id = path.split('/')[3];
-                const orderId = body.order_id;
-                if (!orderId) return error(400, 'order_id required');
-
-                await query(
-                    `UPDATE upi_payments SET status = 'matched', matched_order_id = $1::uuid WHERE id = $2::uuid`,
-                    [orderId, id]
-                );
-
-                // Get the UPI ref to store on the order
-                const upiRows = await query('SELECT upi_ref, amount FROM upi_payments WHERE id = $1::uuid', [id]);
-                const upiRef = upiRows[0]?.upi_ref || null;
-
-                await query(
-                    `UPDATE orders SET payment_status = 'detected', upi_ref_number = $1, gmail_message_id = (SELECT gmail_message_id FROM upi_payments WHERE id = $2::uuid) WHERE id = $3::uuid`,
-                    [upiRef, id, orderId]
-                );
-
-                return ok({ matched: true });
-            }
-
-            // PUT /admin/upi-payments/:id/confirm
-            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/confirm$/)) {
-                await ensureUpiTables();
-                const id = path.split('/')[3];
-
-                const upiRows = await query('SELECT matched_order_id, amount FROM upi_payments WHERE id = $1::uuid', [id]);
-                if (!upiRows.length) return error(404, 'UPI payment not found');
-                const orderId = upiRows[0].matched_order_id;
-
-                await query(`UPDATE upi_payments SET status = 'confirmed' WHERE id = $1::uuid`, [id]);
-
-                if (orderId) {
-                    await query(`UPDATE orders SET payment_status = 'confirmed' WHERE id = $1::uuid`, [orderId]);
-
-                    // Notify customer
-                    try {
-                        const orderRows = await query(
-                            `SELECT o.total_amount, p.email, p.full_name FROM orders o
-                             LEFT JOIN profiles p ON o.user_id = p.id WHERE o.id = $1::uuid`, [orderId]
-                        );
-                        if (orderRows.length && orderRows[0].email) {
-                            await sendEmail(orderRows[0].email, 'Payment Confirmed - Shadow Bean Co',
-                                `<h3>Your payment is confirmed!</h3>
-                                 <p>Hi ${orderRows[0].full_name || ''},</p>
-                                 <p>Your UPI payment of ₹${orderRows[0].total_amount} has been confirmed. We're processing your order now!</p>`
-                            );
-                        }
-                    } catch (e) { console.error('Confirm email error:', e); }
-                }
-
-                return ok({ confirmed: true });
-            }
-
-            // PUT /admin/upi-payments/:id/ignore
-            if (method === 'PUT' && path.match(/^\/admin\/upi-payments\/[\w-]+\/ignore$/)) {
-                await ensureUpiTables();
-                const id = path.split('/')[3];
-                await query(`UPDATE upi_payments SET status = 'ignored' WHERE id = $1::uuid`, [id]);
-                return ok({ ignored: true });
-            }
-
-            // POST /admin/upi-payments/check-gmail - manually trigger Gmail check
-            if (method === 'POST' && path === '/admin/upi-payments/check-gmail') {
-                await ensureUpiTables();
-                const secrets = await getGoogleSecrets();
-                if (!secrets.GOOGLE_CLIENT_ID || !secrets.GOOGLE_CLIENT_SECRET || !secrets.GOOGLE_REFRESH_TOKEN) {
-                    return error(400, 'Gmail OAuth not configured in Secrets Manager');
-                }
-                try {
-                    const gmail = await getGmailClient();
-                    const hoursBack = parseInt(qs.hours || '2', 10);
-                    const res = await gmail.users.messages.list({
-                        userId: 'me',
-                        q: `from:hdfcbank subject:"Account update" newer_than:${hoursBack}h`,
-                        maxResults: 20,
-                    });
-                    const messages = res.data.messages || [];
-                    let processed = 0;
-                    for (const m of messages) {
-                        const result = await processGmailMessage(gmail, m.id);
-                        if (result) processed++;
-                    }
-                    return ok({ checked: messages.length, processed });
-                } catch (err) {
-                    console.error('Admin Gmail check error:', err);
-                    return error(500, 'Gmail check failed: ' + err.message);
-                }
             }
 
             // GET /admin/profiles

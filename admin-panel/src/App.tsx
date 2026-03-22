@@ -15,7 +15,6 @@ import { ProductsPage } from './pages/ProductsPage';
 import { MediaPage } from './pages/MediaPage';
 import { AccessPage } from './pages/AccessPage';
 import { OffersPage } from './pages/OffersPage';
-import { UPIPaymentsPage } from './pages/UPIPaymentsPage';
 import { getSession, isGoogleRedirecting, handleOAuthCallback } from './lib/admin-api';
 import './index.css';
 
@@ -183,7 +182,6 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/upi-payments" element={<UPIPaymentsPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/reviews" element={<ReviewsPage />} />
               <Route path="/pricing" element={<PricingPage />} />

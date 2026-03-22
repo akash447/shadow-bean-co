@@ -14,7 +14,6 @@ import {
     Package,
     Shield,
     Tag,
-    Banknote
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -39,7 +38,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/users', icon: Users, label: 'Users' },
         { path: '/orders', icon: ShoppingCart, label: 'Orders' },
-        { path: '/upi-payments', icon: Banknote, label: 'UPI Payments' },
         { path: '/products', icon: Package, label: 'Products' },
         { path: '/reviews', icon: Star, label: 'Reviews' },
         { path: '/pricing', icon: DollarSign, label: 'Pricing' },

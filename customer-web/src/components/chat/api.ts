@@ -68,7 +68,7 @@ const BRAND_QS = ['brand', 'company', 'shadow bean', 'who are you', 'about you',
 const PROCESS_QS = ['salt-air', 'salt air', 'roasting process', 'shade grown', 'shade-grown', 'how do you roast', 'how is it made', 'process', 'how is it roasted', 'roast method', 'technique', 'how you make'];
 const PRICE_QS = ['price', 'cost', 'how much', 'expensive', 'cheap', 'rupee', 'pricing', 'rate', 'afford', 'budget', 'worth', 'value'];
 const SHIPPING_QS = ['shipping', 'delivery', 'deliver', 'ship', 'how long', 'when will', 'dispatch', 'tracking', 'transit', 'arrive', 'eta'];
-const PAYMENT_QS = ['payment method', 'upi', 'cod', 'cash on delivery', 'qr code', 'payment', 'pay', 'gpay', 'paytm', 'phonepe', 'credit card', 'debit card', 'card payment', 'online payment'];
+const PAYMENT_QS = ['payment method', 'upi', 'cod', 'cash on delivery', 'razorpay', 'payment', 'pay', 'gpay', 'paytm', 'phonepe', 'credit card', 'debit card', 'card payment', 'online payment', 'netbanking', 'wallet'];
 const CONTACT_QS = ['contact', 'support', 'email', 'reach out', 'talk to someone', 'call', 'phone', 'help me', 'customer service', 'complaint', 'issue'];
 const THANKS = ['thank', 'thanks', 'thx', 'ty', 'appreciate', 'grateful'];
 const GREETINGS = ['hi', 'hello', 'hey', 'hola', 'sup', 'yo', 'good morning', 'good evening', 'good afternoon', 'howdy'];
@@ -137,7 +137,7 @@ function getIntentResponse(intentName: string): BotResponse | null {
         case 'shipping':
             return { message: "Free shipping across India! Orders typically arrive in 5-7 business days, freshly roasted and packed.", chips: ['I want to order', 'What payment methods?'], card: null };
         case 'payment':
-            return { message: "We accept UPI and Cash on Delivery. For UPI, you'll see a QR code at checkout — scan with any UPI app and we auto-detect your payment!", chips: ['I want to order', 'Tell me more'], card: null };
+            return { message: "We accept all major payment methods through Razorpay — UPI, credit/debit cards, netbanking, and wallets. We also offer Cash on Delivery!", chips: ['I want to order', 'Tell me more'], card: null };
         case 'contact':
             return { message: "Reach us at contact@shadowbeanco.com — we usually reply within a few hours!", chips: ['I want to order', 'Tell me about the brand'], card: null };
         case 'thanks':
