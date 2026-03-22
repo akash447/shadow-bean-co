@@ -489,6 +489,83 @@ exports.handler = async (event) => {
             return ok({ valid: true, type: offer.type, value: Number(offer.value), description: offer.description });
         }
 
+        // --- SHIPROCKET WEBHOOK (unauthenticated) ---
+        if (method === 'POST' && path === '/webhooks/shiprocket') {
+            console.log('Shiprocket webhook received:', JSON.stringify(body));
+            try {
+                const srOrderId = body.order_id ? String(body.order_id) : null;
+                const srStatus = (body.current_status || '').toLowerCase();
+                const awb = body.awb || '';
+                const courierName = body.courier_name || '';
+                const trackingUrl = body.tracking_url || '';
+                const etd = body.etd || '';
+
+                if (!srOrderId) return ok({ received: true, message: 'No order_id' });
+
+                // Map Shiprocket status to our status
+                let newStatus = null;
+                if (['new', 'pickup scheduled', 'pickup queued', 'pickup generated'].includes(srStatus)) {
+                    newStatus = 'processing';
+                } else if (['picked up', 'in transit', 'out for delivery', 'shipped'].includes(srStatus)) {
+                    newStatus = 'shipped';
+                } else if (['delivered'].includes(srStatus)) {
+                    newStatus = 'delivered';
+                } else if (['cancelled', 'rto initiated', 'rto delivered'].includes(srStatus)) {
+                    // Don't auto-cancel — just log
+                    console.log(`Shiprocket status ${srStatus} for order ${srOrderId} — not auto-updating`);
+                }
+
+                // Find order by shiprocket_order_id
+                const rows = await query(
+                    'SELECT id, status FROM orders WHERE shiprocket_order_id = $1',
+                    [srOrderId]
+                );
+                if (!rows.length) {
+                    console.log('No order found for shiprocket_order_id:', srOrderId);
+                    return ok({ received: true, message: 'Order not found' });
+                }
+
+                const order = rows[0];
+                const updates = [];
+                const params = [];
+                let paramIdx = 1;
+
+                if (trackingUrl) {
+                    updates.push(`tracking_url = $${paramIdx++}`);
+                    params.push(trackingUrl);
+                }
+                if (awb) {
+                    // Store AWB in a metadata-style approach via tracking_url if no dedicated column
+                    // We'll store courier + AWB info
+                }
+
+                if (newStatus && newStatus !== order.status) {
+                    // Don't downgrade status (e.g., don't go from shipped back to processing)
+                    const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+                    const currentIdx = statusOrder.indexOf(order.status);
+                    const newIdx = statusOrder.indexOf(newStatus);
+                    if (newIdx > currentIdx) {
+                        updates.push(`status = $${paramIdx++}`);
+                        params.push(newStatus);
+                    }
+                }
+
+                if (updates.length > 0) {
+                    params.push(order.id);
+                    await query(
+                        `UPDATE orders SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIdx}::uuid`,
+                        params
+                    );
+                    console.log(`Updated order ${order.id}: ${updates.join(', ')}`);
+                }
+
+                return ok({ received: true, order_id: order.id, updated: updates.length > 0 });
+            } catch (webhookErr) {
+                console.error('Shiprocket webhook error:', webhookErr);
+                return ok({ received: true, error: webhookErr.message });
+            }
+        }
+
         // --- AUTHENTICATED ROUTES ---
 
         const user = await verifyToken(event);

@@ -266,6 +266,11 @@ export async function getPaymentStatus(orderId: string): Promise<{ payment_statu
     return data;
 }
 
+export async function getOrderTracking(orderId: string): Promise<{ tracking: any; tracking_url?: string; message?: string }> {
+    const { data } = await api.get(`/orders/${orderId}/tracking`);
+    return data;
+}
+
 export async function verifyRazorpayPayment(orderId: string, params: {
     razorpay_payment_id: string;
     razorpay_order_id: string;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import { getOrders, getTasteProfiles, getMyReviews, createReview, getAddresses, createAddress, deleteAddress, updateProfile } from '../services/api';
+import { getOrders, getTasteProfiles, getMyReviews, createReview, getAddresses, createAddress, deleteAddress, updateProfile, getOrderTracking } from '../services/api';
 import type { Order, TasteProfile as ApiTasteProfile, Review, Address } from '../services/api';
 import { useShopStore } from '../stores/shopStore';
 import Header from '../components/Header';
@@ -35,11 +35,17 @@ export default function ProfilePage() {
     const [savingName, setSavingName] = useState(false);
 
     // Review modal state
+    // Review modal state
     const [reviewModalOpen, setReviewModalOpen] = useState(false);
     const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewComment, setReviewComment] = useState('');
     const [submittingReview, setSubmittingReview] = useState(false);
+
+    // Tracking state
+    const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+    const [trackingData, setTrackingData] = useState<any>(null);
+    const [trackingLoading, setTrackingLoading] = useState(false);
 
     const dbUserId = profile?.id || user?.id;
 
@@ -138,6 +144,21 @@ export default function ProfilePage() {
     };
 
     const hasReviewedOrder = (orderId: string) => reviews.some(r => r.order_id === orderId);
+
+    const handleTrackOrder = async (orderId: string) => {
+        if (trackingOrderId === orderId) { setTrackingOrderId(null); setTrackingData(null); return; }
+        setTrackingOrderId(orderId);
+        setTrackingLoading(true);
+        setTrackingData(null);
+        try {
+            const data = await getOrderTracking(orderId);
+            setTrackingData(data);
+            // If tracking has a URL, open it
+            const url = data?.tracking?.track_url || data?.tracking_url;
+            if (url) window.open(url, '_blank');
+        } catch { setTrackingData({ error: true }); }
+        finally { setTrackingLoading(false); }
+    };
 
     const statusColor = (s: string) => {
         const map: Record<string, { bg: string; fg: string }> = {
@@ -267,6 +288,38 @@ export default function ProfilePage() {
                                                         {order.order_items.filter(Boolean).map((oi, idx) => (
                                                             <span key={idx} className="order-item-tag">{oi.taste_profile_name} ×{oi.quantity}</span>
                                                         ))}
+                                                    </div>
+                                                )}
+                                                {/* Track Order button for active orders */}
+                                                {['confirmed', 'processing', 'shipped'].includes(order.status) && (
+                                                    <button
+                                                        className="review-btn"
+                                                        onClick={() => handleTrackOrder(order.id)}
+                                                        style={{ background: '#dbeafe', color: '#2563eb', border: 'none', marginBottom: 4 }}
+                                                    >
+                                                        {trackingLoading && trackingOrderId === order.id ? 'Loading...' : 'Track Order'}
+                                                    </button>
+                                                )}
+                                                {/* Inline tracking info */}
+                                                {trackingOrderId === order.id && trackingData && !trackingLoading && (
+                                                    <div style={{ background: '#f0f7ff', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#333', marginBottom: 4 }}>
+                                                        {trackingData.tracking?.shipment_track?.[0] ? (() => {
+                                                            const t = trackingData.tracking.shipment_track[0];
+                                                            return (
+                                                                <>
+                                                                    <div><strong>Status:</strong> {t.current_status || 'Processing'}</div>
+                                                                    {t.courier_name && <div><strong>Courier:</strong> {t.courier_name}</div>}
+                                                                    {t.awb_code && <div><strong>AWB:</strong> {t.awb_code}</div>}
+                                                                    {t.edd && <div><strong>Est. Delivery:</strong> {new Date(t.edd).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>}
+                                                                </>
+                                                            );
+                                                        })() : trackingData.tracking?.track_url ? (
+                                                            <div>Tracking available — <a href={trackingData.tracking.track_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>View Details</a></div>
+                                                        ) : trackingData.message ? (
+                                                            <div>{trackingData.message}</div>
+                                                        ) : (
+                                                            <div>Tracking info will be available once shipped.</div>
+                                                        )}
                                                     </div>
                                                 )}
                                                 {order.status === 'delivered' && !hasReviewedOrder(order.id) && (

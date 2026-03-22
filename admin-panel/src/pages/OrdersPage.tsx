@@ -473,6 +473,40 @@ export const OrdersPage: React.FC = () => {
                                 )}
                             </div>
 
+                            {/* Shipping / Shiprocket */}
+                            {(orderDetail.shiprocket_order_id || orderDetail.shiprocket_shipment_id || orderDetail.tracking_url) && (
+                                <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e0d8', background: '#fff' }}>
+                                    <h4 style={{ margin: '0 0 12px', fontSize: 14, color: '#2c1810', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Package size={16} /> Shipping
+                                    </h4>
+                                    {orderDetail.shiprocket_order_id && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6, color: '#888' }}>
+                                            <span>Shiprocket Order</span>
+                                            <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                                                {orderDetail.shiprocket_order_id}
+                                            </code>
+                                        </div>
+                                    )}
+                                    {orderDetail.shiprocket_shipment_id && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6, color: '#888' }}>
+                                            <span>Shipment ID</span>
+                                            <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: 3 }}>
+                                                {orderDetail.shiprocket_shipment_id}
+                                            </code>
+                                        </div>
+                                    )}
+                                    {orderDetail.tracking_url && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888' }}>
+                                            <span>Tracking</span>
+                                            <a href={orderDetail.tracking_url} target="_blank" rel="noreferrer"
+                                                style={{ color: '#2563eb', textDecoration: 'underline', fontSize: 12 }}>
+                                                View Tracking
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Order Items */}
                             <div style={{ padding: '16px 24px', background: '#fff' }}>
                                 <h4 style={{ margin: '0 0 12px', fontSize: 14, color: '#2c1810', display: 'flex', alignItems: 'center', gap: 8 }}>
