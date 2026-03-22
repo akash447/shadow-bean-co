@@ -253,6 +253,7 @@ export async function createOrder(order: {
     user_id: string;
     total_amount: number;
     payment_method?: 'cod' | 'razorpay';
+    discount_code?: string;
     shipping_address: Record<string, any>;
     items: OrderItem[];
 }): Promise<Order> {

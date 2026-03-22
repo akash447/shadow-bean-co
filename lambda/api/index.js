@@ -538,6 +538,29 @@ exports.handler = async (event) => {
                 });
             }
 
+            // Apply discount/coupon if provided
+            let discountAmount = 0;
+            const discountCode = (body.discount_code || '').toUpperCase().trim();
+            if (discountCode) {
+                const offerRows = await query('SELECT * FROM offers WHERE code = $1 AND is_active = true', [discountCode]).catch(() => []);
+                if (offerRows.length) {
+                    const offer = offerRows[0];
+                    const notExpired = !offer.expires_at || new Date(offer.expires_at) > new Date();
+                    const notMaxed = !offer.max_uses || offer.used_count < offer.max_uses;
+                    const meetsMin = serverTotal >= Number(offer.min_order || 0);
+                    if (notExpired && notMaxed && meetsMin) {
+                        if (offer.type === 'percentage') {
+                            discountAmount = Math.round(serverTotal * Number(offer.value) / 100);
+                        } else {
+                            discountAmount = Math.min(Number(offer.value), serverTotal);
+                        }
+                        // Increment used_count
+                        await query('UPDATE offers SET used_count = used_count + 1 WHERE id = $1::uuid', [offer.id]).catch(() => {});
+                    }
+                }
+            }
+            serverTotal = Math.max(1, serverTotal - discountAmount); // min ₹1 for Razorpay
+
             // Sanity check: total must be reasonable
             if (serverTotal <= 0 || serverTotal > 100000) return error(400, 'Invalid order total');
 

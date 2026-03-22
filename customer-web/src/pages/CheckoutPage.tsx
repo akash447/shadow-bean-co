@@ -265,6 +265,7 @@ export default function CheckoutPage() {
             const order = await createOrder({
                 user_id: user.id, total_amount: total,
                 payment_method: 'razorpay',
+                discount_code: discount?.code,
                 shipping_address: addr,
                 items: items.map(it => ({
                     taste_profile_id: it.profile.id && /^[0-9a-f-]{36}$/i.test(it.profile.id) ? it.profile.id : undefined,
