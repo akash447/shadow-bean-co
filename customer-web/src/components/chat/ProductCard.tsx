@@ -1,6 +1,6 @@
 import type { ProductCardData } from './types';
 
-const PRODUCT_IMG = 'https://media.shadowbeanco.net/product_bag.png';
+const PRODUCT_IMG = 'https://media.shadowbeanco.net/product_bag.webp';
 
 interface Props {
     data: ProductCardData;

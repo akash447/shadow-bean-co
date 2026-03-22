@@ -534,7 +534,7 @@ export default function CheckoutPage() {
             <style>{`
                 @media(max-width:860px) {
                     .checkout-layout { flex-direction: column !important; }
-                    .checkout-summary-col { flex: 1 1 100% !important; position: static !important; }
+                    .checkout-summary-col { flex: 1 1 100% !important; position: static !important; order: -1 !important; }
                     .checkout-form-col { flex: 1 1 100% !important; }
                     .checkout-grid { grid-template-columns: 1fr !important; }
                 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import ChatPanel from './ChatPanel';
-import botMascot from '../../assets/icons/bot_mascot.png';
+import botMascot from '../../assets/icons/bot_mascot.webp';
 
 function useIsMobile() {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);

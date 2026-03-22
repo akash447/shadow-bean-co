@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore } from '../stores/cartStore';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsset } from '../contexts/AssetContext';
-import botMascot from '../assets/icons/bot_mascot.png';
+import botMascot from '../assets/icons/bot_mascot.webp';
 import './Header.css';
 
 // SVG Icons
