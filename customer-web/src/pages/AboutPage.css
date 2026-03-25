@@ -2,14 +2,14 @@
 /* OUTER: Scroll Snap Container    */
 /* ================================ */
 .about-outer {
-    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
     color: #1c0d02;
 }
 
 .about-scroll {
-    height: 100vh;
+    height: 100dvh;
     overflow-y: scroll;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
@@ -21,7 +21,7 @@
 
 /* Each block snaps */
 .about-block {
-    min-height: 100vh;
+    min-height: 100dvh;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     position: relative;
@@ -33,7 +33,7 @@
 .about-hero-block {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .about-hero {

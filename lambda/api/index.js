@@ -311,7 +311,7 @@ async function isAdmin(user) {
 // EMAIL HELPER
 // ==============================================
 
-async function sendEmail(to, subject, html) {
+async function sendEmail(to, subject, html, attachments) {
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
         console.log('SMTP not configured, skipping email to:', to, subject);
         return;
@@ -323,7 +323,110 @@ async function sendEmail(to, subject, html) {
     await transporter.sendMail({
         from: `"Shadow Bean Co" <${SMTP_USER}>`,
         to, subject, html,
+        ...(attachments ? { attachments } : {}),
     });
+}
+
+function generateInvoiceHTML(order, items, shippingAddr) {
+    const addr = typeof shippingAddr === 'string' ? JSON.parse(shippingAddr) : (shippingAddr || {});
+    const invoiceNo = `SBC-${(order.id || '').slice(0, 8).toUpperCase()}`;
+    const date = new Date(order.created_at || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const customerName = addr.fullName || addr.full_name || order.user_name || 'Customer';
+    const addrLine = [addr.addressLine1 || addr.address_line, addr.addressLine2, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ');
+
+    const itemRows = (items || []).map((it, i) => {
+        const name = it.taste_profile_name || `Custom Blend ${i + 1}`;
+        const qty = it.quantity || 1;
+        const price = parseFloat(it.unit_price || 599);
+        const total = qty * price;
+        return `<tr>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:14px;color:#333">${name}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:14px;color:#333;text-align:center">${qty}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:14px;color:#333;text-align:right">₹${price.toFixed(2)}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:14px;color:#333;text-align:right">₹${total.toFixed(2)}</td>
+        </tr>`;
+    }).join('');
+
+    const grandTotal = parseFloat(order.total_amount || 0);
+    const paymentId = order.razorpay_payment_id || 'N/A';
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f4f1ec">
+    <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08)">
+        <!-- Header -->
+        <div style="background:#4f5130;padding:28px 32px;text-align:center">
+            <h1 style="margin:0;color:#fff;font-size:22px;letter-spacing:3px;font-weight:700">SHADOW BEAN CO.</h1>
+            <p style="margin:6px 0 0;color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:2px">TAX INVOICE</p>
+        </div>
+
+        <!-- Invoice Info -->
+        <div style="padding:24px 32px;display:flex;justify-content:space-between;border-bottom:1px solid #eee">
+            <table width="100%"><tr>
+                <td style="vertical-align:top;padding-right:20px">
+                    <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px">Invoice No</p>
+                    <p style="margin:0;font-size:16px;font-weight:700;color:#1c0d02">${invoiceNo}</p>
+                </td>
+                <td style="vertical-align:top;text-align:right">
+                    <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px">Date</p>
+                    <p style="margin:0;font-size:14px;color:#333">${date}</p>
+                </td>
+            </tr></table>
+        </div>
+
+        <!-- Bill To -->
+        <div style="padding:20px 32px;border-bottom:1px solid #eee">
+            <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px">Bill To</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:#1c0d02">${customerName}</p>
+            ${addrLine ? `<p style="margin:4px 0 0;font-size:13px;color:#666">${addrLine}</p>` : ''}
+            ${addr.phone ? `<p style="margin:2px 0 0;font-size:13px;color:#666">Phone: ${addr.phone}</p>` : ''}
+        </div>
+
+        <!-- Items Table -->
+        <div style="padding:20px 32px">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+                <thead>
+                    <tr style="background:#f9f7f4">
+                        <th style="padding:10px 12px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:left;border-bottom:2px solid #eee">Item</th>
+                        <th style="padding:10px 12px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:center;border-bottom:2px solid #eee">Qty</th>
+                        <th style="padding:10px 12px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:right;border-bottom:2px solid #eee">Price</th>
+                        <th style="padding:10px 12px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:right;border-bottom:2px solid #eee">Total</th>
+                    </tr>
+                </thead>
+                <tbody>${itemRows}</tbody>
+            </table>
+        </div>
+
+        <!-- Totals -->
+        <div style="padding:0 32px 24px">
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td></td>
+                    <td style="width:200px">
+                        <div style="border-top:2px solid #4f5130;padding-top:12px">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr><td style="padding:4px 0;font-size:13px;color:#666">Subtotal</td><td style="text-align:right;font-size:13px;color:#333">₹${grandTotal.toFixed(2)}</td></tr>
+                                <tr><td style="padding:4px 0;font-size:13px;color:#666">Shipping</td><td style="text-align:right;font-size:13px;color:#4f5130;font-weight:600">FREE</td></tr>
+                                <tr><td style="padding:8px 0 0;font-size:18px;font-weight:800;color:#1c0d02">Grand Total</td><td style="text-align:right;padding:8px 0 0;font-size:18px;font-weight:800;color:#1c0d02">₹${grandTotal.toFixed(2)}</td></tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Payment Info -->
+        <div style="margin:0 32px 24px;background:#f0ece6;border-radius:8px;padding:14px 18px">
+            <p style="margin:0 0 4px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px">Payment</p>
+            <p style="margin:0;font-size:14px;color:#333"><strong>Status:</strong> Paid via Razorpay</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#666">Payment ID: ${paymentId}</p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#f9f7f4;padding:20px 32px;text-align:center;border-top:1px solid #eee">
+            <p style="margin:0;font-size:12px;color:#888">Thank you for choosing Shadow Bean Co!</p>
+            <p style="margin:4px 0 0;font-size:11px;color:#bbb">www.shadowbeanco.net | shadowbeanco@gmail.com</p>
+        </div>
+    </div>
+</body></html>`;
 }
 
 // ==============================================
@@ -426,20 +529,42 @@ exports.handler = async (event) => {
             return rows.length ? ok(rows[0]) : error(404, 'Product not found');
         }
 
-        // GET /reviews — public: one approved review per user (highest rated), for homepage
+        // GET /reviews — public: approved reviews for homepage
         if (method === 'GET' && path === '/reviews') {
-            const limit = parseInt(qs.limit || '10', 10);
+            const limit = parseInt(qs.limit || '50', 10);
+            const starFilter = qs.star ? parseInt(qs.star, 10) : null;
+
+            let whereClause = 'WHERE r.is_approved = true';
+            const params = [];
+            if (starFilter && starFilter >= 1 && starFilter <= 5) {
+                whereClause += ' AND r.rating = $1';
+                params.push(starFilter);
+            }
+
             const rows = await query(
-                `SELECT DISTINCT ON (r.user_id) r.*, p.full_name as user_name
+                `SELECT r.id, r.rating, r.comment, COALESCE(r.user_name, p.full_name, 'Coffee Lover') as user_name, r.created_at
                  FROM reviews r
                  LEFT JOIN profiles p ON r.user_id = p.id
-                 WHERE r.is_approved = true
-                 ORDER BY r.user_id, r.rating DESC, r.created_at DESC`,
-                []
+                 ${whereClause}
+                 ORDER BY r.created_at DESC`,
+                params
             );
-            // Shuffle and limit for variety
+
+            // Get stats (always unfiltered)
+            const statsRows = await query(
+                `SELECT rating, COUNT(*) as count FROM reviews WHERE is_approved = true GROUP BY rating ORDER BY rating DESC`
+            );
+            const totalApproved = statsRows.reduce((s, r) => s + parseInt(r.count), 0);
+            const avgRating = totalApproved > 0
+                ? (statsRows.reduce((s, r) => s + r.rating * parseInt(r.count), 0) / totalApproved).toFixed(1)
+                : '0.0';
+            const distribution = {};
+            for (let i = 1; i <= 5; i++) distribution[i] = 0;
+            statsRows.forEach(r => { distribution[r.rating] = parseInt(r.count); });
+
+            // Shuffle and limit
             const shuffled = rows.sort(() => Math.random() - 0.5).slice(0, limit);
-            return ok(shuffled);
+            return ok({ reviews: shuffled, stats: { avgRating: parseFloat(avgRating), totalReviews: totalApproved, distribution } });
         }
 
         // GET /pricing/active
@@ -891,7 +1016,7 @@ exports.handler = async (event) => {
                 [razorpay_payment_id, id]
             );
 
-            // Send confirmation emails
+            // Send confirmation + invoice emails
             try {
                 const orderRows = await query(
                     `SELECT o.*, p.email as user_email, p.full_name as user_name
@@ -900,6 +1025,10 @@ exports.handler = async (event) => {
                 );
                 if (orderRows.length) {
                     const order = orderRows[0];
+                    order.razorpay_payment_id = razorpay_payment_id;
+                    const orderItems = await query('SELECT * FROM order_items WHERE order_id::text = $1', [id]);
+
+                    // Admin notification
                     await sendEmail(ADMIN_EMAIL, 'New Order Confirmed - Shadow Bean Co',
                         `<h3>New order confirmed via Razorpay</h3>
                          <p>Amount: ₹${order.total_amount}</p>
@@ -907,17 +1036,18 @@ exports.handler = async (event) => {
                          <p>Customer: ${order.user_name} (${order.user_email})</p>
                          <p>Payment ID: ${razorpay_payment_id}</p>`
                     );
+
+                    // Customer invoice email
                     if (order.user_email) {
-                        await sendEmail(order.user_email, 'Order Confirmed - Shadow Bean Co',
-                            `<h3>Your order is confirmed!</h3>
-                             <p>Hi ${order.user_name || ''},</p>
-                             <p>Your payment of ₹${order.total_amount} for order ${id.slice(0, 8)} has been confirmed.</p>
-                             <p>We'll start preparing your custom blend right away!</p>`
+                        const invoiceHTML = generateInvoiceHTML(order, orderItems, order.shipping_address);
+                        await sendEmail(order.user_email,
+                            `Invoice for Order SBC-${id.slice(0, 8).toUpperCase()} - Shadow Bean Co`,
+                            invoiceHTML
                         );
                     }
                 }
             } catch (emailErr) {
-                console.error('Confirmation email error:', emailErr);
+                console.error('Confirmation/invoice email error:', emailErr);
             }
 
             // Create Shiprocket order for fulfillment
@@ -1155,6 +1285,24 @@ exports.handler = async (event) => {
                 const id = path.split('/')[3];
                 await query('DELETE FROM reviews WHERE id::text = $1', [id]);
                 return ok({ deleted: true });
+            }
+
+            // POST /admin/reviews/bulk — bulk import reviews
+            if (method === 'POST' && path === '/admin/reviews/bulk') {
+                const reviews = body.reviews;
+                if (!Array.isArray(reviews) || reviews.length === 0) return error(400, 'reviews array required');
+                let inserted = 0;
+                for (const r of reviews) {
+                    const rating = Math.max(1, Math.min(5, parseInt(r.rating) || 5));
+                    const comment = String(r.comment || '').slice(0, 2000);
+                    const userName = String(r.user_name || 'Anonymous').slice(0, 200);
+                    await query(
+                        'INSERT INTO reviews (rating, comment, user_name, is_approved) VALUES ($1, $2, $3, true)',
+                        [rating, comment, userName]
+                    );
+                    inserted++;
+                }
+                return ok({ inserted });
             }
 
             // GET /admin/pricing

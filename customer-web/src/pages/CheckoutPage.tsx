@@ -496,37 +496,74 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
 
-                                {/* T&C Checkbox */}
-                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={agreedToTerms}
-                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
-                                        style={{ marginTop: 3, width: 16, height: 16, accentColor: OLIVE, cursor: 'pointer', flexShrink: 0 }}
-                                    />
-                                    <span>
-                                        I agree to the{' '}
-                                        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: OLIVE, fontWeight: 600, textDecoration: 'underline' }}>
-                                            Terms & Conditions
-                                        </a>
-                                    </span>
-                                </label>
+                                {/* T&C + Button — Desktop only (hidden on mobile) */}
+                                <div className="checkout-desktop-actions">
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={agreedToTerms}
+                                            onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                            style={{ marginTop: 3, width: 16, height: 16, accentColor: OLIVE, cursor: 'pointer', flexShrink: 0 }}
+                                        />
+                                        <span>
+                                            I agree to the{' '}
+                                            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: OLIVE, fontWeight: 600, textDecoration: 'underline' }}>
+                                                Terms & Conditions
+                                            </a>
+                                        </span>
+                                    </label>
 
-                                <motion.button whileHover={{ scale: canSubmit ? 1.02 : 1 }} whileTap={{ scale: canSubmit ? 0.97 : 1 }}
-                                    type="submit" disabled={!canSubmit}
-                                    style={{
-                                        width: '100%', marginTop: 12, padding: '15px 0',
-                                        background: !canSubmit ? '#aaa' : `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,
-                                        color: '#fff', border: 'none', borderRadius: 14,
-                                        fontWeight: 800, fontSize: 15, cursor: !canSubmit ? 'not-allowed' : 'pointer',
-                                        letterSpacing: '0.06em', textTransform: 'uppercase',
-                                        boxShadow: !canSubmit ? 'none' : '0 6px 20px rgba(79,81,48,0.3)',
-                                    }}
-                                >{submitting ? 'Processing...' : 'Proceed to Pay →'}</motion.button>
+                                    <motion.button whileHover={{ scale: canSubmit ? 1.02 : 1 }} whileTap={{ scale: canSubmit ? 0.97 : 1 }}
+                                        type="submit" disabled={!canSubmit}
+                                        style={{
+                                            width: '100%', marginTop: 12, padding: '15px 0',
+                                            background: !canSubmit ? '#aaa' : `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,
+                                            color: '#fff', border: 'none', borderRadius: 14,
+                                            fontWeight: 800, fontSize: 15, cursor: !canSubmit ? 'not-allowed' : 'pointer',
+                                            letterSpacing: '0.06em', textTransform: 'uppercase',
+                                            boxShadow: !canSubmit ? 'none' : '0 6px 20px rgba(79,81,48,0.3)',
+                                        }}
+                                    >{submitting ? 'Processing...' : 'Proceed to Pay →'}</motion.button>
 
-                                <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 12 }}>Secure & encrypted checkout</p>
+                                    <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 12 }}>Secure & encrypted checkout</p>
+                                </div>
                             </motion.div>
                         </div>
+                    </div>
+
+                    {/* T&C + Button — Mobile only (below Payment section) */}
+                    <div className="checkout-mobile-actions" style={{ display: 'none' }}>
+                        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                            style={{ background: CARD, borderRadius: 18, border: `1.5px solid ${BORDER}`, padding: '22px 22px', boxShadow: '0 2px 12px rgba(28,13,2,0.05)' }}>
+                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={agreedToTerms}
+                                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                    style={{ marginTop: 3, width: 16, height: 16, accentColor: OLIVE, cursor: 'pointer', flexShrink: 0 }}
+                                />
+                                <span>
+                                    I agree to the{' '}
+                                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: OLIVE, fontWeight: 600, textDecoration: 'underline' }}>
+                                        Terms & Conditions
+                                    </a>
+                                </span>
+                            </label>
+
+                            <motion.button whileHover={{ scale: canSubmit ? 1.02 : 1 }} whileTap={{ scale: canSubmit ? 0.97 : 1 }}
+                                type="submit" disabled={!canSubmit}
+                                style={{
+                                    width: '100%', marginTop: 14, padding: '15px 0',
+                                    background: !canSubmit ? '#aaa' : `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,
+                                    color: '#fff', border: 'none', borderRadius: 14,
+                                    fontWeight: 800, fontSize: 15, cursor: !canSubmit ? 'not-allowed' : 'pointer',
+                                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                                    boxShadow: !canSubmit ? 'none' : '0 6px 20px rgba(79,81,48,0.3)',
+                                }}
+                            >{submitting ? 'Processing...' : 'Proceed to Pay →'}</motion.button>
+
+                            <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 12 }}>Secure & encrypted checkout</p>
+                        </motion.section>
                     </div>
                 </form>
             </div>
@@ -534,9 +571,14 @@ export default function CheckoutPage() {
             <style>{`
                 @media(max-width:860px) {
                     .checkout-layout { flex-direction: column !important; }
-                    .checkout-summary-col { flex: 1 1 100% !important; position: static !important; order: -1 !important; }
+                    .checkout-summary-col { flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important; position: static !important; order: -1 !important; }
                     .checkout-form-col { flex: 1 1 100% !important; }
                     .checkout-grid { grid-template-columns: 1fr !important; }
+                    .checkout-desktop-actions { display: none !important; }
+                    .checkout-mobile-actions { display: block !important; margin-top: 18px; }
+                }
+                @media(min-width:861px) {
+                    .checkout-mobile-actions { display: none !important; }
                 }
                 input:focus { outline: none; }
             `}</style>

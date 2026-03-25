@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import { HomeSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import { getReviews } from '../services/api';
-import type { Review } from '../services/api';
+import type { Review, ReviewStats } from '../services/api';
 import './HomePage.css';
 
 import iconShadow from '../assets/icons/icon_shadow_grown.png';
@@ -42,17 +42,35 @@ export default function HomePage() {
     const iconChhani = useAsset('icon_chhani.png');
 
     const [allReviews, setAllReviews] = useState<(Review | typeof FALLBACK_REVIEWS[0])[]>(FALLBACK_REVIEWS);
+    const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+    const [starFilter, setStarFilter] = useState<number | null>(null);
+    const [showStarDropdown, setShowStarDropdown] = useState(false);
     const [page, setPage] = useState(0);
     const [fade, setFade] = useState(true);
     const PER_PAGE = 10;
 
-    useEffect(() => {
-        getReviews(50)
-            .then((data) => {
-                if (data && data.length > 0) setAllReviews(data);
+    const fetchReviews = useCallback((star?: number) => {
+        getReviews(600, star)
+            .then((res) => {
+                if (res.reviews && res.reviews.length > 0) setAllReviews(res.reviews);
+                if (res.stats) setReviewStats(res.stats);
+                setPage(0);
             })
             .catch(() => { /* keep fallback reviews */ });
     }, []);
+
+    useEffect(() => { fetchReviews(); }, [fetchReviews]);
+
+    const handleStarFilter = (star: number | null) => {
+        setStarFilter(star);
+        setShowStarDropdown(false);
+        setFade(false);
+        setTimeout(() => {
+            if (star) fetchReviews(star);
+            else fetchReviews();
+            setFade(true);
+        }, 300);
+    };
 
     const totalPages = Math.ceil(allReviews.length / PER_PAGE);
 
@@ -188,8 +206,35 @@ export default function HomePage() {
                 <section className="block testimonials-section">
                     <Header variant="light" />
                     <div className="testimonials-content">
-                        <span className="section-label">TESTIMONIALS</span>
-                        <h2 className="testimonials-title">Loved By Coffee Lovers</h2>
+                        <div className="reviews-header">
+                            <div>
+                                <span className="section-label">TESTIMONIALS</span>
+                                <h2 className="testimonials-title">Loved By Coffee Lovers</h2>
+                            </div>
+                            {reviewStats && (
+                                <div className="reviews-rating-box" onClick={() => setShowStarDropdown(v => !v)}>
+                                    <div className="reviews-avg">
+                                        <span className="reviews-avg-number">{reviewStats.avgRating.toFixed(1)}</span>
+                                        <span className="reviews-avg-star">★</span>
+                                    </div>
+                                    <div className="reviews-avg-count">{reviewStats.totalReviews} reviews</div>
+                                    {showStarDropdown && (
+                                        <div className="star-filter-dropdown" onClick={e => e.stopPropagation()}>
+                                            <button className={`star-filter-row ${!starFilter ? 'active' : ''}`} onClick={() => handleStarFilter(null)}>
+                                                <span>All Stars</span>
+                                                <span className="star-filter-count">{reviewStats.totalReviews}</span>
+                                            </button>
+                                            {[5, 4, 3, 2, 1].map(s => (
+                                                <button key={s} className={`star-filter-row ${starFilter === s ? 'active' : ''}`} onClick={() => handleStarFilter(s)}>
+                                                    <span>{'★'.repeat(s)}{'☆'.repeat(5 - s)}</span>
+                                                    <span className="star-filter-count">{reviewStats.distribution[s] || 0}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <div className={`reviews-wall ${fade ? 'fade-in' : 'fade-out'}`}>
                             {visibleReviews.map((review, idx) => {

@@ -295,8 +295,23 @@ export interface Review {
     created_at: string;
 }
 
-export async function getReviews(limit = 10): Promise<Review[]> {
-    const { data } = await api.get(`/reviews?limit=${limit}`);
+export interface ReviewStats {
+    avgRating: number;
+    totalReviews: number;
+    distribution: Record<number, number>;
+}
+
+export interface ReviewsResponse {
+    reviews: Review[];
+    stats: ReviewStats;
+}
+
+export async function getReviews(limit = 50, star?: number): Promise<ReviewsResponse> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (star) params.set('star', String(star));
+    const { data } = await api.get(`/reviews?${params}`);
+    // Handle both old format (array) and new format ({reviews, stats})
+    if (Array.isArray(data)) return { reviews: data, stats: { avgRating: 0, totalReviews: data.length, distribution: {} } };
     return data;
 }
 

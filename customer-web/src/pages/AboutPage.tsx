@@ -4,17 +4,17 @@ import { AboutSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import './AboutPage.css';
 
-// About page journey icons — local SVG assets (different from HomePage icons)
-import iconEstates from '../assets/icons/icon_estates.svg';
-import iconHandHarvested from '../assets/icons/icon_hand_harvested.svg';
-import iconSaltAirRoasted from '../assets/icons/icon_salt_air_roasted.svg';
-import iconDelivery from '../assets/icons/icon_delivery.svg';
+// About page journey icons — PNG assets from Media folder
+import iconShadeGrown from '../assets/icons/icon_shade_grown.png';
+import iconHandHarvested from '../assets/icons/icon_hand_harvested.png';
+import iconSaltAirRoasted from '../assets/icons/icon_salt_air_roasted.png';
+import iconShippedFresh from '../assets/icons/icon_shipped_fresh.png';
 
 const JOURNEY_STEPS = [
-    { icon: iconEstates, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
+    { icon: iconShadeGrown, title: 'SHADE GROWN', desc: 'Hand-selected from Karnataka & Andhra Pradesh estates under native tree canopies' },
     { icon: iconHandHarvested, title: 'HAND HARVESTED', desc: 'Each bean carefully picked for quality, grown slow under protective forest shade' },
     { icon: iconSaltAirRoasted, title: 'SALT-AIR ROASTED', desc: 'Small controlled batches, tuned to unlock natural sweetness, aroma and depth' },
-    { icon: iconDelivery, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
+    { icon: iconShippedFresh, title: 'SHIPPED FRESH', desc: 'Freshly roasted, packed and delivered — from forest shade to your perfect cup' },
 ];
 
 export default function AboutPage() {
