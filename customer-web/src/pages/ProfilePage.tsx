@@ -200,7 +200,8 @@ export default function ProfilePage() {
         );
     }
 
-    const displayOrders = showAllOrders ? orders : orders.slice(0, 2);
+    const paidOrders = orders.filter(o => o.status !== 'pending');
+    const displayOrders = showAllOrders ? paidOrders : paidOrders.slice(0, 2);
     const displayBlends = showAllBlends ? savedBlends : savedBlends.slice(0, 3);
 
     return (
@@ -241,7 +242,7 @@ export default function ProfilePage() {
                     {/* ── Quick Stats ── */}
                     <div className="profile-stats">
                         <div className="stat-item">
-                            <span className="stat-value">{dataLoading ? '...' : orders.length}</span>
+                            <span className="stat-value">{dataLoading ? '...' : paidOrders.length}</span>
                             <span className="stat-label">Orders</span>
                         </div>
                         <div className="stat-item">
@@ -261,13 +262,13 @@ export default function ProfilePage() {
                         <div className="dash-card">
                             <div className="dash-card-header">
                                 <h2>Orders</h2>
-                                {orders.length > 2 && (
+                                {paidOrders.length > 2 && (
                                     <button className="toggle-btn" onClick={() => setShowAllOrders(!showAllOrders)}>
-                                        {showAllOrders ? 'Show less' : `View all ${orders.length}`}
+                                        {showAllOrders ? 'Show less' : `View all ${paidOrders.length}`}
                                     </button>
                                 )}
                             </div>
-                            {orders.length === 0 ? (
+                            {paidOrders.length === 0 ? (
                                 <p className="empty-state">No orders yet. Start your coffee journey!</p>
                             ) : (
                                 <div className="orders-list">
