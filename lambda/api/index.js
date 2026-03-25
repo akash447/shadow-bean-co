@@ -347,8 +347,18 @@ function generateInvoiceHTML(order, items, shippingAddr) {
         </tr>`;
     }).join('');
 
+    // Calculate subtotal from items (before discount)
+    const itemSubtotal = (items || []).reduce((sum, it) => {
+        return sum + (it.quantity || 1) * parseFloat(it.unit_price || 599);
+    }, 0);
+    const discountAmt = parseFloat(order.discount_amount || 0);
+    const discountCode = order.discount_code || '';
     const grandTotal = parseFloat(order.total_amount || 0);
     const paymentId = order.razorpay_payment_id || 'N/A';
+
+    const discountRow = discountAmt > 0
+        ? `<tr><td style="padding:4px 0;font-size:13px;color:#16a34a">Discount${discountCode ? ` (${discountCode})` : ''}</td><td style="text-align:right;font-size:13px;color:#16a34a;font-weight:600">-₹${discountAmt.toFixed(2)}</td></tr>`
+        : '';
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f4f1ec">
     <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08)">
@@ -400,10 +410,11 @@ function generateInvoiceHTML(order, items, shippingAddr) {
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                     <td></td>
-                    <td style="width:200px">
+                    <td style="width:220px">
                         <div style="border-top:2px solid #4f5130;padding-top:12px">
                             <table width="100%" cellpadding="0" cellspacing="0">
-                                <tr><td style="padding:4px 0;font-size:13px;color:#666">Subtotal</td><td style="text-align:right;font-size:13px;color:#333">₹${grandTotal.toFixed(2)}</td></tr>
+                                <tr><td style="padding:4px 0;font-size:13px;color:#666">Subtotal</td><td style="text-align:right;font-size:13px;color:#333">₹${itemSubtotal.toFixed(2)}</td></tr>
+                                ${discountRow}
                                 <tr><td style="padding:4px 0;font-size:13px;color:#666">Shipping</td><td style="text-align:right;font-size:13px;color:#4f5130;font-weight:600">FREE</td></tr>
                                 <tr><td style="padding:8px 0 0;font-size:18px;font-weight:800;color:#1c0d02">Grand Total</td><td style="text-align:right;padding:8px 0 0;font-size:18px;font-weight:800;color:#1c0d02">₹${grandTotal.toFixed(2)}</td></tr>
                             </table>
@@ -910,8 +921,8 @@ exports.handler = async (event) => {
             }
 
             const orderRows = await query(
-                'INSERT INTO orders (user_id, status, total_amount, shipping_address, payment_method, payment_status, razorpay_order_id) VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6, $7) RETURNING *',
-                [profileId, 'pending', serverTotal, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus, razorpayOrderId]
+                'INSERT INTO orders (user_id, status, total_amount, shipping_address, payment_method, payment_status, razorpay_order_id, discount_code, discount_amount) VALUES ($1::uuid, $2, $3, $4::jsonb, $5, $6, $7, $8, $9) RETURNING *',
+                [profileId, 'pending', serverTotal, JSON.stringify(body.shipping_address), paymentMethod, paymentStatus, razorpayOrderId, discountCode || null, discountAmount]
             );
             const order = orderRows[0];
 
