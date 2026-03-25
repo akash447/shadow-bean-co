@@ -47,7 +47,7 @@ export default function HomePage() {
     const [showStarDropdown, setShowStarDropdown] = useState(false);
     const [page, setPage] = useState(0);
     const [fade, setFade] = useState(true);
-    const PER_PAGE = 10;
+    const PER_PAGE = 6;
 
     const fetchReviews = useCallback((star?: number) => {
         getReviews(600, star)
@@ -258,14 +258,22 @@ export default function HomePage() {
                         </div>
 
                         {totalPages > 1 && (
-                            <div className="rw-dots">
-                                {Array.from({ length: totalPages }).map((_, i) => (
-                                    <button
-                                        key={i}
-                                        className={`rw-dot ${i === page ? 'active' : ''}`}
-                                        onClick={() => { setFade(false); setTimeout(() => { setPage(i); setFade(true); }, 300); }}
-                                    />
-                                ))}
+                            <div className="rw-nav">
+                                <button
+                                    className="rw-nav-btn"
+                                    disabled={page === 0}
+                                    onClick={() => { setFade(false); setTimeout(() => { setPage(p => p - 1); setFade(true); }, 300); }}
+                                >
+                                    ← Prev
+                                </button>
+                                <span className="rw-nav-info">{page + 1} / {totalPages}</span>
+                                <button
+                                    className="rw-nav-btn"
+                                    disabled={page === totalPages - 1}
+                                    onClick={() => { setFade(false); setTimeout(() => { setPage(p => p + 1); setFade(true); }, 300); }}
+                                >
+                                    Next →
+                                </button>
                             </div>
                         )}
                     </div>

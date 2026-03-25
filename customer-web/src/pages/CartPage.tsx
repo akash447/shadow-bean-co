@@ -418,7 +418,7 @@ export default function CartPage() {
       <style>{`
         @media(max-width:900px) {
           .cart-layout { flex-direction: column !important; }
-          .cart-summary-col { flex: 1 1 100% !important; position: static !important; }
+          .cart-summary-col { flex: 1 1 100% !important; width: 100% !important; max-width: 100% !important; position: static !important; }
           .cart-items-col { flex: 1 1 100% !important; }
           .cart-item-card { padding: 14px 14px !important; gap: 12px !important; }
           .cart-item-actions { gap: 8px !important; }
