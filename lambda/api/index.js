@@ -447,6 +447,8 @@ function generateInvoiceHTML(order, items, shippingAddr) {
 const PROD_ORIGINS = [
     'https://shadowbeanco.net',
     'https://www.shadowbeanco.net',
+    'https://shadowbeanco.com',
+    'https://www.shadowbeanco.com',
     'https://admin.shadowbeanco.net',
     'https://admin-shadowbeanco.com',
     'https://www.admin-shadowbeanco.com',
