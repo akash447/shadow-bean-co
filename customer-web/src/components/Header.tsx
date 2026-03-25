@@ -170,7 +170,7 @@ export default function Header({ variant = 'light', minimal = false }: HeaderPro
                                         <span className="mobile-profile-label">Profile</span>
                                     </>
                                 ) : (
-                                    <span className="mobile-profile-name">Profile</span>
+                                    <span className="mobile-profile-name">Log In</span>
                                 )}
                             </div>
                         </div>
