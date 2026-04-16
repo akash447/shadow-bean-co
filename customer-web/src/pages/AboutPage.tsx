@@ -19,7 +19,7 @@ const JOURNEY_STEPS = [
 
 export default function AboutPage() {
     const aboutVideo = useAsset('about_hero_video.mp4');
-    // aboutPoster removed — using dark background instead of image to avoid flash
+    const aboutPoster = useAsset('about_hero.webp');
     const aboutRoasting = useAsset('assets/about_roasting.png');
 
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,8 +55,8 @@ export default function AboutPage() {
                     <Header variant="dark" />
 
                     <div className="about-hero">
-                        {/* Dark backdrop — visible until video starts playing */}
-                        <div className="about-hero-poster" />
+                        {/* Poster image — visible instantly while video loads */}
+                        <div className="about-hero-poster" style={{ backgroundImage: `url(${aboutPoster})` }} />
                         <video
                             ref={videoRef}
                             className={`about-hero-video${videoReady ? ' playing' : ''}`}
@@ -65,6 +65,7 @@ export default function AboutPage() {
                             muted
                             playsInline
                             preload="auto"
+                            poster={aboutPoster}
                             src={aboutVideo}
                         />
                         <div className="about-hero-overlay" />
