@@ -5,7 +5,7 @@
   "aws_user_pools_id": "ap-south-1_jZV6770zJ",
   "aws_user_pools_web_client_id": "42vpa5vousikig0c4ohq2vmkge",
   "oauth": {
-    "domain": "shadowbeanco.auth.ap-south-1.amazoncognito.com",
+    "domain": "auth.shadowbeanco.net",
     "scope": ["openid", "email", "profile"],
     "redirectSignIn": "https://admin-shadowbeanco.com,http://localhost:5173",
     "redirectSignOut": "https://admin-shadowbeanco.com,http://localhost:5173",

@@ -17,7 +17,7 @@ import {
 } from 'aws-amplify/auth';
 
 // Cognito OAuth constants
-const COGNITO_DOMAIN = 'shadowbeanco.auth.ap-south-1.amazoncognito.com';
+const COGNITO_DOMAIN = 'auth.shadowbeanco.net';
 const CLIENT_ID = '42vpa5vousikig0c4ohq2vmkge';
 
 // ==============================================

@@ -23,7 +23,7 @@ try {
         loginWith: {
           email: true,
           oauth: {
-            domain: 'shadowbeanco.auth.ap-south-1.amazoncognito.com',
+            domain: 'auth.shadowbeanco.net',
             scopes: ['openid', 'email', 'profile'],
             redirectSignIn: ['https://shadowbeanco.net', 'https://www.shadowbeanco.net', 'https://shadowbeanco.com', 'https://www.shadowbeanco.com', 'http://localhost:5173'],
             redirectSignOut: ['https://shadowbeanco.net', 'https://www.shadowbeanco.net', 'https://shadowbeanco.com', 'https://www.shadowbeanco.com', 'http://localhost:5173'],
