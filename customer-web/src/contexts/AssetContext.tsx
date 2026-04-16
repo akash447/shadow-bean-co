@@ -63,9 +63,20 @@ export const AssetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+// Known images that have WebP versions on CDN
+const WEBP_AVAILABLE = new Set([
+  'home_hero', 'product_bag', 'coffee_farmer', 'about_hero', 'logo', 'logo_bird',
+]);
+
+const toWebP = (key: string): string => {
+  const base = key.replace(/\.(png|jpe?g)$/i, '');
+  if (WEBP_AVAILABLE.has(base)) return base + '.webp';
+  return key;
+};
+
 export const useAsset = (key: string) => {
   const { getAssetUrl } = useContext(AssetContext);
-  return getAssetUrl(key);
+  return getAssetUrl(toWebP(key));
 };
 
 export const useAssetContext = () => useContext(AssetContext);

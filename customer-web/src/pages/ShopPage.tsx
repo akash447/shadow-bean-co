@@ -222,7 +222,6 @@ export default function ShopPage() {
                             src={productBag}
                             alt="Custom Coffee Blend"
                             className="mobile-product-img"
-                            loading="lazy"
                         />
                         <span className="mobile-blend-label">YOUR BLEND</span>
                     </div>
@@ -246,7 +245,7 @@ export default function ShopPage() {
                             src={productBag}
                             alt="Custom Coffee Blend"
                             className="shop-product-img"
-                            loading="lazy"
+                            fetchPriority="high"
                         />
                     </div>
 
