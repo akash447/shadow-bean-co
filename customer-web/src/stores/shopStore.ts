@@ -20,9 +20,9 @@ export const useShopStore = create<ShopState>()(
     persist(
         (set) => ({
             step: 1,
-            bitterness: 3,
-            acidity: 3,
-            flavour: 3,
+            bitterness: 2,
+            acidity: 2,
+            flavour: 2,
             roastLevel: 'Medium',
             grindType: 'Whole Bean',
 
@@ -32,9 +32,9 @@ export const useShopStore = create<ShopState>()(
             setGrindType: (grindType) => set({ grindType }),
             resetShop: () => set({
                 step: 1,
-                bitterness: 3,
-                acidity: 3,
-                flavour: 3,
+                bitterness: 2,
+                acidity: 2,
+                flavour: 2,
                 roastLevel: 'Medium',
                 grindType: 'Whole Bean'
             }),

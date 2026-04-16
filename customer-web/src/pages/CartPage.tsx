@@ -5,6 +5,10 @@ import { useState, useEffect } from 'react';
 import { validateOffer, getActiveOffers } from '../services/api';
 import type { OfferSummary } from '../services/api';
 import { useAsset } from '../contexts/AssetContext';
+import { useAuth } from '../contexts/AuthContext';
+
+const TASTE_MAP: Record<number, string> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+const tasteLabel = (v: number) => TASTE_MAP[v] ?? `${v}`;
 
 /* ───────── shared colours ───────── */
 const BG = '#FAF8F5';
@@ -17,6 +21,7 @@ const ACCENT = '#f5efe8';
 
 export default function CartPage() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const { items, removeItem, updateQuantity, getSubtotal, getDiscountAmount, getTotal, clearCart, discount, setDiscount } = useCartStore();
   const productBag = useAsset('product_bag.png');
   const [coupon, setCoupon] = useState('');
@@ -200,7 +205,7 @@ export default function CartPage() {
                         <span key={t.l} style={{
                           fontSize: 10, fontWeight: 600, color: OLIVE, background: ACCENT,
                           padding: '2px 8px', borderRadius: 20,
-                        }}>{t.l} {t.v}/5</span>
+                        }}>{t.l} {tasteLabel(t.v)}</span>
                       ))}
                     </div>
                   </div>
@@ -391,7 +396,7 @@ export default function CartPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => nav('/checkout')}
+                onClick={() => user ? nav('/checkout') : nav('/login?redirect=/checkout')}
                 style={{
                   width: '100%', marginTop: 18, padding: '15px 0',
                   background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,

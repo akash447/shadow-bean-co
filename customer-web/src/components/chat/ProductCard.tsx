@@ -1,6 +1,8 @@
 import type { ProductCardData } from './types';
 
 const PRODUCT_IMG = 'https://media.shadowbeanco.net/product_bag.webp';
+const TASTE_MAP: Record<number, string> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+const tasteLabel = (v: number) => TASTE_MAP[v] ?? `${v}`;
 
 interface Props {
     data: ProductCardData;
@@ -18,10 +20,10 @@ export default function ProductCard({ data, onAddToCart }: Props) {
 
                 <div className="grid grid-cols-2 gap-1.5 mb-3">
                     <div className="text-xs px-2 py-1 rounded bg-amber-50 text-amber-900" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        Bitterness <strong>{data.bitterness}/5</strong>
+                        Bitterness <strong>{tasteLabel(data.bitterness)}</strong>
                     </div>
                     <div className="text-xs px-2 py-1 rounded bg-amber-50 text-amber-900" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                        Flavour <strong>{data.flavour}/5</strong>
+                        Flavour <strong>{tasteLabel(data.flavour)}</strong>
                     </div>
                     <div className="text-xs px-2 py-1 rounded bg-amber-50 text-amber-900" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                         Roast <strong>{data.roast}</strong>

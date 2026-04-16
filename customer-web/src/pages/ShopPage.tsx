@@ -60,6 +60,14 @@ const ROAST_LEVELS = [
     { id: 'Balanced' },
 ] as const;
 
+const TASTE_LEVELS = [
+    { value: 1, label: 'Low', short: 'L' },
+    { value: 2, label: 'Medium', short: 'M' },
+    { value: 3, label: 'High', short: 'H' },
+] as const;
+
+const tasteShort = (v: number) => TASTE_LEVELS.find(t => t.value === v)?.short ?? 'M';
+
 export default function ShopPage() {
     const navigate = useNavigate();
     const { addItem } = useCartStore();
@@ -76,7 +84,7 @@ export default function ShopPage() {
 
     // Generate Dynamic SKU (without acidity)
     const generateSKU = (b: number, f: number, r: string, g: string) => {
-        return `CR-${b}${f}-${r.charAt(0).toUpperCase()}${g.charAt(0).toUpperCase()}`;
+        return `CR-${tasteShort(b)}${tasteShort(f)}-${r.charAt(0).toUpperCase()}${g.charAt(0).toUpperCase()}`;
     };
 
     const currentSKU = generateSKU(bitterness, flavour, roastLevel, grindType);
@@ -250,7 +258,7 @@ export default function ShopPage() {
                         </div>
                         <div className="detail-row">
                             <span>Profile</span>
-                            <strong>{bitterness}/{flavour}</strong>
+                            <strong>{tasteShort(bitterness)}/{tasteShort(flavour)}</strong>
                         </div>
                         <button className="btn-save-profile" onClick={saveCurrentProfile}>
                             SAVE PROFILE
@@ -293,28 +301,34 @@ export default function ShopPage() {
                                 </div>
 
                                 <div className="sliders-container">
-                                    <div className="slider-group">
-                                        <div className="slider-labels">
-                                            <label>Bitterness</label>
-                                            <span className="slider-val">{bitterness}/5</span>
+                                    <div className="taste-group">
+                                        <label className="taste-group-label">Bitterness</label>
+                                        <div className="taste-buttons">
+                                            {TASTE_LEVELS.map((t) => (
+                                                <button
+                                                    key={t.value}
+                                                    className={`taste-chip ${bitterness === t.value ? 'selected' : ''}`}
+                                                    onClick={() => setTaste('bitterness', t.value)}
+                                                >
+                                                    {t.label}
+                                                </button>
+                                            ))}
                                         </div>
-                                        <input
-                                            type="range" min="1" max="5" value={bitterness}
-                                            onChange={(e) => setTaste('bitterness', Number(e.target.value))}
-                                            className="styled-slider"
-                                        />
                                     </div>
 
-                                    <div className="slider-group">
-                                        <div className="slider-labels">
-                                            <label>Flavour</label>
-                                            <span className="slider-val">{flavour}/5</span>
+                                    <div className="taste-group">
+                                        <label className="taste-group-label">Flavour</label>
+                                        <div className="taste-buttons">
+                                            {TASTE_LEVELS.map((t) => (
+                                                <button
+                                                    key={t.value}
+                                                    className={`taste-chip ${flavour === t.value ? 'selected' : ''}`}
+                                                    onClick={() => setTaste('flavour', t.value)}
+                                                >
+                                                    {t.label}
+                                                </button>
+                                            ))}
                                         </div>
-                                        <input
-                                            type="range" min="1" max="5" value={flavour}
-                                            onChange={(e) => setTaste('flavour', Number(e.target.value))}
-                                            className="styled-slider"
-                                        />
                                     </div>
                                 </div>
 

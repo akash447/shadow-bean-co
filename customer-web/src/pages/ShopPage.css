@@ -289,15 +289,58 @@
     color: #1c0d02;
 }
 
-/* Sliders */
+/* Taste Level Selectors (Low / Medium / High) */
 .sliders-container {
     display: flex;
     flex-direction: column;
-    gap: 80px;
-    /* Increased spacing as requested */
+    gap: 40px;
     margin-top: 20px;
 }
 
+.taste-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.taste-group-label {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #1c0d02;
+}
+
+.taste-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.taste-chip {
+    flex: 1;
+    padding: 12px 0;
+    background: #f7f3ed;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    color: #1c0d02;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.taste-chip:hover {
+    background: #e8e2dc;
+}
+
+.taste-chip.selected {
+    background: #1c0d02;
+    color: #fff;
+    border-color: #1c0d02;
+    box-shadow: 0 2px 8px rgba(28, 13, 2, 0.2);
+}
+
+/* Legacy slider styles kept for compatibility */
 .slider-group {
     display: flex;
     flex-direction: column;
@@ -323,7 +366,6 @@
     color: #1c0d02;
 }
 
-/* Styled Slider */
 .styled-slider {
     -webkit-appearance: none;
     width: 100%;
@@ -902,54 +944,34 @@
         margin: 0;
     }
 
-    /* ========== COMPACT SLIDERS ========== */
+    /* ========== COMPACT TASTE BUTTONS (MOBILE) ========== */
     .mobile-customization-card .sliders-container {
         display: flex;
         flex-direction: column;
-        gap: 50px;
-        /* Increased from 32px to fill space */
+        gap: 24px;
         padding-top: 10px;
         padding-bottom: 20px;
     }
 
-    .mobile-customization-card .slider-group {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        /* Increased from 4px */
+    .mobile-customization-card .taste-group {
+        gap: 8px;
     }
 
-    .mobile-customization-card .slider-labels {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .mobile-customization-card .slider-labels label {
+    .mobile-customization-card .taste-group-label {
         font-family: 'Montserrat', sans-serif;
         font-size: 13px;
         font-weight: 600;
         color: #1c0d02;
     }
 
-    .mobile-customization-card .slider-val {
-        font-size: 13px;
-        font-weight: 700;
-        color: #1c0d02;
+    .mobile-customization-card .taste-buttons {
+        gap: 8px;
     }
 
-    .mobile-customization-card .styled-slider {
-        height: 6px;
-        background: #e8e2dc;
-        border-radius: 3px;
-    }
-
-    .mobile-customization-card .styled-slider::-webkit-slider-thumb {
-        width: 18px;
-        height: 18px;
-        background: #4f5130;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 6px rgba(79, 81, 48, 0.4);
+    .mobile-customization-card .taste-chip {
+        padding: 10px 0;
+        font-size: 12px;
+        border-radius: 8px;
     }
 
     /* ========== NEXT BUTTON INSIDE CARD ========== */

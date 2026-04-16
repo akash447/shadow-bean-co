@@ -164,8 +164,8 @@
 
 .cta-button {
     font-family: 'Montserrat', sans-serif;
-    background-color: transparent;
-    color: #1c0d02;
+    background-color: #1c0d02;
+    color: #fff;
     border: 2px solid #1c0d02;
     padding: 14px 32px;
     font-size: 12px;
@@ -179,7 +179,8 @@
 }
 
 .cta-button:hover {
-    background-color: #1c0d02;
+    background-color: #000;
+    border-color: #000;
     color: #fff;
 }
 
