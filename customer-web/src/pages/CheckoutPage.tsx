@@ -5,6 +5,7 @@ import { useCartStore } from '../stores/cartStore';
 import { createOrder, ensureProfile, verifyRazorpayPayment, getAddresses, createAddress } from '../services/api';
 import type { Address } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { trackPurchase } from '../utils/analytics';
 
 declare global {
     interface Window { Razorpay: any; }
@@ -126,6 +127,7 @@ export default function CheckoutPage() {
                         razorpay_signature: response.razorpay_signature,
                     });
                     setPaymentSuccess(true);
+                    trackPurchase(orderId, amount, items.length);
                 } catch {
                     setError('Payment verification failed. Please contact support.');
                 }

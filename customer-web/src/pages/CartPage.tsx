@@ -6,6 +6,7 @@ import { validateOffer, getActiveOffers } from '../services/api';
 import type { OfferSummary } from '../services/api';
 import { useAsset } from '../contexts/AssetContext';
 import { useAuth } from '../contexts/AuthContext';
+import { trackViewCart, trackBeginCheckout } from '../utils/analytics';
 
 const TASTE_MAP: Record<number, string> = { 1: 'Low', 2: 'Medium', 3: 'High' };
 const tasteLabel = (v: number) => TASTE_MAP[v] ?? `${v}`;
@@ -35,6 +36,10 @@ export default function CartPage() {
   const subtotal = getSubtotal();
   const discountAmount = getDiscountAmount();
   const total = getTotal();
+
+  useEffect(() => {
+    if (items.length > 0) trackViewCart(subtotal, items.length);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     getActiveOffers().then(setOffers).catch(() => {});
@@ -396,7 +401,7 @@ export default function CartPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => user ? nav('/checkout') : nav('/login?redirect=/checkout')}
+                onClick={() => { trackBeginCheckout(total, items.length); user ? nav('/checkout') : nav('/login?redirect=/checkout'); }}
                 style={{
                   width: '100%', marginTop: 18, padding: '15px 0',
                   background: `linear-gradient(135deg, ${OLIVE}, #3a3c22)`,

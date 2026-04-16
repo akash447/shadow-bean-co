@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { trackViewItem, trackAddToCart } from '../utils/analytics';
 import { ShopSEO } from '../components/SEO';
 import { useAsset } from '../contexts/AssetContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -117,6 +118,11 @@ export default function ShopPage() {
         fetchSavedProfiles();
     }, [fetchSavedProfiles]);
 
+    // GA4: track view_item on page load
+    useEffect(() => {
+        trackViewItem(currentSKU, roastLevel, grindType);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     const removeProfile = async (id: string) => {
         setSavedProfiles(prev => prev.filter(p => p.id !== id));
         if (dbUserId) {
@@ -171,6 +177,7 @@ export default function ShopPage() {
         }
 
         addItem(cartProfile);
+        trackAddToCart(currentSKU, roastLevel, grindType);
         navigate('/cart');
     };
 
